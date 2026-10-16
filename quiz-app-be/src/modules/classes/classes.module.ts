@@ -11,7 +11,16 @@ import { AnalyticsService } from './analytics.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Class, ClassEnrollment, UserProgress, LiveSession, User]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      Class,
+      ClassEnrollment,
+      UserProgress,
+      LiveSession,
+      User,
+    ]),
+    AuthModule,
+  ],
   controllers: [ClassesController],
   providers: [ClassesService, AnalyticsService],
   exports: [ClassesService],

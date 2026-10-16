@@ -30,6 +30,27 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
+      // `_`-prefixed names are intentionally unused (e.g. omitting keys via destructuring).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
+    // Tests build loosely-typed mocks (`as any`) on purpose; the type-safety
+    // rules stay strict for application code only.
+    files: ['**/*.spec.ts', 'test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      // async mock implementations mirror the real async APIs they replace
+      '@typescript-eslint/require-await': 'off',
+      // tests pass method references to Reflector / guards to read metadata
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
 );

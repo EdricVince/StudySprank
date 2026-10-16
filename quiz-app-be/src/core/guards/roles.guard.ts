@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import type { CurrentUserData } from '../decorators/current-user.decorator';
 
 /**
  * Enforces @Roles(...) on top of JwtGuard.
@@ -25,8 +26,10 @@ export class RolesGuard implements CanActivate {
 
     if (!required || required.length === 0) return true; // no role restriction
 
-    const request = context.switchToHttp().getRequest();
-    const roleId: number | undefined = request.user?.role_id;
+    const request = context
+      .switchToHttp()
+      .getRequest<{ user?: Partial<CurrentUserData> }>();
+    const roleId = request.user?.role_id;
 
     if (roleId === undefined || !required.includes(roleId)) {
       throw new ForbiddenException(

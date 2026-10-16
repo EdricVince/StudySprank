@@ -1,6 +1,15 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import type { GetListeningDto, CefrLevel, ListeningType } from './dto/skills.dto';
+import { messageText, parseJsonObject } from '../../core/ai/ai-response';
+import type {
+  GetListeningDto,
+  CefrLevel,
+  ListeningType,
+} from './dto/skills.dto';
 
 // Diverse topic pools per type to prevent repetitive generation
 const TOPICS: Record<ListeningType, string[]> = {
@@ -12,7 +21,7 @@ const TOPICS: Record<ListeningType, string[]> = {
     'two flatmates deciding how to split chores',
     'a customer complaining about a delayed delivery',
     'two friends comparing their holiday experiences',
-    'a parent and teacher discussing a student\'s progress',
+    "a parent and teacher discussing a student's progress",
     'colleagues planning a team-building outing',
     'two people arguing about a parking incident',
     'a couple disagreeing on where to live',
@@ -74,18 +83,31 @@ const TOPICS: Record<ListeningType, string[]> = {
 
 // Named speaker pairs for realistic dialogues (not generic A/B)
 const SPEAKER_PAIRS = [
-  ['Sarah', 'James'], ['Priya', 'Tom'], ['Maria', 'David'], ['Yuki', 'Alex'],
-  ['Leila', 'Chris'], ['Amara', 'Ben'], ['Sofia', 'Oliver'], ['Nadia', 'Ryan'],
+  ['Sarah', 'James'],
+  ['Priya', 'Tom'],
+  ['Maria', 'David'],
+  ['Yuki', 'Alex'],
+  ['Leila', 'Chris'],
+  ['Amara', 'Ben'],
+  ['Sofia', 'Oliver'],
+  ['Nadia', 'Ryan'],
 ];
 
-const WORD_COUNTS: Record<CefrLevel, number> = { A1: 80, A2: 130, B1: 200, B2: 280, C1: 350, C2: 420 };
+const WORD_COUNTS: Record<CefrLevel, number> = {
+  A1: 80,
+  A2: 130,
+  B1: 200,
+  B2: 280,
+  C1: 350,
+  C2: 420,
+};
 
 const TYPE_DESC: Record<ListeningType, string> = {
   conversation: 'a natural dialogue between 2 people',
-  monologue:    'a monologue or short informal talk',
-  ielts:        'an IELTS Listening section script (interview, tour, or talk)',
-  toeic:        'a TOEIC Listening script (announcement, conversation, or short talk)',
-  lecture:      'an academic lecture excerpt',
+  monologue: 'a monologue or short informal talk',
+  ielts: 'an IELTS Listening section script (interview, tour, or talk)',
+  toeic: 'a TOEIC Listening script (announcement, conversation, or short talk)',
+  lecture: 'an academic lecture excerpt',
 };
 
 @Injectable()
@@ -95,21 +117,28 @@ export class ListeningService {
 
   private get client(): Anthropic | null {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-') ? new Anthropic({ apiKey: key }) : null;
+    return key && key.startsWith('sk-ant-')
+      ? new Anthropic({ apiKey: key })
+      : null;
   }
 
   async getExercise(dto: GetListeningDto) {
     const level = dto.level ?? 'B1';
-    const type  = dto.type  ?? 'monologue';
-    if (!this.client) throw new ServiceUnavailableException('AI service not configured. Please add your Anthropic API key in admin settings.');
+    const type = dto.type ?? 'monologue';
+    if (!this.client)
+      throw new ServiceUnavailableException(
+        'AI service not configured. Please add your Anthropic API key in admin settings.',
+      );
     return this.generateExercise(level, type);
   }
 
-  private pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+  private pick<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
 
   private async generateExercise(level: CefrLevel, type: ListeningType) {
     const topic = this.pick(TOPICS[type] ?? TOPICS.monologue);
-    const wc    = WORD_COUNTS[level];
+    const wc = WORD_COUNTS[level];
     const [spkA, spkB] = this.pick(SPEAKER_PAIRS);
 
     // Dialogue types use named speakers; solo types don't need a second speaker
@@ -154,13 +183,12 @@ Generate 4 comprehension questions (mix of: main idea, specific detail, inferenc
         max_tokens: 1800,
         messages: [{ role: 'user', content: prompt }],
       });
-      const raw = (msg.content[0] as any).text;
-      const json = raw.match(/\{[\s\S]*\}/)?.[0];
-      if (!json) throw new Error('No JSON in response');
-      return JSON.parse(json);
+      return parseJsonObject(messageText(msg));
     } catch (e) {
       this.logger.error('Listening generation failed', e);
-      throw new ServiceUnavailableException('AI listening generation failed. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI listening generation failed. Please try again.',
+      );
     }
   }
 }

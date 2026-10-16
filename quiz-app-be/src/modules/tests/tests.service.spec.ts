@@ -1,6 +1,10 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { TestsService } from './tests.service';
-import { ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN } from '../roles/entities/role.entity';
+import {
+  ROLE_STUDENT,
+  ROLE_TEACHER,
+  ROLE_ADMIN,
+} from '../roles/entities/role.entity';
 
 describe('TestsService — RBAC, isolation, grading', () => {
   let service: TestsService;
@@ -13,18 +17,37 @@ describe('TestsService — RBAC, isolation, grading', () => {
     { question: 'q1', options: ['a', 'b'], correct: 0, points: 1 },
     { question: 'q2', options: ['x', 'y', 'z'], correct: 2, points: 2 },
   ];
-  const published = { id: 5, teacher_id: 10, class_id: null, is_published: true, questions };
+  const published = {
+    id: 5,
+    teacher_id: 10,
+    class_id: null,
+    is_published: true,
+    questions,
+  };
 
   beforeEach(() => {
-    testRepo = { findOne: jest.fn(), find: jest.fn(), create: jest.fn((x: any) => x), save: jest.fn((x: any) => ({ id: 1, ...x })), delete: jest.fn(), createQueryBuilder: jest.fn() };
-    subRepo = { find: jest.fn().mockResolvedValue([]), create: jest.fn((x: any) => x), save: jest.fn((x: any) => ({ id: 7, ...x })) };
+    testRepo = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      create: jest.fn((x: any) => x),
+      save: jest.fn((x: any) => ({ id: 1, ...x })),
+      delete: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
+    subRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((x: any) => x),
+      save: jest.fn((x: any) => ({ id: 7, ...x })),
+    };
     enrollRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
     userRepo = { find: jest.fn().mockResolvedValue([]) };
     service = new TestsService(testRepo, subRepo, enrollRepo, userRepo);
   });
 
   it('rejects a non-teacher from creating a test', async () => {
-    await expect(service.create(7, ROLE_STUDENT, { title: 'X' })).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.create(7, ROLE_STUDENT, { title: 'X' }),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('strips the correct index when a student fetches a test', async () => {
@@ -42,12 +65,16 @@ describe('TestsService — RBAC, isolation, grading', () => {
 
   it('blocks another teacher from a test they do not own', async () => {
     testRepo.findOne.mockResolvedValue(published);
-    await expect(service.findOne(5, 99, ROLE_TEACHER)).rejects.toThrow(ForbiddenException);
+    await expect(service.findOne(5, 99, ROLE_TEACHER)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('hides an unpublished test from students', async () => {
     testRepo.findOne.mockResolvedValue({ ...published, is_published: false });
-    await expect(service.findOne(5, 7, ROLE_STUDENT)).rejects.toThrow(NotFoundException);
+    await expect(service.findOne(5, 7, ROLE_STUDENT)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('auto-grades a submission by summing the points of correct answers', async () => {
@@ -67,6 +94,8 @@ describe('TestsService — RBAC, isolation, grading', () => {
 
   it('blocks a non-owner from viewing submissions', async () => {
     testRepo.findOne.mockResolvedValue(published);
-    await expect(service.getSubmissions(5, 99)).rejects.toThrow(ForbiddenException);
+    await expect(service.getSubmissions(5, 99)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

@@ -1,6 +1,16 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import type { ExamQuestion, ExamResult, ExamType, StartExamDto, SubmitExamDto } from './dto/exam.dto';
+import type {
+  ExamQuestion,
+  ExamResult,
+  ExamType,
+  StartExamDto,
+  SubmitExamDto,
+} from './dto/exam.dto';
 
 // 18 diverse themes per exam type to maximise variety across sessions
 const IELTS_THEMES = [
@@ -81,17 +91,19 @@ function estimateIelts(pct: number): { band: string; level: string } {
 function estimateToefl(pct: number): { band: string; level: string } {
   const score = Math.round((pct / 100) * 120);
   if (score >= 100) return { band: `${score}/120`, level: 'C2 — Expert' };
-  if (score >= 80)  return { band: `${score}/120`, level: 'C1 — Advanced' };
-  if (score >= 60)  return { band: `${score}/120`, level: 'B2 — Upper-Intermediate' };
-  if (score >= 42)  return { band: `${score}/120`, level: 'B1 — Intermediate' };
-  if (score >= 24)  return { band: `${score}/120`, level: 'A2 — Elementary' };
+  if (score >= 80) return { band: `${score}/120`, level: 'C1 — Advanced' };
+  if (score >= 60)
+    return { band: `${score}/120`, level: 'B2 — Upper-Intermediate' };
+  if (score >= 42) return { band: `${score}/120`, level: 'B1 — Intermediate' };
+  if (score >= 24) return { band: `${score}/120`, level: 'A2 — Elementary' };
   return { band: `${score}/120`, level: 'A1 — Beginner' };
 }
 
 function estimateToeic(pct: number): { band: string; level: string } {
   const score = Math.round((pct / 100) * 990);
   if (score >= 860) return { band: `${score}/990`, level: 'C1 — Advanced' };
-  if (score >= 730) return { band: `${score}/990`, level: 'B2 — Upper-Intermediate' };
+  if (score >= 730)
+    return { band: `${score}/990`, level: 'B2 — Upper-Intermediate' };
   if (score >= 550) return { band: `${score}/990`, level: 'B1 — Intermediate' };
   if (score >= 350) return { band: `${score}/990`, level: 'A2 — Elementary' };
   return { band: `${score}/990`, level: 'A1 — Beginner' };
@@ -100,13 +112,25 @@ function estimateToeic(pct: number): { band: string; level: string } {
 // ── Robust JSON-array parser ───────────────────────────────────────────────────
 // Extracts and repairs a potentially truncated JSON array from AI output.
 
-function tryParseJsonArray(raw: string): any[] {
-  const cleaned = raw.trim().replace(/```json\n?|```/g, '').trim();
+function tryParseJsonArray(raw: string): unknown[] {
+  const asArray = (text: string): unknown[] => {
+    const v: unknown = JSON.parse(text);
+    if (!Array.isArray(v)) throw new Error('Expected a JSON array');
+    return v as unknown[];
+  };
+  const cleaned = raw
+    .trim()
+    .replace(/```json\n?|```/g, '')
+    .trim();
 
   // 1. Happy path
   const match = cleaned.match(/\[[\s\S]*\]/);
   if (match) {
-    try { return JSON.parse(match[0]); } catch { /* fall through to repair */ }
+    try {
+      return asArray(match[0]);
+    } catch {
+      /* fall through to repair */
+    }
 
     let text = match[0];
     // Remove last incomplete object (no closing brace before end of array)
@@ -114,15 +138,35 @@ function tryParseJsonArray(raw: string): any[] {
     // Remove trailing dangling comma
     text = text.replace(/,\s*$/, '');
     // Count and close unclosed brackets
-    const objOpen  = (text.match(/\{/g) ?? []).length - (text.match(/\}/g) ?? []).length;
-    const arrOpen  = (text.match(/\[/g) ?? []).length - (text.match(/\]/g) ?? []).length;
+    const objOpen =
+      (text.match(/\{/g) ?? []).length - (text.match(/\}/g) ?? []).length;
+    const arrOpen =
+      (text.match(/\[/g) ?? []).length - (text.match(/\]/g) ?? []).length;
     for (let i = 0; i < objOpen; i++) text += '}';
     for (let i = 0; i < arrOpen; i++) text += ']';
-    try { return JSON.parse(text); } catch { /* fall through */ }
+    try {
+      return asArray(text);
+    } catch {
+      /* fall through */
+    }
   }
 
   // 2. Last resort — parse the whole cleaned string
-  return JSON.parse(cleaned);
+  return asArray(cleaned);
+}
+
+/** Questions as sent to the student before submission: no correct answer, no explanation. */
+export type ClientExamQuestion = Omit<
+  ExamQuestion,
+  'correct_answer' | 'explanation'
+>;
+
+export function toClientQuestions(
+  questions: ExamQuestion[],
+): ClientExamQuestion[] {
+  return questions.map(
+    ({ correct_answer: _answer, explanation: _explanation, ...rest }) => rest,
+  );
 }
 
 // ── Service ────────────────────────────────────────────────────────────────────
@@ -136,31 +180,58 @@ export class EntranceExamService {
 
   private get client(): Anthropic | null {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-') ? new Anthropic({ apiKey: key }) : null;
+    return key && key.startsWith('sk-ant-')
+      ? new Anthropic({ apiKey: key })
+      : null;
   }
 
   private newSessionId(): string {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   }
 
-  async generateExam(dto: StartExamDto): Promise<{ questions: ExamQuestion[]; time_limit: number; exam_type: ExamType; variant: number; session_id: string }> {
+  async generateExam(dto: StartExamDto): Promise<{
+    questions: ClientExamQuestion[];
+    time_limit: number;
+    exam_type: ExamType;
+    variant: number;
+    session_id: string;
+  }> {
     if (!this.client) {
-      throw new ServiceUnavailableException('AI service not configured. Please add your Anthropic API key in admin settings.');
+      throw new ServiceUnavailableException(
+        'AI service not configured. Please add your Anthropic API key in admin settings.',
+      );
     }
 
-    const themes  = dto.exam_type === 'ielts' ? IELTS_THEMES : dto.exam_type === 'toefl' ? TOEFL_THEMES : TOEIC_THEMES;
-    const variant = dto.variant !== undefined ? dto.variant % themes.length : Math.floor(Math.random() * themes.length);
-    const theme   = themes[variant];
+    const themes =
+      dto.exam_type === 'ielts'
+        ? IELTS_THEMES
+        : dto.exam_type === 'toefl'
+          ? TOEFL_THEMES
+          : TOEIC_THEMES;
+    const variant =
+      dto.variant !== undefined
+        ? dto.variant % themes.length
+        : Math.floor(Math.random() * themes.length);
+    const theme = themes[variant];
     const timeLimit = dto.exam_type === 'toefl' ? 35 : 25;
 
     // Token budget per exam type (shorter passages → fewer tokens → faster + more reliable)
-    const maxTokens = dto.exam_type === 'toefl' ? 5500 : dto.exam_type === 'ielts' ? 4800 : 4000;
+    const maxTokens =
+      dto.exam_type === 'toefl'
+        ? 5500
+        : dto.exam_type === 'ielts'
+          ? 4800
+          : 4000;
 
-    const prompt = dto.exam_type === 'ielts'  ? this.buildIeltsPrompt(theme)
-                 : dto.exam_type === 'toefl'  ? this.buildToeflPrompt(theme)
-                 : this.buildToeicPrompt(theme);
+    const prompt =
+      dto.exam_type === 'ielts'
+        ? this.buildIeltsPrompt(theme)
+        : dto.exam_type === 'toefl'
+          ? this.buildToeflPrompt(theme)
+          : this.buildToeicPrompt(theme);
 
-    let questions: any[];
+    // Shape as produced by the model (passage may come back as a nested object).
+    let questions: Array<Omit<ExamQuestion, 'passage'> & { passage?: unknown }>;
     try {
       const res = await this.client.messages.create({
         model: 'claude-haiku-4-5-20251001',
@@ -168,10 +239,12 @@ export class EntranceExamService {
         messages: [{ role: 'user', content: prompt }],
       });
       const raw = (res.content[0] as { text: string }).text.trim();
-      questions = tryParseJsonArray(raw);
+      questions = tryParseJsonArray(raw) as typeof questions;
     } catch (e) {
       this.logger.error('AI exam generation failed', e);
-      throw new ServiceUnavailableException('AI exam generation failed. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI exam generation failed. Please try again.',
+      );
     }
 
     // Post-process: Writing Task 1 passage may be a nested chart object — stringify it
@@ -183,31 +256,49 @@ export class EntranceExamService {
 
     const session_id = this.newSessionId();
     this.sessionCache.set(session_id, questions as ExamQuestion[]);
-    setTimeout(() => this.sessionCache.delete(session_id), 2 * 60 * 60 * 1000);
+    // unref: the expiry timer must not keep the process (or a test run) alive
+    setTimeout(
+      () => this.sessionCache.delete(session_id),
+      2 * 60 * 60 * 1000,
+    ).unref?.();
 
-    return { questions: questions as ExamQuestion[], time_limit: timeLimit, exam_type: dto.exam_type, variant, session_id };
+    // The answer key stays server-side (session cache) until the exam is submitted.
+    return {
+      questions: toClientQuestions(questions as ExamQuestion[]),
+      time_limit: timeLimit,
+      exam_type: dto.exam_type,
+      variant,
+      session_id,
+    };
   }
 
   async evaluateExam(dto: SubmitExamDto): Promise<ExamResult> {
     const questions = this.sessionCache.get(dto.session_id);
     if (!questions) {
       return {
-        total: 0, correct: 0, score_percent: 0,
-        estimated_band: 'N/A', estimated_score: 'N/A', level: 'Session expired',
-        breakdown: [], recommendations: ['Please start a new exam session.'], weak_areas: [],
+        total: 0,
+        correct: 0,
+        score_percent: 0,
+        estimated_band: 'N/A',
+        estimated_score: 'N/A',
+        level: 'Session expired',
+        breakdown: [],
+        recommendations: ['Please start a new exam session.'],
+        weak_areas: [],
       };
     }
     this.sessionCache.delete(dto.session_id);
 
     const { answers, exam_type } = dto;
-    const answerMap = new Map(answers.map(a => [a.question_id, a.selected]));
+    const answerMap = new Map(answers.map((a) => [a.question_id, a.selected]));
     const breakdown: Record<string, { correct: number; total: number }> = {};
     let correct = 0;
     let scoredTotal = 0;
 
     for (const q of questions) {
       if (q.section === 'Writing') continue;
-      if (!breakdown[q.section]) breakdown[q.section] = { correct: 0, total: 0 };
+      if (!breakdown[q.section])
+        breakdown[q.section] = { correct: 0, total: 0 };
       breakdown[q.section].total++;
       scoredTotal++;
       const selected = answerMap.get(q.id);
@@ -218,29 +309,66 @@ export class EntranceExamService {
     }
 
     const pct = scoredTotal > 0 ? Math.round((correct / scoredTotal) * 100) : 0;
-    const est = exam_type === 'ielts' ? estimateIelts(pct)
-              : exam_type === 'toefl' ? estimateToefl(pct)
-              : estimateToeic(pct);
+    const est =
+      exam_type === 'ielts'
+        ? estimateIelts(pct)
+        : exam_type === 'toefl'
+          ? estimateToefl(pct)
+          : estimateToeic(pct);
     const weak_areas = Object.entries(breakdown)
       .filter(([, v]) => v.total > 0 && v.correct / v.total < 0.6)
       .map(([k]) => k);
 
-    const recommendations = await this.generateRecommendations(exam_type, pct, correct, scoredTotal, est.band, est.level, weak_areas);
+    const recommendations = await this.generateRecommendations(
+      exam_type,
+      pct,
+      correct,
+      scoredTotal,
+      est.band,
+      est.level,
+      weak_areas,
+    );
 
     return {
-      total: scoredTotal, correct, score_percent: pct,
-      estimated_band: est.band, estimated_score: `${pct}%`, level: est.level,
-      breakdown: Object.entries(breakdown).map(([section, v]) => ({ section, ...v })),
-      recommendations, weak_areas,
+      total: scoredTotal,
+      correct,
+      score_percent: pct,
+      estimated_band: est.band,
+      estimated_score: `${pct}%`,
+      level: est.level,
+      breakdown: Object.entries(breakdown).map(([section, v]) => ({
+        section,
+        ...v,
+      })),
+      recommendations,
+      weak_areas,
+      // Answer key is revealed only after submission.
+      review: questions
+        .filter((q) => q.section !== 'Writing')
+        .map((q) => ({
+          question_id: q.id,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation,
+        })),
     };
   }
 
   private async generateRecommendations(
-    examType: ExamType, pct: number, correct: number, total: number,
-    band: string, level: string, weakSections: string[],
+    examType: ExamType,
+    pct: number,
+    correct: number,
+    total: number,
+    band: string,
+    level: string,
+    weakSections: string[],
   ): Promise<string[]> {
     if (!this.client) {
-      const examName = examType === 'ielts' ? 'IELTS' : examType === 'toefl' ? 'TOEFL' : 'TOEIC';
+      const examName =
+        examType === 'ielts'
+          ? 'IELTS'
+          : examType === 'toefl'
+            ? 'TOEFL'
+            : 'TOEIC';
       return [
         `Bạn đạt ${pct}% (${correct}/${total} câu đúng) — tương đương ${band}.`,
         pct >= 70
@@ -249,7 +377,12 @@ export class EntranceExamService {
         'Dùng tính năng AI Schedule để lên lịch học cá nhân hóa.',
       ];
     }
-    const examName = examType === 'ielts' ? 'IELTS Academic' : examType === 'toefl' ? 'TOEFL iBT' : 'TOEIC';
+    const examName =
+      examType === 'ielts'
+        ? 'IELTS Academic'
+        : examType === 'toefl'
+          ? 'TOEFL iBT'
+          : 'TOEIC';
     const prompt = `You are an expert ${examName} coach. A student just completed a mini practice exam.
 
 Results:
@@ -271,7 +404,10 @@ Return ONLY a JSON array of strings, no markdown:
       const text = (res.content[0] as { text: string }).text.trim();
       const json = text.replace(/```json\n?|```/g, '').trim();
       const match = json.match(/\[[\s\S]*\]/);
-      return match ? JSON.parse(match[0]) : [];
+      const parsed: unknown = match ? JSON.parse(match[0]) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((r): r is string => typeof r === 'string')
+        : [];
     } catch (e) {
       this.logger.error('AI recommendations failed', e);
       return [];

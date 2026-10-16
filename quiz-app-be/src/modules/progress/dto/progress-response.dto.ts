@@ -5,8 +5,8 @@ export class TodayActivityDto {
 }
 
 export class WeeklyActivityItemDto {
-  date: string;         // YYYY-MM-DD
-  day_label: string;    // Mon, Tue, ...
+  date: string; // YYYY-MM-DD
+  day_label: string; // Mon, Tue, ...
   xp_earned: number;
   cards_studied: number;
   quizzes_completed: number;

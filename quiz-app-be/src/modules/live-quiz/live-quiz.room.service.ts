@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+import { verifyHs256 } from '../../core/security/jwt.util';
 import { StepDto } from './live-quiz.service';
 
 export interface LmParticipant {
@@ -42,22 +42,18 @@ export class LiveQuizRoomService {
   constructor(private config: ConfigService) {}
 
   /** Verify the app's hand-rolled HMAC JWT presented on the WS handshake. */
-  verifyToken(token?: string): { id: number; email: string; role_id: number } | null {
-    if (!token) return null;
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const [h, p, sig] = parts;
+  verifyToken(
+    token?: string,
+  ): { id: number; email: string; role_id: number } | null {
     const secret = this.config.get<string>('JWT_SECRET');
-    if (!secret) return null;
-    const expected = crypto.createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url');
-    if (expected !== sig) return null;
-    try {
-      const payload = JSON.parse(Buffer.from(p, 'base64url').toString('utf8'));
-      if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) return null;
-      return { id: payload.sub, email: payload.email, role_id: payload.role_id };
-    } catch {
-      return null;
-    }
+    if (!token || !secret) return null;
+    const res = verifyHs256(token, secret); // constant-time signature check
+    if (!res.ok) return null;
+    return {
+      id: res.payload.sub,
+      email: res.payload.email,
+      role_id: res.payload.role_id,
+    };
   }
 
   getRoom(pin: string): LmRoom | undefined {
@@ -69,12 +65,29 @@ export class LiveQuizRoomService {
     return pin ? this.rooms.get(pin) : undefined;
   }
 
+  /** True only when both sockets (host or participant) belong to the same room. */
+  sameRoom(socketA: string, socketB: string): boolean {
+    if (socketA === socketB) return false;
+    const pinA = this.socketPin.get(socketA);
+    return !!pinA && pinA === this.socketPin.get(socketB);
+  }
+
   /** Create the in-memory room from a DB session if it doesn't exist yet. */
-  ensureRoom(pin: string, sessionId: number, teacherId: number, title: string, steps: StepDto[]): LmRoom {
+  ensureRoom(
+    pin: string,
+    sessionId: number,
+    teacherId: number,
+    title: string,
+    steps: StepDto[],
+  ): LmRoom {
     let room = this.rooms.get(pin);
     if (!room) {
       room = {
-        pin, sessionId, teacherId, title, steps,
+        pin,
+        sessionId,
+        teacherId,
+        title,
+        steps,
         hostSocketId: null,
         participants: new Map(),
         status: 'waiting',
@@ -93,7 +106,12 @@ export class LiveQuizRoomService {
     }
   }
 
-  addParticipant(pin: string, socketId: string, userId: number, name: string): LmRoom | null {
+  addParticipant(
+    pin: string,
+    socketId: string,
+    userId: number,
+    name: string,
+  ): LmRoom | null {
     const room = this.rooms.get(pin);
     if (!room) return null;
     if (!room.participants.has(socketId)) {
@@ -110,7 +128,10 @@ export class LiveQuizRoomService {
 
   /** Participant socket ids + names — the host needs these to open a WebRTC peer to each. */
   participantSockets(room: LmRoom): { id: string; name: string }[] {
-    return [...room.participants.values()].map((p) => ({ id: p.socketId, name: p.name }));
+    return [...room.participants.values()].map((p) => ({
+      id: p.socketId,
+      name: p.name,
+    }));
   }
 
   clientStep(room: LmRoom, index: number): ClientStep | null {

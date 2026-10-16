@@ -9,7 +9,14 @@ import { DailyActivity } from '../progress/entities/daily-activity.entity';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserGoalSettings, UserCustomGoal, UserProgress, DailyActivity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      UserGoalSettings,
+      UserCustomGoal,
+      UserProgress,
+      DailyActivity,
+    ]),
+  ],
   controllers: [GoalsController],
   providers: [GoalsService, JwtGuard],
 })

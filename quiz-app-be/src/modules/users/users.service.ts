@@ -14,7 +14,11 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { email } });
   }
 
-  async create(email: string, hashedPassword: string, roleId?: number): Promise<User> {
+  async create(
+    email: string,
+    hashedPassword: string,
+    roleId?: number,
+  ): Promise<User> {
     const user = this.usersRepository.create({
       email,
       password: hashedPassword,
@@ -27,12 +31,19 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  async update(id: number, data: Partial<Pick<User, 'name' | 'avatar'>>): Promise<void> {
+  async update(
+    id: number,
+    data: Partial<Pick<User, 'name' | 'avatar'>>,
+  ): Promise<void> {
     await this.usersRepository.update(id, data);
   }
 
   // ── Password reset ──────────────────────────────────────────────────────────
-  async setResetToken(id: number, hash: string, expiresEpochMs: number): Promise<void> {
+  async setResetToken(
+    id: number,
+    hash: string,
+    expiresEpochMs: number,
+  ): Promise<void> {
     await this.usersRepository.update(id, {
       reset_token_hash: hash,
       reset_token_expires: String(expiresEpochMs),

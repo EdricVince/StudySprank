@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 import { EntranceExamService } from './entrance-exam.service';
 import { StartExamDto, SubmitExamDto } from './dto/exam.dto';

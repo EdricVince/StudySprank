@@ -1,16 +1,38 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe,
-  UseGuards, HttpCode, HttpStatus, BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminGuard } from '../../core/guards/admin.guard';
-import { IsString, IsBoolean, IsEmail, IsOptional, MinLength, Matches, MaxLength, IsArray, ArrayNotEmpty, IsInt } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  MinLength,
+  Matches,
+  MaxLength,
+  IsArray,
+  ArrayNotEmpty,
+  IsInt,
+} from 'class-validator';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // ~3.5M chars of base64 ≈ 2.6 MB image — plenty for an ID-card photo.
 const MAX_CARD_LEN = 3_500_000;
-const IMAGE_DATA_URL = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+const IMAGE_DATA_URL =
+  /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 class CreateTeacherDto {
   @IsString()
@@ -27,15 +49,23 @@ class CreateTeacherDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(MAX_CARD_LEN, { message: 'Teacher card image is too large (max ~2.5MB)' })
-  @Matches(IMAGE_DATA_URL, { message: 'Teacher card must be a base64 image data URL' })
+  @MaxLength(MAX_CARD_LEN, {
+    message: 'Teacher card image is too large (max ~2.5MB)',
+  })
+  @Matches(IMAGE_DATA_URL, {
+    message: 'Teacher card must be a base64 image data URL',
+  })
   teacher_card_image?: string;
 }
 
 class TeacherCardDto {
   @IsString()
-  @MaxLength(MAX_CARD_LEN, { message: 'Teacher card image is too large (max ~2.5MB)' })
-  @Matches(IMAGE_DATA_URL, { message: 'Teacher card must be a base64 image data URL' })
+  @MaxLength(MAX_CARD_LEN, {
+    message: 'Teacher card image is too large (max ~2.5MB)',
+  })
+  @Matches(IMAGE_DATA_URL, {
+    message: 'Teacher card must be a base64 image data URL',
+  })
   teacher_card_image: string;
 }
 
@@ -69,7 +99,9 @@ class CreateAiFeatureDto {
   name: string;
 
   @IsString()
-  @Matches(/^sk-ant-[A-Za-z0-9\-_]{10,}$/, { message: 'Invalid Anthropic API key format' })
+  @Matches(/^sk-ant-[A-Za-z0-9\-_]{10,}$/, {
+    message: 'Invalid Anthropic API key format',
+  })
   key: string;
 }
 
@@ -94,7 +126,10 @@ export class AdminController {
   @HttpCode(HttpStatus.CREATED)
   async createTeacher(@Body() dto: CreateTeacherDto) {
     const result = await this.adminService.createTeacher(
-      dto.name, dto.password, dto.email, dto.teacher_card_image,
+      dto.name,
+      dto.password,
+      dto.email,
+      dto.teacher_card_image,
     );
     return {
       code: 201,
@@ -113,13 +148,21 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async bulkDeleteUsers(@Body() dto: BulkDeleteDto) {
     const deleted = await this.adminService.deleteUsers(dto.ids);
-    return { code: 200, message: `${deleted} user(s) deleted`, data: { deleted } };
+    return {
+      code: 200,
+      message: `${deleted} user(s) deleted`,
+      data: { deleted },
+    };
   }
 
   @Get('users/:id/teacher-card')
   async getTeacherCard(@Param('id', ParseIntPipe) id: number) {
     const image = await this.adminService.getTeacherCard(id);
-    return { code: 200, message: 'Teacher card retrieved', data: { teacher_card_image: image } };
+    return {
+      code: 200,
+      message: 'Teacher card retrieved',
+      data: { teacher_card_image: image },
+    };
   }
 
   @Patch('users/:id/teacher-card')
@@ -128,7 +171,11 @@ export class AdminController {
     @Body() dto: TeacherCardDto,
   ) {
     await this.adminService.setTeacherCard(id, dto.teacher_card_image);
-    return { code: 200, message: 'Teacher card uploaded and account verified', data: null };
+    return {
+      code: 200,
+      message: 'Teacher card uploaded and account verified',
+      data: null,
+    };
   }
 
   @Patch('users/:id/verify')
@@ -137,7 +184,11 @@ export class AdminController {
     @Body() dto: VerifyDto,
   ) {
     await this.adminService.setUserVerified(id, dto.verified);
-    return { code: 200, message: `User ${id} ${dto.verified ? 'verified' : 'unverified'}`, data: null };
+    return {
+      code: 200,
+      message: `User ${id} ${dto.verified ? 'verified' : 'unverified'}`,
+      data: null,
+    };
   }
 
   @Patch('users/:id/active')
@@ -146,7 +197,11 @@ export class AdminController {
     @Body() dto: SetActiveDto,
   ) {
     await this.adminService.setUserActive(id, dto.is_active);
-    return { code: 200, message: `User ${id} ${dto.is_active ? 'activated' : 'deactivated'}`, data: null };
+    return {
+      code: 200,
+      message: `User ${id} ${dto.is_active ? 'activated' : 'deactivated'}`,
+      data: null,
+    };
   }
 
   @Patch('users/:id/reset-password')
@@ -172,20 +227,21 @@ export class AdminController {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
     const enabled = !!key && key.startsWith('sk-ant-');
     return {
-      code: 200, message: 'AI status',
+      code: 200,
+      message: 'AI status',
       data: {
         enabled,
         provider: 'Anthropic Claude',
         key_preview: enabled ? `sk-ant-...${key.slice(-6)}` : null,
         features: [
           { name: 'Entrance Exam Generation', key: 'entrance_exam' },
-          { name: 'Writing Evaluation',        key: 'writing' },
-          { name: 'Speaking Evaluation',       key: 'speaking' },
-          { name: 'Reading Exercises',         key: 'reading' },
-          { name: 'Listening Exercises',       key: 'listening' },
-          { name: 'AI Study Schedule',         key: 'schedule' },
-          { name: 'Word of the Day',           key: 'word_of_the_day' },
-          { name: 'Content Import (AI Scan)',  key: 'content_import' },
+          { name: 'Writing Evaluation', key: 'writing' },
+          { name: 'Speaking Evaluation', key: 'speaking' },
+          { name: 'Reading Exercises', key: 'reading' },
+          { name: 'Listening Exercises', key: 'listening' },
+          { name: 'AI Study Schedule', key: 'schedule' },
+          { name: 'Word of the Day', key: 'word_of_the_day' },
+          { name: 'Content Import (AI Scan)', key: 'content_import' },
         ],
         custom_features: this.adminService.listAiFeatures(),
       },
@@ -194,14 +250,22 @@ export class AdminController {
 
   @Get('ai/features')
   listAiFeatures() {
-    return { code: 200, message: 'Custom AI features', data: this.adminService.listAiFeatures() };
+    return {
+      code: 200,
+      message: 'Custom AI features',
+      data: this.adminService.listAiFeatures(),
+    };
   }
 
   @Post('ai/features')
   @HttpCode(HttpStatus.CREATED)
   addAiFeature(@Body() dto: CreateAiFeatureDto) {
     const data = this.adminService.addAiFeature(dto.name, dto.key);
-    return { code: 201, message: `Feature "${data.name}" added and activated`, data };
+    return {
+      code: 201,
+      message: `Feature "${data.name}" added and activated`,
+      data,
+    };
   }
 
   @Delete('ai/features/:id')
@@ -228,15 +292,24 @@ export class AdminController {
         let content = fs.readFileSync(envPath, 'utf-8');
         // Use a replacement function to prevent $-metachar injection
         if (content.includes('ANTHROPIC_API_KEY=')) {
-          content = content.replace(/ANTHROPIC_API_KEY=.*/m, () => `ANTHROPIC_API_KEY=${key}`);
+          content = content.replace(
+            /ANTHROPIC_API_KEY=.*/m,
+            () => `ANTHROPIC_API_KEY=${key}`,
+          );
         } else {
           content += `\nANTHROPIC_API_KEY=${key}`;
         }
         fs.writeFileSync(envPath, content, 'utf-8');
       }
-    } catch { /* non-fatal — process.env already updated in-memory */ }
+    } catch {
+      /* non-fatal — process.env already updated in-memory */
+    }
 
-    return { code: 200, message: 'AI key updated. All AI features are now active.', data: { enabled: true } };
+    return {
+      code: 200,
+      message: 'AI key updated. All AI features are now active.',
+      data: { enabled: true },
+    };
   }
 
   @Delete('ai/key')
@@ -248,11 +321,20 @@ export class AdminController {
       const envPath = path.join(process.cwd(), '.env');
       if (fs.existsSync(envPath)) {
         let content = fs.readFileSync(envPath, 'utf-8');
-        content = content.replace(/ANTHROPIC_API_KEY=.*/m, () => 'ANTHROPIC_API_KEY=');
+        content = content.replace(
+          /ANTHROPIC_API_KEY=.*/m,
+          () => 'ANTHROPIC_API_KEY=',
+        );
         fs.writeFileSync(envPath, content, 'utf-8');
       }
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
 
-    return { code: 200, message: 'AI key removed. AI features are now disabled.', data: { enabled: false } };
+    return {
+      code: 200,
+      message: 'AI key removed. AI features are now disabled.',
+      data: { enabled: false },
+    };
   }
 }

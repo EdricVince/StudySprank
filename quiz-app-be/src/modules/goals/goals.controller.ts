@@ -15,7 +15,11 @@ import { GoalsService } from './goals.service';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 import { CurrentUser } from '../../core/decorators/current-user.decorator';
 import type { CurrentUserData } from '../../core/decorators/current-user.decorator';
-import { UpdateGoalSettingsDto, CreateCustomGoalDto, UpdateCustomGoalDto } from './dto/goals.dto';
+import {
+  UpdateGoalSettingsDto,
+  CreateCustomGoalDto,
+  UpdateCustomGoalDto,
+} from './dto/goals.dto';
 
 interface ApiResponse<T> {
   code: number;
@@ -29,7 +33,9 @@ export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}
 
   @Get()
-  async getGoals(@CurrentUser() user: CurrentUserData): Promise<ApiResponse<any>> {
+  async getGoals(
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<ApiResponse<any>> {
     const data = await this.goalsService.getGoals(user.id);
     return { code: HttpStatus.OK, message: 'Goals fetched', data };
   }

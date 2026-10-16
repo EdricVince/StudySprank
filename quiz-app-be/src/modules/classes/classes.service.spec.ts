@@ -5,7 +5,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
-import { ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN } from '../roles/entities/role.entity';
+import {
+  ROLE_STUDENT,
+  ROLE_TEACHER,
+  ROLE_ADMIN,
+} from '../roles/entities/role.entity';
 
 /** A query-builder stub whose getRawMany resolves to the given rows. */
 function queryBuilder(rows: any[] = []) {
@@ -54,12 +58,18 @@ describe('ClassesService', () => {
 
     it('blocks a different teacher with 403', async () => {
       classRepo.findOne.mockResolvedValue(cls);
-      await expect(service.findOneForUser(5, 99, ROLE_TEACHER)).rejects.toThrow(ForbiddenException);
+      await expect(service.findOneForUser(5, 99, ROLE_TEACHER)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('lets an enrolled student read the class', async () => {
       classRepo.findOne.mockResolvedValue(cls);
-      enrollRepo.findOne.mockResolvedValue({ id: 1, class_id: 5, student_id: 7 });
+      enrollRepo.findOne.mockResolvedValue({
+        id: 1,
+        class_id: 5,
+        student_id: 7,
+      });
       const res = await service.findOneForUser(5, 7, ROLE_STUDENT);
       expect(res.id).toBe(5);
     });
@@ -67,7 +77,9 @@ describe('ClassesService', () => {
     it('blocks an unenrolled student with 403', async () => {
       classRepo.findOne.mockResolvedValue(cls);
       enrollRepo.findOne.mockResolvedValue(null);
-      await expect(service.findOneForUser(5, 8, ROLE_STUDENT)).rejects.toThrow(ForbiddenException);
+      await expect(service.findOneForUser(5, 8, ROLE_STUDENT)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('lets an admin read any class', async () => {
@@ -78,14 +90,18 @@ describe('ClassesService', () => {
 
     it('throws NotFound for a missing class', async () => {
       classRepo.findOne.mockResolvedValue(null);
-      await expect(service.findOneForUser(404, 1, ROLE_ADMIN)).rejects.toThrow(NotFoundException);
+      await expect(service.findOneForUser(404, 1, ROLE_ADMIN)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('ownership on mutations', () => {
     it('rejects update by a non-owner with 403', async () => {
       classRepo.findOne.mockResolvedValue({ id: 5, teacher_id: 10 });
-      await expect(service.update(5, 99, { name: 'x' })).rejects.toThrow(ForbiddenException);
+      await expect(service.update(5, 99, { name: 'x' })).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('rejects delete by a non-owner with 403', async () => {
@@ -97,20 +113,36 @@ describe('ClassesService', () => {
   describe('joinClass', () => {
     it('rejects joining a non-existent or inactive class', async () => {
       classRepo.findOne.mockResolvedValue(null);
-      await expect(service.joinClass('NOPE-0000', 7)).rejects.toThrow(NotFoundException);
+      await expect(service.joinClass('NOPE-0000', 7)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('rejects a duplicate enrollment', async () => {
-      classRepo.findOne.mockResolvedValue({ id: 5, is_active: true, student_limit: 30 });
+      classRepo.findOne.mockResolvedValue({
+        id: 5,
+        is_active: true,
+        student_limit: 30,
+      });
       enrollRepo.findOne.mockResolvedValue({ id: 1 });
-      await expect(service.joinClass('ABC-1234', 7)).rejects.toThrow(ConflictException);
+      await expect(service.joinClass('ABC-1234', 7)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('rejects when the class is already full', async () => {
-      classRepo.findOne.mockResolvedValue({ id: 5, is_active: true, student_limit: 1 });
+      classRepo.findOne.mockResolvedValue({
+        id: 5,
+        is_active: true,
+        student_limit: 1,
+      });
       enrollRepo.findOne.mockResolvedValue(null);
-      enrollRepo.createQueryBuilder.mockReturnValue(queryBuilder([{ class_id: 5, cnt: '1' }]));
-      await expect(service.joinClass('ABC-1234', 7)).rejects.toThrow(BadRequestException);
+      enrollRepo.createQueryBuilder.mockReturnValue(
+        queryBuilder([{ class_id: 5, cnt: '1' }]),
+      );
+      await expect(service.joinClass('ABC-1234', 7)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

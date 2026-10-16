@@ -5,30 +5,54 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as crypto from 'crypto';
+import { DataSource } from 'typeorm';
+import { User } from '../../modules/users/entities/user.entity';
+import { verifyHs256 } from '../security/jwt.util';
+import type { Request } from 'express';
+import type { CurrentUserData } from '../decorators/current-user.decorator';
 
-export interface JwtPayload {
-  sub: number;
-  email: string;
-  role_id: number;
-  iat: number;
-  exp: number;
-}
+export type { AccessTokenPayload as JwtPayload } from '../security/jwt.util';
+
+const FAILURE_MESSAGES = {
+  format: 'Invalid token format',
+  signature: 'Invalid token signature',
+  payload: 'Invalid token payload',
+  expired: 'Token expired',
+} as const;
 
 @Injectable()
 export class JwtGuard implements CanActivate {
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private dataSource: DataSource,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    const authHeader: string | undefined = request.headers['authorization'];
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user?: CurrentUserData }>();
+    const authHeader = request.headers['authorization'];
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('No token provided');
     }
 
-    const token = authHeader.split(' ')[1];
-    const payload = this.verifyToken(token);
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret) throw new UnauthorizedException('Server misconfiguration');
+
+    const result = verifyHs256(authHeader.split(' ')[1], secret);
+    if (!result.ok)
+      throw new UnauthorizedException(FAILURE_MESSAGES[result.reason]);
+    const payload = result.payload;
+
+    // A deactivated (or deleted) account loses access immediately, even with an unexpired token.
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { id: payload.sub },
+      select: ['id', 'is_active'],
+    });
+    if (!user || !user.is_active) {
+      throw new UnauthorizedException('Account is not active');
+    }
 
     request.user = {
       id: payload.sub,
@@ -37,39 +61,5 @@ export class JwtGuard implements CanActivate {
     };
 
     return true;
-  }
-
-  private verifyToken(token: string): JwtPayload {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new UnauthorizedException('Invalid token format');
-    }
-
-    const [header, payloadPart, signature] = parts;
-    const secret = this.configService.get<string>('JWT_SECRET');
-    if (!secret) throw new UnauthorizedException('Server misconfiguration');
-
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(`${header}.${payloadPart}`)
-      .digest('base64url');
-
-    if (expectedSignature !== signature) {
-      throw new UnauthorizedException('Invalid token signature');
-    }
-
-    let payload: JwtPayload;
-    try {
-      payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
-    } catch {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
-      throw new UnauthorizedException('Token expired');
-    }
-
-    return payload;
   }
 }

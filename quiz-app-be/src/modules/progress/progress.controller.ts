@@ -27,7 +27,9 @@ export class ProgressController {
   constructor(private readonly progressService: ProgressService) {}
 
   @Get('me')
-  async getMyStats(@CurrentUser() user: CurrentUserData): Promise<ApiResponse<any>> {
+  async getMyStats(
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<ApiResponse<any>> {
     const data = await this.progressService.getMyStats(user.id);
     return { code: HttpStatus.OK, message: 'Progress fetched', data };
   }
@@ -43,7 +45,9 @@ export class ProgressController {
   }
 
   @Get('weekly')
-  async getWeeklyActivity(@CurrentUser() user: CurrentUserData): Promise<ApiResponse<any>> {
+  async getWeeklyActivity(
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<ApiResponse<any>> {
     const data = await this.progressService.getWeeklyActivity(user.id);
     return { code: HttpStatus.OK, message: 'Weekly activity fetched', data };
   }
@@ -55,7 +59,9 @@ export class ProgressController {
   }
 
   @Get('lessons/completed')
-  async getCompletedLessons(@CurrentUser() user: CurrentUserData): Promise<ApiResponse<number[]>> {
+  async getCompletedLessons(
+    @CurrentUser() user: CurrentUserData,
+  ): Promise<ApiResponse<number[]>> {
     const data = await this.progressService.getCompletedLessonIds(user.id);
     return { code: HttpStatus.OK, message: 'Completed lessons fetched', data };
   }

@@ -25,7 +25,7 @@ async function createTeacher(name: string, password: string) {
   await AppDataSource.initialize();
   console.log('Connected to database');
 
-  const existing = await AppDataSource.query(
+  const existing: Array<{ id: number }> = await AppDataSource.query(
     'SELECT id FROM users WHERE email = $1',
     [email],
   );
@@ -61,7 +61,10 @@ if (args.length < 2) {
 }
 
 const [teacherName, password] = args;
-createTeacher(teacherName, password).catch((err) => {
-  console.error('Failed to create teacher:', err.message);
+createTeacher(teacherName, password).catch((err: unknown) => {
+  console.error(
+    'Failed to create teacher:',
+    err instanceof Error ? err.message : err,
+  );
   process.exit(1);
 });

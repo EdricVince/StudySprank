@@ -1,5 +1,10 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
+import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type { GetReadingDto, CefrLevel, ReadingType } from './dto/skills.dto';
 
 // Diverse topic pools — Claude picks from these to prevent repetition
@@ -50,7 +55,7 @@ const TOPICS: Record<ReadingType, string[]> = {
     'A student who finds an old diary in a library book',
     'A retired athlete coaching underprivileged youth',
     'Two rival bakers competing for a prestigious prize',
-    'A traveller lost in a city where they don\'t speak the language',
+    "A traveller lost in a city where they don't speak the language",
   ],
   academic: [
     'Epigenetics and the inheritance of acquired traits',
@@ -82,14 +87,21 @@ const TOPICS: Record<ReadingType, string[]> = {
   ],
 };
 
-const WORD_COUNTS: Record<CefrLevel, number> = { A1: 120, A2: 180, B1: 280, B2: 380, C1: 480, C2: 550 };
+const WORD_COUNTS: Record<CefrLevel, number> = {
+  A1: 120,
+  A2: 180,
+  B1: 280,
+  B2: 380,
+  C1: 480,
+  C2: 550,
+};
 
 const TYPE_DESC: Record<ReadingType, string> = {
-  story:    'an engaging English short story',
-  ielts:    'an IELTS Academic reading passage',
-  toeic:    'a TOEIC business reading passage (article, memo, or report)',
+  story: 'an engaging English short story',
+  ielts: 'an IELTS Academic reading passage',
+  toeic: 'a TOEIC business reading passage (article, memo, or report)',
   academic: 'an academic research-style article',
-  news:     'a news article',
+  news: 'a news article',
 };
 
 @Injectable()
@@ -99,19 +111,30 @@ export class ReadingService {
 
   private get client(): Anthropic | null {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-') ? new Anthropic({ apiKey: key }) : null;
+    return key && key.startsWith('sk-ant-')
+      ? new Anthropic({ apiKey: key })
+      : null;
   }
 
   async getPassage(dto: GetReadingDto) {
     const level = dto.level ?? 'B1';
-    const type  = dto.type  ?? 'ielts';
-    if (!this.client) throw new ServiceUnavailableException('AI service not configured. Please add your Anthropic API key in admin settings.');
+    const type = dto.type ?? 'ielts';
+    if (!this.client)
+      throw new ServiceUnavailableException(
+        'AI service not configured. Please add your Anthropic API key in admin settings.',
+      );
     return this.generatePassage(level, type, dto.topic);
   }
 
-  private pick(arr: string[]): string { return arr[Math.floor(Math.random() * arr.length)]; }
+  private pick(arr: string[]): string {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
 
-  private async generatePassage(level: CefrLevel, type: ReadingType, topic?: string) {
+  private async generatePassage(
+    level: CefrLevel,
+    type: ReadingType,
+    topic?: string,
+  ) {
     // Use caller-supplied topic if given, otherwise pick a fresh random one
     const chosenTopic = topic ?? this.pick(TOPICS[type] ?? TOPICS.ielts);
     const wc = WORD_COUNTS[level];
@@ -154,13 +177,12 @@ Generate 5 comprehension questions (varied: main idea, detail, inference, vocabu
         max_tokens: 2200,
         messages: [{ role: 'user', content: prompt }],
       });
-      const raw = (msg.content[0] as any).text;
-      const json = raw.match(/\{[\s\S]*\}/)?.[0];
-      if (!json) throw new Error('No JSON in response');
-      return JSON.parse(json);
+      return parseJsonObject(messageText(msg));
     } catch (e) {
       this.logger.error('Reading generation failed', e);
-      throw new ServiceUnavailableException('AI reading generation failed. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI reading generation failed. Please try again.',
+      );
     }
   }
 }

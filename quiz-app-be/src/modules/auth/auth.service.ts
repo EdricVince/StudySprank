@@ -6,13 +6,33 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ROLE_STUDENT, ROLE_TEACHER } from '../roles/entities/role.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { IsNull, Repository } from 'typeorm';
+import { ROLE_STUDENT } from '../roles/entities/role.entity';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../../core/mail/mail.service';
-import { RegisterDto, LoginDto, UserOutDto, LoginResponseDto, ProfileDto, UpdateProfileDto } from './dto/register.dto';
+import { signHs256 } from '../../core/security/jwt.util';
+import {
+  RegisterDto,
+  LoginDto,
+  RegisterResponseDto,
+  LoginResponseDto,
+  ProfileDto,
+  UpdateProfileDto,
+  TokenPairDto,
+} from './dto/register.dto';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { User } from '../users/entities/user.entity';
+import {
+  parseDurationSeconds,
+  DEFAULT_ACCESS_TTL_SECONDS,
+  DEFAULT_REFRESH_TTL_SECONDS,
+} from './token-ttl';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+
+const TEACHER_DOMAIN = '@teacher.sprk';
 
 @Injectable()
 export class AuthService {
@@ -20,36 +40,98 @@ export class AuthService {
     private usersService: UsersService,
     private configService: ConfigService,
     private mailService: MailService,
+    @InjectRepository(RefreshToken)
+    private refreshRepo: Repository<RefreshToken>,
   ) {}
 
   private async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 12);
   }
 
-  private async verifyPassword(plain: string, hashed: string): Promise<boolean> {
+  private async verifyPassword(
+    plain: string,
+    hashed: string,
+  ): Promise<boolean> {
     return bcrypt.compare(plain, hashed);
   }
 
-  private generateToken(payload: object, expiresInSeconds = 7 * 24 * 60 * 60): string {
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-    const payloadStr = Buffer.from(JSON.stringify({
-      ...payload,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
-    })).toString('base64url');
-
-    const secret = this.configService.get<string>('JWT_SECRET');
-    if (!secret) throw new InternalServerErrorException('JWT_SECRET not configured');
-    const signature = crypto
-      .createHmac('sha256', secret)
-      .update(`${header}.${payloadStr}`)
-      .digest('base64url');
-
-    return `${header}.${payloadStr}.${signature}`;
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  async register(registerDto: RegisterDto): Promise<UserOutDto> {
-    const { email, password, role_id } = registerDto;
+  private get accessTtlSeconds(): number {
+    return parseDurationSeconds(
+      this.configService.get<string>('JWT_ACCESS_EXPIRES_IN'),
+      DEFAULT_ACCESS_TTL_SECONDS,
+    );
+  }
+
+  private get refreshTtlSeconds(): number {
+    return parseDurationSeconds(
+      this.configService.get<string>('JWT_REFRESH_EXPIRES_IN'),
+      DEFAULT_REFRESH_TTL_SECONDS,
+    );
+  }
+
+  private generateAccessToken(
+    user: Pick<User, 'id' | 'email' | 'role_id'>,
+  ): string {
+    const secret = this.configService.get<string>('JWT_SECRET');
+    if (!secret)
+      throw new InternalServerErrorException('JWT_SECRET not configured');
+    return signHs256(
+      { sub: user.id, email: user.email, role_id: user.role_id },
+      secret,
+      this.accessTtlSeconds,
+    );
+  }
+
+  /** Issue a new opaque refresh token (only its SHA-256 hash is persisted). */
+  private async issueRefreshToken(
+    userId: number,
+    familyId: string = crypto.randomUUID(),
+  ): Promise<string> {
+    const token = crypto.randomBytes(48).toString('base64url');
+    await this.refreshRepo.save(
+      this.refreshRepo.create({
+        user_id: userId,
+        token_hash: this.hashToken(token),
+        family_id: familyId,
+        expires_at: new Date(Date.now() + this.refreshTtlSeconds * 1000),
+        revoked_at: null,
+      }),
+    );
+    return token;
+  }
+
+  private async issueTokenPair(
+    user: Pick<User, 'id' | 'email' | 'role_id'>,
+    familyId?: string,
+  ): Promise<TokenPairDto> {
+    return {
+      access_token: this.generateAccessToken(user),
+      refresh_token: await this.issueRefreshToken(user.id, familyId),
+    };
+  }
+
+  /** Revoke every still-active refresh token of a user (reuse detection / admin actions). */
+  async revokeAllForUser(userId: number): Promise<void> {
+    await this.refreshRepo.update(
+      { user_id: userId, revoked_at: IsNull() },
+      { revoked_at: new Date() },
+    );
+  }
+
+  async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
+    const { email, password } = registerDto;
+
+    // Self-registration always creates a STUDENT. Teachers are created by an
+    // admin (POST /admin/create-teacher) and verified there.
+    if (email.toLowerCase().endsWith(TEACHER_DOMAIN)) {
+      throw new BadRequestException(
+        'Teacher accounts are created by an administrator.',
+      );
+    }
 
     const existingUser = await this.usersService.findByEmail(email);
     if (existingUser) {
@@ -57,20 +139,25 @@ export class AuthService {
     }
 
     const hashedPassword = await this.hashPassword(password);
-    const assignedRole = role_id === ROLE_TEACHER ? ROLE_TEACHER : ROLE_STUDENT;
 
+    let user: User;
     try {
-      const user = await this.usersService.create(email, hashedPassword, assignedRole);
-
-      return {
-        id: user.id,
-        email: user.email,
-        is_active: user.is_active,
-        role_id: user.role_id,
-      };
-    } catch (error) {
+      user = await this.usersService.create(
+        email,
+        hashedPassword,
+        ROLE_STUDENT,
+      );
+    } catch {
       throw new InternalServerErrorException('Failed to create user');
     }
+
+    return {
+      id: user.id,
+      email: user.email,
+      is_active: user.is_active,
+      role_id: user.role_id,
+      ...(await this.issueTokenPair(user)),
+    };
   }
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
@@ -90,14 +177,8 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    const token = this.generateToken({
-      sub: user.id,
-      email: user.email,
-      role_id: user.role_id,
-    });
-
     return {
-      access_token: token,
+      ...(await this.issueTokenPair(user)),
       user: {
         id: user.id,
         email: user.email,
@@ -126,14 +207,62 @@ export class AuthService {
     return this.getMe(userId);
   }
 
-  refreshToken(userId: number, email: string, roleId: number): { access_token: string } {
-    const token = this.generateToken({ sub: userId, email, role_id: roleId });
-    return { access_token: token };
+  /**
+   * Rotate a refresh token: the presented token is revoked and a new pair is
+   * issued in the same family. Accepts ONLY refresh tokens — an access token
+   * (expired or not) is not in the store and is rejected.
+   * Presenting an already-revoked token means it leaked: the whole family is revoked.
+   */
+  async refresh(refreshToken: string): Promise<TokenPairDto> {
+    const row = await this.refreshRepo.findOne({
+      where: { token_hash: this.hashToken(refreshToken) },
+    });
+    if (!row) throw new UnauthorizedException('Invalid refresh token');
+
+    if (row.revoked_at) {
+      await this.refreshRepo.update(
+        { family_id: row.family_id, revoked_at: IsNull() },
+        { revoked_at: new Date() },
+      );
+      throw new UnauthorizedException(
+        'Refresh token reuse detected — please sign in again',
+      );
+    }
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    const user = await this.usersService.findById(row.user_id);
+    if (!user || !user.is_active) {
+      await this.revokeAllForUser(row.user_id);
+      throw new UnauthorizedException('Account is not active');
+    }
+
+    row.revoked_at = new Date();
+    await this.refreshRepo.save(row);
+    return this.issueTokenPair(user, row.family_id);
   }
 
-  private async verifySupabaseToken(supabaseToken: string): Promise<{ email: string; name?: string }> {
+  /** Revoke the presented refresh token's family (logout on this device). Silent if unknown. */
+  async logout(refreshToken?: string): Promise<void> {
+    if (!refreshToken) return;
+    const row = await this.refreshRepo.findOne({
+      where: { token_hash: this.hashToken(refreshToken) },
+    });
+    if (!row) return;
+    await this.refreshRepo.update(
+      { family_id: row.family_id, revoked_at: IsNull() },
+      { revoked_at: new Date() },
+    );
+  }
+
+  private async verifySupabaseToken(
+    supabaseToken: string,
+  ): Promise<{ email: string; name?: string }> {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const serviceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const serviceKey = this.configService.get<string>(
+      'SUPABASE_SERVICE_ROLE_KEY',
+    );
 
     const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: {
@@ -146,7 +275,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid OAuth token');
     }
 
-    const data = await res.json() as { email?: string; user_metadata?: { full_name?: string; name?: string } };
+    const data = (await res.json()) as {
+      email?: string;
+      user_metadata?: { full_name?: string; name?: string };
+    };
     if (!data.email) throw new UnauthorizedException('No email in OAuth token');
 
     return {
@@ -170,14 +302,8 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    const token = this.generateToken({
-      sub: user.id,
-      email: user.email,
-      role_id: user.role_id,
-    });
-
     return {
-      access_token: token,
+      ...(await this.issueTokenPair(user)),
       user: {
         id: user.id,
         email: user.email,
@@ -188,9 +314,6 @@ export class AuthService {
   }
 
   // ── Password reset ──────────────────────────────────────────────────────────
-  private hashToken(token: string): string {
-    return crypto.createHash('sha256').update(token).digest('hex');
-  }
 
   /** Generate a reset token, store its hash, and email the reset link. Silent if the email is unknown. */
   async requestPasswordReset(email: string): Promise<void> {
@@ -202,46 +325,36 @@ export class AuthService {
     const expires = Date.now() + 30 * 60 * 1000; // 30 minutes
     await this.usersService.setResetToken(user.id, hash, expires);
 
-    const appUrl = (this.configService.get<string>('APP_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
+    const appUrl = (
+      this.configService.get<string>('APP_URL') ?? 'http://localhost:5173'
+    ).replace(/\/$/, '');
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
     await this.mailService.sendPasswordReset(user.email, resetUrl);
   }
 
-  /** Verify a reset token and set the new password (single-use). */
-  async resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+  /** Verify a reset token and set the new password (single-use). Signs the user out everywhere. */
+  async resetPasswordWithToken(
+    token: string,
+    newPassword: string,
+  ): Promise<void> {
     if (!token || !newPassword || newPassword.length < 8) {
-      throw new BadRequestException('A valid token and a password of at least 8 characters are required.');
+      throw new BadRequestException(
+        'A valid token and a password of at least 8 characters are required.',
+      );
     }
     const hash = this.hashToken(token);
     const user = await this.usersService.findByResetTokenHash(hash);
-    if (!user || !user.reset_token_expires || Number(user.reset_token_expires) < Date.now()) {
-      throw new BadRequestException('This password reset link is invalid or has expired. Please request a new one.');
+    if (
+      !user ||
+      !user.reset_token_expires ||
+      Number(user.reset_token_expires) < Date.now()
+    ) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired. Please request a new one.',
+      );
     }
     const hashedPassword = await this.hashPassword(newPassword);
     await this.usersService.resetPassword(user.id, hashedPassword);
-  }
-
-  refreshFromToken(token: string): { access_token: string } {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new UnauthorizedException('Invalid token format');
-    }
-    const [header, payloadPart, signature] = parts;
-    const secret = this.configService.get<string>('JWT_SECRET');
-    if (!secret) throw new InternalServerErrorException('JWT_SECRET not configured');
-    const expectedSig = crypto.createHmac('sha256', secret).update(`${header}.${payloadPart}`).digest('base64url');
-    if (expectedSig !== signature) {
-      throw new UnauthorizedException('Invalid token signature');
-    }
-    let payload: { sub: number; email: string; role_id: number; exp: number };
-    try {
-      payload = JSON.parse(Buffer.from(payloadPart!, 'base64url').toString('utf8'));
-    } catch {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-    if (payload.exp < Math.floor(Date.now() / 1000) - 24 * 60 * 60) {
-      throw new UnauthorizedException('Token too old to refresh');
-    }
-    return this.refreshToken(payload.sub, payload.email, payload.role_id);
+    await this.revokeAllForUser(user.id);
   }
 }

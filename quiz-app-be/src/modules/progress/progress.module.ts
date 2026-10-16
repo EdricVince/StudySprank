@@ -9,7 +9,14 @@ import { User } from '../users/entities/user.entity';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserProgress, DailyActivity, LessonCompletion, User])],
+  imports: [
+    TypeOrmModule.forFeature([
+      UserProgress,
+      DailyActivity,
+      LessonCompletion,
+      User,
+    ]),
+  ],
   controllers: [ProgressController],
   providers: [ProgressService, JwtGuard],
   exports: [ProgressService],

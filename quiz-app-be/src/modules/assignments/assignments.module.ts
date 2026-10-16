@@ -7,7 +7,10 @@ import { AssignmentsService } from './assignments.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Assignment, ClassEnrollment]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([Assignment, ClassEnrollment]),
+    AuthModule,
+  ],
   controllers: [AssignmentsController],
   providers: [AssignmentsService],
 })

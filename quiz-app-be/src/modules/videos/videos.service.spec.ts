@@ -1,6 +1,10 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { VideosService } from './videos.service';
-import { ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN } from '../roles/entities/role.entity';
+import {
+  ROLE_STUDENT,
+  ROLE_TEACHER,
+  ROLE_ADMIN,
+} from '../roles/entities/role.entity';
 
 describe('VideosService.findOneForUser — resource isolation', () => {
   let service: VideosService;
@@ -22,7 +26,9 @@ describe('VideosService.findOneForUser — resource isolation', () => {
 
   it('blocks a different teacher with 403', async () => {
     videoRepo.findOne.mockResolvedValue(video);
-    await expect(service.findOneForUser(3, 99, ROLE_TEACHER)).rejects.toThrow(ForbiddenException);
+    await expect(service.findOneForUser(3, 99, ROLE_TEACHER)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('lets an enrolled student read the video', async () => {
@@ -34,7 +40,9 @@ describe('VideosService.findOneForUser — resource isolation', () => {
   it('blocks an unenrolled student with 403', async () => {
     videoRepo.findOne.mockResolvedValue(video);
     enrollRepo.findOne.mockResolvedValue(null);
-    await expect(service.findOneForUser(3, 8, ROLE_STUDENT)).rejects.toThrow(ForbiddenException);
+    await expect(service.findOneForUser(3, 8, ROLE_STUDENT)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('lets an admin read any video', async () => {
@@ -49,6 +57,8 @@ describe('VideosService.findOneForUser — resource isolation', () => {
 
   it('throws NotFound for a missing video', async () => {
     videoRepo.findOne.mockResolvedValue(null);
-    await expect(service.findOneForUser(404, 1, ROLE_ADMIN)).rejects.toThrow(NotFoundException);
+    await expect(service.findOneForUser(404, 1, ROLE_ADMIN)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

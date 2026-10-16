@@ -1,9 +1,21 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, ParseIntPipe, UseGuards, Req, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
+  UseGuards,
+  Req,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { VideosService, CreateVideoDto } from './videos.service';
 import { JwtGuard } from '../../core/guards/jwt.guard';
+import type { AuthenticatedRequest } from '../../core/decorators/current-user.decorator';
 import { RolesGuard } from '../../core/guards/roles.guard';
 import { Roles } from '../../core/decorators/roles.decorator';
 import { ROLE_TEACHER } from '../roles/entities/role.entity';
@@ -16,14 +28,17 @@ export class VideosController {
   /** Teacher: create video */
   @Post()
   @Roles(ROLE_TEACHER)
-  async create(@Req() req: any, @Body() dto: CreateVideoDto) {
+  async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateVideoDto) {
     const video = await this.videosService.create(req.user.id, dto);
     return { code: 201, message: 'Video created', data: video };
   }
 
   /** All: list videos scoped to the requester (teacher own / student enrolled / admin any) */
   @Get()
-  async findAll(@Req() req: any, @Query('class_id') classId?: string) {
+  async findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query('class_id') classId?: string,
+  ) {
     const videos = await this.videosService.findForUser(
       req.user.id,
       req.user.role_id,
@@ -34,8 +49,15 @@ export class VideosController {
 
   /** All: get one video (teacher own / student enrolled / admin any) */
   @Get(':id')
-  async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    const video = await this.videosService.findOneForUser(id, req.user.id, req.user.role_id);
+  async findOne(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const video = await this.videosService.findOneForUser(
+      id,
+      req.user.id,
+      req.user.role_id,
+    );
     return { code: 200, message: 'OK', data: video };
   }
 
@@ -43,7 +65,7 @@ export class VideosController {
   @Patch(':id')
   @Roles(ROLE_TEACHER)
   async update(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: Partial<CreateVideoDto>,
   ) {
@@ -55,7 +77,10 @@ export class VideosController {
   @Delete(':id')
   @Roles(ROLE_TEACHER)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async remove(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     await this.videosService.remove(id, req.user.id);
   }
 }

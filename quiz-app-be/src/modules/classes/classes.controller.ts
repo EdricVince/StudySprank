@@ -1,10 +1,25 @@
 import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, ParseIntPipe, UseGuards, Req, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+  Req,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ClassesService, CreateClassDto, UpdateClassDto } from './classes.service';
+import {
+  ClassesService,
+  CreateClassDto,
+  UpdateClassDto,
+} from './classes.service';
 import { AnalyticsService } from './analytics.service';
 import { JwtGuard } from '../../core/guards/jwt.guard';
+import type { AuthenticatedRequest } from '../../core/decorators/current-user.decorator';
 import { RolesGuard } from '../../core/guards/roles.guard';
 import { Roles } from '../../core/decorators/roles.decorator';
 import { ROLE_TEACHER } from '../roles/entities/role.entity';
@@ -20,37 +35,53 @@ export class ClassesController {
   /** GET /classes/analytics — teacher analytics dashboard */
   @Get('analytics')
   @Roles(ROLE_TEACHER)
-  async getAnalytics(@Req() req: any) {
+  async getAnalytics(@Req() req: AuthenticatedRequest) {
     const data = await this.analyticsService.getTeacherAnalytics(req.user.id);
     return { code: 200, message: 'OK', data };
   }
 
   /** GET /classes — teacher: own classes; student: enrolled classes */
   @Get()
-  async findAll(@Req() req: any) {
-    const classes = await this.classesService.findAll(req.user.id, req.user.role_id);
+  async findAll(@Req() req: AuthenticatedRequest) {
+    const classes = await this.classesService.findAll(
+      req.user.id,
+      req.user.role_id,
+    );
     return { code: 200, message: 'OK', data: classes };
   }
 
   /** POST /classes — teacher creates a class */
   @Post()
   @Roles(ROLE_TEACHER)
-  async create(@Req() req: any, @Body() dto: CreateClassDto) {
+  async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateClassDto) {
     const cls = await this.classesService.create(req.user.id, dto);
     return { code: 201, message: 'Class created', data: cls };
   }
 
   /** POST /classes/join — student joins by class code */
   @Post('join')
-  async join(@Req() req: any, @Body() body: { class_code: string }) {
-    const cls = await this.classesService.joinClass(body.class_code, req.user.id);
+  async join(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { class_code: string },
+  ) {
+    const cls = await this.classesService.joinClass(
+      body.class_code,
+      req.user.id,
+    );
     return { code: 200, message: 'Joined class', data: cls };
   }
 
   /** GET /classes/:id — teacher: own class; student: enrolled class; admin: any */
   @Get(':id')
-  async findOne(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    const cls = await this.classesService.findOneForUser(id, req.user.id, req.user.role_id);
+  async findOne(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const cls = await this.classesService.findOneForUser(
+      id,
+      req.user.id,
+      req.user.role_id,
+    );
     return { code: 200, message: 'OK', data: cls };
   }
 
@@ -58,7 +89,7 @@ export class ClassesController {
   @Put(':id')
   @Roles(ROLE_TEACHER)
   async update(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClassDto,
   ) {
@@ -70,14 +101,20 @@ export class ClassesController {
   @Delete(':id')
   @Roles(ROLE_TEACHER)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async remove(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     await this.classesService.delete(id, req.user.id);
   }
 
   /** GET /classes/:id/students */
   @Get(':id/students')
   @Roles(ROLE_TEACHER)
-  async getStudents(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+  async getStudents(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     const students = await this.classesService.getStudents(id, req.user.id);
     return { code: 200, message: 'OK', data: students };
   }
@@ -87,7 +124,7 @@ export class ClassesController {
   @Roles(ROLE_TEACHER)
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeStudent(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Param('studentId', ParseIntPipe) studentId: number,
   ) {

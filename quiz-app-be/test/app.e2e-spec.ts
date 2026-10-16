@@ -16,6 +16,11 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
+  // Close the app (and its DB pool) so Jest can exit cleanly.
+  afterEach(async () => {
+    await app?.close();
+  });
+
   it('/ (GET)', () => {
     return request(app.getHttpServer())
       .get('/')

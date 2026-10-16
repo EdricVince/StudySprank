@@ -34,7 +34,9 @@ export class MailService {
       return;
     }
 
-    const from = this.config.get<string>('SMTP_FROM') || this.config.get<string>('SMTP_USER');
+    const from =
+      this.config.get<string>('SMTP_FROM') ||
+      this.config.get<string>('SMTP_USER');
     const html = `
       <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#0f172a">
         <h2 style="margin:0 0 8px">Reset your StudySpark password</h2>
@@ -55,7 +57,9 @@ export class MailService {
       this.logger.log(`Password reset email sent to ${to}`);
     } catch (err) {
       // Log the link so the flow still works in dev even if SMTP delivery fails.
-      this.logger.error(`Failed to send reset email to ${to}: ${(err as Error).message}. Link: ${resetUrl}`);
+      this.logger.error(
+        `Failed to send reset email to ${to}: ${(err as Error).message}. Link: ${resetUrl}`,
+      );
       throw err;
     }
   }

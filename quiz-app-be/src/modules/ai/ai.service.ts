@@ -1,13 +1,24 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
+import { assertPublicUrl } from '../../core/security/ssrf';
 
 export interface ImportedContent {
-  title: string
-  summary: string
-  language: string
-  vocabulary: { term: string; definition: string; example: string }[]
-  quiz: { question: string; options: string[]; correct: number; explanation: string }[]
-  comprehension: { question: string; answer: string }[]
+  title: string;
+  summary: string;
+  language: string;
+  vocabulary: { term: string; definition: string; example: string }[];
+  quiz: {
+    question: string;
+    options: string[];
+    correct: number;
+    explanation: string;
+  }[];
+  comprehension: { question: string; answer: string }[];
 }
 
 export interface WordOfTheDay {
@@ -36,7 +47,12 @@ export interface GeneratedLesson {
   content: {
     reading?: string;
     vocabulary: { term: string; definition: string; example: string }[];
-    quiz: { question: string; options: string[]; correct: number; explanation: string }[];
+    quiz: {
+      question: string;
+      options: string[];
+      correct: number;
+      explanation: string;
+    }[];
     comprehension: { question: string; answer: string }[];
   };
 }
@@ -48,7 +64,12 @@ export interface GeneratedVocabSet {
 
 export interface GeneratedTest {
   title: string;
-  questions: { question: string; options: string[]; correct: number; points: number }[];
+  questions: {
+    question: string;
+    options: string[];
+    correct: number;
+    points: number;
+  }[];
 }
 
 @Injectable()
@@ -60,53 +81,85 @@ export class AiService {
 
   private get client(): Anthropic | null {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-') ? new Anthropic({ apiKey: key }) : null;
+    return key && key.startsWith('sk-ant-')
+      ? new Anthropic({ apiKey: key })
+      : null;
   }
 
-  async scanContent(dto: { url?: string; text?: string; language?: string }): Promise<ImportedContent> {
-    let rawText = dto.text?.trim() || ''
+  async scanContent(dto: {
+    url?: string;
+    text?: string;
+    language?: string;
+  }): Promise<ImportedContent> {
+    let rawText = dto.text?.trim() || '';
 
+    // Bad input → 400 (BadRequestException); AI side problems → 503.
     if (dto.url) {
       let parsedUrl: URL;
       try {
         parsedUrl = new URL(dto.url);
       } catch {
-        throw new Error('Invalid URL format.');
+        throw new BadRequestException('Invalid URL format.');
       }
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        throw new Error('Only HTTP and HTTPS URLs are supported.');
+        throw new BadRequestException(
+          'Only HTTP and HTTPS URLs are supported.',
+        );
       }
-      const hostname = parsedUrl.hostname.toLowerCase();
-      if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|::1$|\[::1\])/.test(hostname)) {
-        throw new Error('Access to private or local network addresses is not allowed.');
-      }
+      // SSRF guard: resolve DNS and refuse private/loopback/link-local targets
+      // (IPv4, IPv6, 0.0.0.0, IPv4-mapped). Redirects are not followed, so a
+      // public URL cannot bounce the request to an internal address.
       try {
-        const res = await fetch(parsedUrl.toString(), {
+        await assertPublicUrl(parsedUrl);
+      } catch (e) {
+        throw new BadRequestException((e as Error).message);
+      }
+      let res: Response;
+      try {
+        res = await fetch(parsedUrl.toString(), {
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StudySpark/1.0)' },
           signal: AbortSignal.timeout(10000),
-        })
-        const html = await res.text()
+          redirect: 'manual',
+        });
+      } catch {
+        throw new BadRequestException(
+          'Cannot fetch URL. Try pasting the text directly.',
+        );
+      }
+      if (res.status >= 300 && res.status < 400) {
+        throw new BadRequestException(
+          'The URL redirects elsewhere — redirects are not followed. Paste the final URL or the text directly.',
+        );
+      }
+      try {
+        const html = await res.text();
         rawText = html
           .replace(/<script[\s\S]*?<\/script>/gi, '')
           .replace(/<style[\s\S]*?<\/style>/gi, '')
           .replace(/<[^>]+>/g, ' ')
           .replace(/\s+/g, ' ')
           .trim()
-          .slice(0, 12000)
-      } catch (err) {
-        throw new Error('Cannot fetch URL. Try pasting the text directly.')
+          .slice(0, 12000);
+      } catch {
+        throw new BadRequestException(
+          'Cannot fetch URL. Try pasting the text directly.',
+        );
       }
     }
 
     if (!rawText || rawText.length < 80) {
-      throw new Error('Not enough content to analyze. Please provide more text.')
+      throw new BadRequestException(
+        'Not enough content to analyze. Please provide more text.',
+      );
     }
 
     if (!this.client) {
-      throw new Error('AI service not configured. Set ANTHROPIC_API_KEY in environment.')
+      throw new ServiceUnavailableException(
+        'AI service not configured. Set ANTHROPIC_API_KEY in environment.',
+      );
     }
 
-    const lang = dto.language || 'English'
+    const lang = dto.language || 'English';
     const prompt = `You are a language teacher assistant. Analyze the following text and generate structured learning content in ${lang}.
 Return ONLY a valid JSON object (no markdown, no code blocks) with this exact structure:
 {
@@ -130,23 +183,27 @@ Generate:
 - 4 comprehension questions requiring short answers
 
 TEXT:
-${rawText}`
+${rawText}`;
 
     try {
       const response = await this.client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
-      })
+      });
 
-      const text = (response.content[0] as { type: string; text: string }).text.trim()
-      const jsonStart = text.indexOf('{')
-      const jsonEnd = text.lastIndexOf('}')
-      const jsonStr = text.slice(jsonStart, jsonEnd + 1)
-      return JSON.parse(jsonStr) as ImportedContent
+      const text = (
+        response.content[0] as { type: string; text: string }
+      ).text.trim();
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}');
+      const jsonStr = text.slice(jsonStart, jsonEnd + 1);
+      return JSON.parse(jsonStr) as ImportedContent;
     } catch (err) {
-      this.logger.error('scanContent error', err)
-      throw new Error('AI failed to parse content. Please try again.')
+      this.logger.error('scanContent error', err);
+      throw new ServiceUnavailableException(
+        'AI failed to parse content. Please try again.',
+      );
     }
   }
 
@@ -183,13 +240,26 @@ ${rawText}`
 
     // Rotate through themes so consecutive batches don't repeat the same words.
     const themes = [
-      'everyday life', 'food and cooking', 'travel', 'work and office',
-      'technology', 'nature and weather', 'emotions and feelings',
-      'health and the body', 'shopping and money', 'education',
-      'hobbies and sports', 'family and relationships', 'the city and directions',
-      'time and dates', 'houses and furniture', 'arts and music',
+      'everyday life',
+      'food and cooking',
+      'travel',
+      'work and office',
+      'technology',
+      'nature and weather',
+      'emotions and feelings',
+      'health and the body',
+      'shopping and money',
+      'education',
+      'hobbies and sports',
+      'family and relationships',
+      'the city and directions',
+      'time and dates',
+      'houses and furniture',
+      'arts and music',
     ];
-    const pickedThemes = [...themes].sort(() => Math.random() - 0.5).slice(0, 4);
+    const pickedThemes = [...themes]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
     const exclude = (dto.exclude ?? []).filter(Boolean).slice(0, 60);
     const excludeLine = exclude.length
       ? `Do NOT include any of these already-seen words: ${exclude.join(', ')}.`
@@ -251,7 +321,9 @@ Return ONLY a valid JSON array (no markdown, no code fences) of exactly ${count}
     }
 
     const lang = this.langName(dto.language ?? 'en');
-    const meaningLang = this.langName(dto.meaningLanguage ?? dto.language ?? 'en');
+    const meaningLang = this.langName(
+      dto.meaningLanguage ?? dto.language ?? 'en',
+    );
     const bilingual = meaningLang !== lang;
     const skill = (dto.skill || 'vocabulary').trim();
     const level = (dto.level || 'Intermediate (B1)').trim();
@@ -298,7 +370,9 @@ Generate the reading passage, 8-12 vocabulary items, 6 multiple-choice quiz ques
       return lesson;
     } catch (err) {
       this.logger.error('generateLesson failed', err);
-      throw new ServiceUnavailableException('AI failed to generate the lesson. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI failed to generate the lesson. Please try again.',
+      );
     }
   }
 
@@ -320,7 +394,9 @@ Generate the reading passage, 8-12 vocabulary items, 6 multiple-choice quiz ques
     }
 
     const lang = this.langName(dto.language ?? 'en');
-    const meaningLang = this.langName(dto.meaningLanguage ?? dto.language ?? 'en');
+    const meaningLang = this.langName(
+      dto.meaningLanguage ?? dto.language ?? 'en',
+    );
     const bilingual = meaningLang !== lang;
     const level = (dto.level || 'Intermediate (B1)').trim();
     const topic = (dto.topic || 'everyday vocabulary').trim();
@@ -353,7 +429,9 @@ Include exactly ${count} words.`;
       return set;
     } catch (err) {
       this.logger.error('generateVocabularySet failed', err);
-      throw new ServiceUnavailableException('AI failed to generate the vocabulary set. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI failed to generate the vocabulary set. Please try again.',
+      );
     }
   }
 
@@ -396,17 +474,28 @@ Return ONLY a valid JSON object (no markdown, no code fences):
       const test = JSON.parse(json) as GeneratedTest;
       test.title ||= topic;
       test.questions = (test.questions ?? [])
-        .filter(q => q && q.question && Array.isArray(q.options) && q.options.length >= 2)
-        .map(q => ({
+        .filter(
+          (q) =>
+            q &&
+            q.question &&
+            Array.isArray(q.options) &&
+            q.options.length >= 2,
+        )
+        .map((q) => ({
           question: q.question,
           options: q.options,
-          correct: Math.min(Math.max(Number(q.correct) || 0, 0), q.options.length - 1),
+          correct: Math.min(
+            Math.max(Number(q.correct) || 0, 0),
+            q.options.length - 1,
+          ),
           points: q.points && q.points > 0 ? q.points : 1,
         }));
       return test;
     } catch (err) {
       this.logger.error('generateTest failed', err);
-      throw new ServiceUnavailableException('AI failed to generate the test. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI failed to generate the test. Please try again.',
+      );
     }
   }
 
@@ -417,15 +506,26 @@ Return ONLY a valid JSON object (no markdown, no code fences):
     if (!fresh && this.cache?.date === today) return this.cache.word;
 
     if (!this.client) {
-      throw new ServiceUnavailableException('AI service not configured. Please add your Anthropic API key in admin settings.');
+      throw new ServiceUnavailableException(
+        'AI service not configured. Please add your Anthropic API key in admin settings.',
+      );
     }
 
     // A random seed (theme + starting letter) so each day — and each refresh —
     // lands on a genuinely different word instead of the model's usual favourites.
     const themes = [
-      'everyday life', 'nature & science', 'emotions & feelings', 'work & business',
-      'travel & places', 'food & cooking', 'art & music', 'technology',
-      'personality & character', 'time & change', 'communication', 'movement & action',
+      'everyday life',
+      'nature & science',
+      'emotions & feelings',
+      'work & business',
+      'travel & places',
+      'food & cooking',
+      'art & music',
+      'technology',
+      'personality & character',
+      'time & change',
+      'communication',
+      'movement & action',
     ];
     const theme = themes[Math.floor(Math.random() * themes.length)];
     const letter = 'abcdefghijklmnoprstuvw'[Math.floor(Math.random() * 22)];
@@ -434,9 +534,10 @@ Return ONLY a valid JSON object (no markdown, no code fences):
       const response = await this.client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
-        messages: [{
-          role: 'user',
-          content: `Generate a Word of the Day for an English learning app. Today is ${today}.
+        messages: [
+          {
+            role: 'user',
+            content: `Generate a Word of the Day for an English learning app. Today is ${today}.
 Return ONLY valid JSON (no markdown) with this exact structure:
 {
   "word": "string",
@@ -449,18 +550,21 @@ Return ONLY valid JSON (no markdown) with this exact structure:
   "tip": "fun memory trick or etymology tip"
 }
 Pick an interesting, useful English word related to "${theme}", ideally starting with "${letter}". Not too common, not too obscure. Surprise me with a different word each time.`,
-        }],
+          },
+        ],
       });
 
       const raw = (response.content[0] as { type: string; text: string }).text;
       // Robustly extract the JSON object (Claude may wrap it in prose / markdown fences)
       const json = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
-      const word: WordOfTheDay = JSON.parse(json);
+      const word = JSON.parse(json) as WordOfTheDay;
       this.cache = { date: today, word };
       return word;
     } catch (err) {
       this.logger.error('Word of the day generation failed', err);
-      throw new ServiceUnavailableException('AI failed to generate the word of the day. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI failed to generate the word of the day. Please try again.',
+      );
     }
   }
 }

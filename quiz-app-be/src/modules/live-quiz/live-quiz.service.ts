@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
+import * as crypto from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LiveSession } from './entities/live-session.entity';
@@ -9,6 +16,9 @@ export interface StepDto {
   body: string;
 }
 
+export const LIVE_STATUSES = ['waiting', 'live', 'ended'] as const;
+export type LiveStatus = (typeof LIVE_STATUSES)[number];
+
 @Injectable()
 export class LiveQuizService {
   constructor(
@@ -16,14 +26,29 @@ export class LiveQuizService {
     private sessionRepo: Repository<LiveSession>,
   ) {}
 
+  /** 6-digit PIN from a CSPRNG (not Math.random), so PINs can't be predicted. */
   private generatePin(): string {
-    return Math.floor(10000000 + Math.random() * 90000000).toString().slice(0, 6);
+    return String(crypto.randomInt(100000, 1000000));
   }
 
-  async create(teacherId: number, title: string, classId?: number, steps: StepDto[] = []): Promise<LiveSession> {
+  async create(
+    teacherId: number,
+    title: string,
+    classId?: number,
+    steps: StepDto[] = [],
+  ): Promise<LiveSession> {
+    // `pin` is a UNIQUE column, so it must not collide with ANY stored session
+    // (the old check only looked at 'waiting' ones → unique-violation on insert).
     let pin = this.generatePin();
-    // Ensure a unique pin among sessions still open.
-    while (await this.sessionRepo.findOne({ where: { pin, status: 'waiting' } })) {
+    for (
+      let tries = 0;
+      await this.sessionRepo.findOne({ where: { pin } });
+      tries++
+    ) {
+      if (tries >= 20)
+        throw new ConflictException(
+          'Could not allocate a free PIN, please retry.',
+        );
       pin = this.generatePin();
     }
     const session = this.sessionRepo.create({
@@ -57,23 +82,34 @@ export class LiveQuizService {
     return session;
   }
 
-  async updateStatus(id: number, teacherId: number, status: string): Promise<LiveSession> {
+  async updateStatus(
+    id: number,
+    teacherId: number,
+    status: string,
+  ): Promise<LiveSession> {
+    if (!LIVE_STATUSES.includes(status as LiveStatus)) {
+      throw new BadRequestException(
+        `status must be one of: ${LIVE_STATUSES.join(', ')}`,
+      );
+    }
     const session = await this.findOne(id);
-    if (session.teacher_id !== teacherId) throw new BadRequestException('Not your session');
+    if (session.teacher_id !== teacherId)
+      throw new ForbiddenException('Not your session');
     session.status = status;
     return this.sessionRepo.save(session);
   }
 
   async delete(id: number, teacherId: number): Promise<void> {
     const session = await this.findOne(id);
-    if (session.teacher_id !== teacherId) throw new BadRequestException('Not your session');
+    if (session.teacher_id !== teacherId)
+      throw new ForbiddenException('Not your session');
     await this.sessionRepo.delete(id);
   }
 
   parseSteps(session: LiveSession): StepDto[] {
     try {
-      const parsed = JSON.parse(session.steps || '[]');
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed: unknown = JSON.parse(session.steps || '[]');
+      return Array.isArray(parsed) ? (parsed as StepDto[]) : [];
     } catch {
       return [];
     }

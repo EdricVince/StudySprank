@@ -48,7 +48,9 @@ describe('FlashcardDecksService — sharing + ownership', () => {
 
   it('blocks a non-owner from updating or deleting a deck', async () => {
     repo.findOne.mockResolvedValue(publicDeck);
-    await expect(service.update(3, 999, { title: 'hijack' })).rejects.toThrow(ForbiddenException);
+    await expect(service.update(3, 999, { title: 'hijack' })).rejects.toThrow(
+      ForbiddenException,
+    );
     repo.findOne.mockResolvedValue(publicDeck);
     await expect(service.remove(3, 999)).rejects.toThrow(ForbiddenException);
   });

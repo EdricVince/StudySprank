@@ -1,18 +1,32 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import type { GenerateScheduleDto, ExtendScheduleDto, MonthPlan, StudyPlan } from './dto/schedule.dto';
+import type {
+  GenerateScheduleDto,
+  ExtendScheduleDto,
+  MonthPlan,
+  StudyPlan,
+} from './dto/schedule.dto';
 
 const MONTHS_BY_LEVEL: Record<string, Record<string, number>> = {
   beginner: { IELTS: 12, TOEIC: 10, TOEFL: 12, General: 8 },
-  A1:       { IELTS: 10, TOEIC: 8,  TOEFL: 10, General: 6 },
-  A2:       { IELTS: 8,  TOEIC: 6,  TOEFL: 8,  General: 5 },
-  B1:       { IELTS: 5,  TOEIC: 4,  TOEFL: 5,  General: 3 },
-  B2:       { IELTS: 3,  TOEIC: 2,  TOEFL: 4,  General: 2 },
-  C1:       { IELTS: 2,  TOEIC: 1,  TOEFL: 2,  General: 1 },
-  C2:       { IELTS: 1,  TOEIC: 1,  TOEFL: 1,  General: 1 },
+  A1: { IELTS: 10, TOEIC: 8, TOEFL: 10, General: 6 },
+  A2: { IELTS: 8, TOEIC: 6, TOEFL: 8, General: 5 },
+  B1: { IELTS: 5, TOEIC: 4, TOEFL: 5, General: 3 },
+  B2: { IELTS: 3, TOEIC: 2, TOEFL: 4, General: 2 },
+  C1: { IELTS: 2, TOEIC: 1, TOEFL: 2, General: 1 },
+  C2: { IELTS: 1, TOEIC: 1, TOEFL: 1, General: 1 },
 };
 
-function getMonthsNeeded(level: string, exam: string, targetBand?: string, weeklyHours = 10): number {
+function getMonthsNeeded(
+  level: string,
+  exam: string,
+  targetBand?: string,
+  weeklyHours = 10,
+): number {
   const base = MONTHS_BY_LEVEL[level]?.[exam] ?? 6;
   let months = base;
   if (targetBand) {
@@ -43,9 +57,16 @@ function getTier(level: string, exam: string, targetBand?: string): 1 | 2 | 3 {
 }
 
 /** Attempt to recover a truncated JSON response by closing open structures */
-function tryParseJson(raw: string): any {
-  const cleaned = raw.trim().replace(/```json\n?|```/g, '').trim();
-  try { return JSON.parse(cleaned); } catch {}
+function tryParseJson(raw: string): unknown {
+  const cleaned = raw
+    .trim()
+    .replace(/```json\n?|```/g, '')
+    .trim();
+  try {
+    return JSON.parse(cleaned) as unknown;
+  } catch {
+    /* truncated output — repair below */
+  }
   let text = cleaned;
   // Remove last incomplete object (open brace with no closing)
   text = text.replace(/,?\s*\{[^{}]*$/, '');
@@ -54,11 +75,13 @@ function tryParseJson(raw: string): any {
   // Remove trailing comma
   text = text.replace(/,\s*$/, '');
   // Close unclosed brackets
-  const opens    = (text.match(/\{/g) ?? []).length - (text.match(/\}/g) ?? []).length;
-  const arrOpens = (text.match(/\[/g) ?? []).length - (text.match(/\]/g) ?? []).length;
+  const opens =
+    (text.match(/\{/g) ?? []).length - (text.match(/\}/g) ?? []).length;
+  const arrOpens =
+    (text.match(/\[/g) ?? []).length - (text.match(/\]/g) ?? []).length;
   for (let i = 0; i < arrOpens; i++) text += ']';
   for (let i = 0; i < opens; i++) text += '}';
-  return JSON.parse(text);
+  return JSON.parse(text) as unknown;
 }
 
 @Injectable()
@@ -68,20 +91,36 @@ export class ScheduleService {
 
   private get client(): Anthropic | null {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-') ? new Anthropic({ apiKey: key }) : null;
+    return key && key.startsWith('sk-ant-')
+      ? new Anthropic({ apiKey: key })
+      : null;
   }
 
   async generatePlan(dto: GenerateScheduleDto): Promise<StudyPlan> {
-    if (!this.client) throw new ServiceUnavailableException('AI service not configured. Please add your Anthropic API key in admin settings.');
+    if (!this.client)
+      throw new ServiceUnavailableException(
+        'AI service not configured. Please add your Anthropic API key in admin settings.',
+      );
 
-    const monthsNeeded = getMonthsNeeded(dto.current_level, dto.target_exam, dto.target_band, dto.weekly_hours);
+    const monthsNeeded = getMonthsNeeded(
+      dto.current_level,
+      dto.target_exam,
+      dto.target_band,
+      dto.weekly_hours,
+    );
     const tier = getTier(dto.current_level, dto.target_exam, dto.target_band);
     const monthlyHours = dto.weekly_hours * 4;
 
     // Generate only 1 month upfront to keep JSON small and generation fast.
     // Additional months are loaded on demand via extendPlan.
     const previewMonths = Math.min(monthsNeeded, 1);
-    const prompt = this.buildPrompt(dto, monthsNeeded, monthlyHours, previewMonths, tier);
+    const prompt = this.buildPrompt(
+      dto,
+      monthsNeeded,
+      monthlyHours,
+      previewMonths,
+      tier,
+    );
 
     try {
       const res = await this.client.messages.create({
@@ -90,27 +129,36 @@ export class ScheduleService {
         messages: [{ role: 'user', content: prompt }],
       });
       const raw = (res.content[0] as { text: string }).text;
-      const plan: StudyPlan = tryParseJson(raw);
-      return plan;
+      return tryParseJson(raw) as StudyPlan;
     } catch (e) {
       this.logger.error('Schedule AI failed', e);
-      throw new ServiceUnavailableException('AI schedule generation failed. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI schedule generation failed. Please try again.',
+      );
     }
   }
 
   async extendPlan(dto: ExtendScheduleDto): Promise<MonthPlan> {
-    if (!this.client) throw new ServiceUnavailableException('AI service not configured. Please add your Anthropic API key in admin settings.');
+    if (!this.client)
+      throw new ServiceUnavailableException(
+        'AI service not configured. Please add your Anthropic API key in admin settings.',
+      );
 
     const monthlyHours = dto.weekly_hours * 4;
-    const targetStr = dto.target_band ? `${dto.target_exam} ${dto.target_band}` : dto.target_exam;
+    const targetStr = dto.target_band
+      ? `${dto.target_exam} ${dto.target_band}`
+      : dto.target_exam;
     const tier = getTier(dto.current_level, dto.target_exam, dto.target_band);
-    const prevThemes = dto.existing_themes.map((t, i) => `Month ${i + 1}: ${t}`).join('\n');
+    const prevThemes = dto.existing_themes
+      .map((t, i) => `Month ${i + 1}: ${t}`)
+      .join('\n');
 
-    const tierGuide = tier === 1
-      ? 'TIER 1: Mon=Vocabulary, Tue=Grammar, Wed=Reading, Thu=Listening, Fri=Writing, Sat=Speaking, Sun=Rest.'
-      : tier === 2
-      ? 'TIER 2: One main skill per day with increasing difficulty.'
-      : 'TIER 3: High-level strategy and exam refinement.';
+    const tierGuide =
+      tier === 1
+        ? 'TIER 1: Mon=Vocabulary, Tue=Grammar, Wed=Reading, Thu=Listening, Fri=Writing, Sat=Speaking, Sun=Rest.'
+        : tier === 2
+          ? 'TIER 2: One main skill per day with increasing difficulty.'
+          : 'TIER 3: High-level strategy and exam refinement.';
 
     const prompt = `You are an expert ${dto.target_exam} tutor extending a study plan.
 STUDENT: ${dto.current_level} → ${targetStr} | ${dto.weekly_hours}h/week${dto.focus_areas?.length ? ' | Priority: ' + dto.focus_areas.join(', ') : ''}
@@ -154,17 +202,28 @@ Rules: Exactly 4 week_summaries. Each week exactly 7 days (Mon-Sun). Sunday alwa
       return tryParseJson(raw) as MonthPlan;
     } catch (e) {
       this.logger.error('Schedule extend AI failed', e);
-      throw new ServiceUnavailableException('AI month generation failed. Please try again.');
+      throw new ServiceUnavailableException(
+        'AI month generation failed. Please try again.',
+      );
     }
   }
 
-  private buildPrompt(dto: GenerateScheduleDto, monthsNeeded: number, monthlyHours: number, previewMonths: number, tier: 1 | 2 | 3): string {
-    const targetStr = dto.target_band ? `${dto.target_exam} ${dto.target_band}` : dto.target_exam;
-    const tierGuide = tier === 1
-      ? `TIER 1 — BEGINNER: Each day ONE skill only. Mon=Vocabulary, Tue=Grammar, Wed=Reading, Thu=Listening, Fri=Writing, Sat=Speaking, Sun=Rest. Simple accessible topics.`
-      : tier === 2
-      ? `TIER 2 — INTERMEDIATE: One main skill per day. Moderate-to-advanced topics. Clear weekly progression.`
-      : `TIER 3 — ADVANCED: High-level objectives. Exam strategy and refinement focus.`;
+  private buildPrompt(
+    dto: GenerateScheduleDto,
+    monthsNeeded: number,
+    monthlyHours: number,
+    previewMonths: number,
+    tier: 1 | 2 | 3,
+  ): string {
+    const targetStr = dto.target_band
+      ? `${dto.target_exam} ${dto.target_band}`
+      : dto.target_exam;
+    const tierGuide =
+      tier === 1
+        ? `TIER 1 — BEGINNER: Each day ONE skill only. Mon=Vocabulary, Tue=Grammar, Wed=Reading, Thu=Listening, Fri=Writing, Sat=Speaking, Sun=Rest. Simple accessible topics.`
+        : tier === 2
+          ? `TIER 2 — INTERMEDIATE: One main skill per day. Moderate-to-advanced topics. Clear weekly progression.`
+          : `TIER 3 — ADVANCED: High-level objectives. Exam strategy and refinement focus.`;
 
     return `You are an expert ${dto.target_exam} tutor. Create a personalized study plan.
 STUDENT: ${dto.current_level} → ${targetStr} | ${dto.weekly_hours}h/week (≈${monthlyHours}h/month) | Total: ${monthsNeeded} months${dto.focus_areas?.length ? ' | Priority: ' + dto.focus_areas.join(', ') : ''}

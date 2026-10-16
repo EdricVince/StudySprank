@@ -9,7 +9,17 @@ import { WritingService } from './writing.service';
 import { SpeakingService } from './speaking.service';
 
 @Module({
-  controllers: [ReadingController, ListeningController, WritingController, SpeakingController],
-  providers: [ReadingService, ListeningService, WritingService, SpeakingService],
+  controllers: [
+    ReadingController,
+    ListeningController,
+    WritingController,
+    SpeakingController,
+  ],
+  providers: [
+    ReadingService,
+    ListeningService,
+    WritingService,
+    SpeakingService,
+  ],
 })
 export class SkillsModule {}

@@ -9,7 +9,10 @@ import { TestsService } from './tests.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Test, TestSubmission, ClassEnrollment, User]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([Test, TestSubmission, ClassEnrollment, User]),
+    AuthModule,
+  ],
   controllers: [TestsController],
   providers: [TestsService],
 })

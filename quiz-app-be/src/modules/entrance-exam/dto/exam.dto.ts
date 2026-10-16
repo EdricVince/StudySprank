@@ -1,4 +1,12 @@
-import { IsEnum, IsArray, IsInt, IsOptional, IsString, Min, Max } from 'class-validator';
+import {
+  IsEnum,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  Max,
+} from 'class-validator';
 
 export type ExamType = 'ielts' | 'toeic' | 'toefl';
 
@@ -6,10 +14,16 @@ export class StartExamDto {
   @IsEnum(['ielts', 'toeic', 'toefl'])
   exam_type: ExamType;
 
-  @IsInt() @Min(10) @Max(40) @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(40)
+  @IsOptional()
   question_count?: number;
 
-  @IsInt() @Min(0) @Max(17) @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(17)
+  @IsOptional()
   variant?: number;
 }
 
@@ -45,4 +59,9 @@ export interface ExamResult {
   breakdown: { section: string; correct: number; total: number }[];
   recommendations: string[];
   weak_areas: string[];
+  review?: {
+    question_id: number;
+    correct_answer: number;
+    explanation: string;
+  }[];
 }

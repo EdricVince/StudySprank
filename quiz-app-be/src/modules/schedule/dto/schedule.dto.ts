@@ -1,25 +1,39 @@
-import { IsEnum, IsInt, IsOptional, IsString, IsArray, Min, Max, IsNumber } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsArray,
+  Min,
+  Max,
+  IsNumber,
+} from 'class-validator';
 
 export type CefrLevel = 'beginner' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export type TargetExam = 'IELTS' | 'TOEIC' | 'TOEFL' | 'General';
 
 export class GenerateScheduleDto {
-  @IsEnum(['beginner','A1','A2','B1','B2','C1','C2'])
+  @IsEnum(['beginner', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
   current_level: CefrLevel;
 
-  @IsEnum(['IELTS','TOEIC','TOEFL','General'])
+  @IsEnum(['IELTS', 'TOEIC', 'TOEFL', 'General'])
   target_exam: TargetExam;
 
-  @IsString() @IsOptional()
+  @IsString()
+  @IsOptional()
   target_band?: string;
 
-  @IsInt() @Min(2) @Max(40)
+  @IsInt()
+  @Min(2)
+  @Max(40)
   weekly_hours: number;
 
-  @IsArray() @IsOptional()
+  @IsArray()
+  @IsOptional()
   focus_areas?: string[];
 
-  @IsString() @IsOptional()
+  @IsString()
+  @IsOptional()
   target_date?: string;
 }
 
@@ -51,10 +65,13 @@ export class ExtendScheduleDto {
   @IsString()
   target_exam: string;
 
-  @IsString() @IsOptional()
+  @IsString()
+  @IsOptional()
   target_band?: string;
 
-  @IsInt() @Min(2) @Max(40)
+  @IsInt()
+  @Min(2)
+  @Max(40)
   weekly_hours: number;
 
   @IsNumber()
@@ -63,7 +80,8 @@ export class ExtendScheduleDto {
   @IsArray()
   existing_themes: string[];
 
-  @IsArray() @IsOptional()
+  @IsArray()
+  @IsOptional()
   focus_areas?: string[];
 }
 

@@ -16,9 +16,18 @@ export class ReadingController {
 
   @Post('submit')
   submit(@Body() dto: SubmitReadingDto) {
-    const correct = dto.answers.filter((ans, i) => ans === dto.questions[i]?.correct).length;
+    // Score per question (extra answers beyond the question list are ignored).
     const total = dto.questions.length;
-    const data = { correct, total, score: Math.round((correct / total) * 100), passed: correct / total >= 0.6 };
+    const correct = dto.questions.filter(
+      (q, i) => dto.answers[i] === q.correct,
+    ).length;
+    const ratio = total ? correct / total : 0;
+    const data = {
+      correct,
+      total,
+      score: Math.round(ratio * 100),
+      passed: ratio >= 0.6,
+    };
     return { code: 200, message: 'Submitted', data };
   }
 }

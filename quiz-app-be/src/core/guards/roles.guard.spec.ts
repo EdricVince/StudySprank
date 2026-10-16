@@ -10,7 +10,9 @@ function context(roleId?: number) {
     getHandler: () => ({}),
     getClass: () => ({}),
     switchToHttp: () => ({
-      getRequest: () => ({ user: roleId === undefined ? undefined : { role_id: roleId } }),
+      getRequest: () => ({
+        user: roleId === undefined ? undefined : { role_id: roleId },
+      }),
     }),
   } as any;
 }
@@ -18,7 +20,9 @@ function context(roleId?: number) {
 describe('RolesGuard', () => {
   /** A guard whose Reflector reports the given required roles. */
   const guardRequiring = (required?: number[]) => {
-    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(required) } as any;
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(required),
+    } as any;
     return new RolesGuard(reflector);
   };
 
@@ -33,10 +37,14 @@ describe('RolesGuard', () => {
   });
 
   it('blocks a student (role 1) from a teacher-only (role 2) route with 403', () => {
-    expect(() => guardRequiring([2]).canActivate(context(1))).toThrow(ForbiddenException);
+    expect(() => guardRequiring([2]).canActivate(context(1))).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('blocks a request with no role_id', () => {
-    expect(() => guardRequiring([2]).canActivate(context(undefined))).toThrow(ForbiddenException);
+    expect(() => guardRequiring([2]).canActivate(context(undefined))).toThrow(
+      ForbiddenException,
+    );
   });
 });
