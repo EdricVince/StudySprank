@@ -5,5 +5,5 @@
 </template>
 
 <script setup lang="ts">
-const props = withDefaults(defineProps<{ variant?: string }>(), { variant: 'default' })
+withDefaults(defineProps<{ variant?: string }>(), { variant: 'default' })
 </script>

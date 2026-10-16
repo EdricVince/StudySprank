@@ -94,7 +94,7 @@
           <div class="bg-card border-border relative w-full max-w-lg rounded-2xl border p-6 shadow-xl">
             <h2 class="text-foreground mb-6 text-xl font-semibold">{{ $t('teacher.videos.uploadVideo') }}</h2>
 
-            <form @submit.prevent="uploadVideo" class="space-y-5">
+            <form class="space-y-5" @submit.prevent="uploadVideo">
               <div>
                 <label class="text-foreground mb-2 block text-sm font-medium">{{ $t('teacher.videos.modal.titleLabel') }}</label>
                 <input

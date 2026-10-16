@@ -91,7 +91,8 @@
                     <p class="text-foreground truncate text-sm font-medium" v-html="highlight(item.title)" />
                     <p class="text-muted-foreground truncate text-xs">{{ item.description }}</p>
                   </div>
-                  <ArrowRight class="text-muted-foreground h-4 w-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  <ArrowRight
+class="text-muted-foreground h-4 w-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                     :class="selectedIndex === item.globalIdx ? 'opacity-100' : ''" />
                 </button>
               </div>

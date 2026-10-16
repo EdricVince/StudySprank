@@ -45,7 +45,7 @@ export default {
       and: 'and', privacyPolicy: 'Privacy Policy',
       createAccount: 'Create account', creatingAccount: 'Creating account...',
       alreadyHaveAccount: 'Already have an account?', signIn: 'Sign in', orSignUpWith: 'Or sign up with',
-      emailPlaceholder: 'name@example.com',
+      emailPlaceholder: "name{'@'}example.com", // '@' must be escaped in vue-i18n
       errEmail: 'Please enter a valid email address',
       errTeacherOnly: 'Teacher accounts are created by admin only. Contact your administrator.',
       errPasswordMin: 'Password must be at least 8 characters', errPasswordMatch: 'Passwords do not match',
@@ -727,5 +727,8 @@ export default {
       next: 'New Exercise', cameraOff: 'Camera off', cameraOn: 'Camera on',
       permissionNeeded: 'Microphone permission needed to start recording',
     },
+  },
+  ai: {
+    generated: { label: 'AI-generated', notice: 'may contain errors; not a final grade' },
   },
 }

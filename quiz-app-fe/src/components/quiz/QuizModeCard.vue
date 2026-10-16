@@ -33,7 +33,7 @@ interface Props {
   index?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   index: 0,
 })
 

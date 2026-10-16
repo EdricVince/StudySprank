@@ -24,8 +24,8 @@
       </div>
       <button
         v-if="roleFilter === 'teacher' || roleFilter === 'all'"
-        @click="openCreateTeacher"
         class="adm-btn-primary"
+        @click="openCreateTeacher"
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -40,9 +40,9 @@
         <button
           v-for="tab in tabs"
           :key="tab.value"
-          @click="roleFilter = tab.value"
           class="adm-tab"
           :class="{ 'adm-tab-on': roleFilter === tab.value }"
+          @click="roleFilter = tab.value"
         >
           {{ tab.label }}
           <span class="ml-1 text-[10px] opacity-60">({{ tab.count }})</span>
@@ -65,10 +65,10 @@
       >
         <span class="text-sm font-medium text-indigo-700 dark:text-indigo-300">{{ selectedIds.length }} selected</span>
         <div class="flex items-center gap-2">
-          <button @click="clearSelection" class="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/30 rounded-lg transition">
+          <button class="px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted/30 rounded-lg transition" @click="clearSelection">
             Clear
           </button>
-          <button @click="openBulkDelete" class="adm-btn-danger">
+          <button class="adm-btn-danger" @click="openBulkDelete">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -140,7 +140,7 @@
             </td>
             <td class="adm-td adm-meta">{{ idx + 1 }}</td>
             <td class="adm-td">
-              <button type="button" class="flex items-center gap-3 text-left group/user" @click="openProfile(user)" title="View profile">
+              <button type="button" class="flex items-center gap-3 text-left group/user" title="View profile" @click="openProfile(user)">
                 <div class="adm-avatar" :class="user.role_id === 2 ? 'adm-avatar-teacher' : 'adm-avatar-student'">
                   {{ initials(user.name ?? user.email) }}
                 </div>
@@ -169,11 +169,11 @@
             <td class="adm-td adm-meta hidden lg:table-cell">{{ formatDate(user.created_at) }}</td>
             <td class="adm-td text-center">
               <button
-                @click="toggleActive(user)"
                 :disabled="togglingId === user.id"
                 class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50"
                 :class="user.is_active ? 'adm-toggle-on' : 'adm-toggle-off'"
                 :title="user.is_active ? 'Deactivate' : 'Activate'"
+                @click="toggleActive(user)"
               >
                 <span
                   class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
@@ -183,22 +183,22 @@
             </td>
             <td class="adm-td">
               <div class="flex items-center justify-end gap-1">
-                <button @click="openProfile(user)" class="adm-icon-btn adm-icon-btn-close" title="View profile">
+                <button class="adm-icon-btn adm-icon-btn-close" title="View profile" @click="openProfile(user)">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                   </svg>
                 </button>
-                <button v-if="user.has_teacher_card" @click="openCardView(user)" class="adm-icon-btn adm-icon-btn-close" title="View ID card">
+                <button v-if="user.has_teacher_card" class="adm-icon-btn adm-icon-btn-close" title="View ID card" @click="openCardView(user)">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M18 6h.008v.008H18V6zm2.25 12H3.75A2.25 2.25 0 011.5 15.75V4.5A2.25 2.25 0 013.75 2.25h16.5A2.25 2.25 0 0122.5 4.5v11.25A2.25 2.25 0 0120.25 18z" />
                   </svg>
                 </button>
-                <button @click="openResetPwd(user)" class="adm-icon-btn adm-icon-btn-warn" title="Reset password">
+                <button class="adm-icon-btn adm-icon-btn-warn" title="Reset password" @click="openResetPwd(user)">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                   </svg>
                 </button>
-                <button @click="confirmDelete(user)" class="adm-icon-btn adm-icon-btn-del" title="Delete user">
+                <button class="adm-icon-btn adm-icon-btn-del" title="Delete user" @click="confirmDelete(user)">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -218,7 +218,7 @@
           <div class="relative w-full max-w-md adm-card-2xl shadow-2xl">
             <div class="adm-card-header px-6 py-4">
               <h3 class="adm-h3 text-base">Create Teacher Account</h3>
-              <button @click="showCreateModal = false" class="adm-icon-btn adm-icon-btn-close">
+              <button class="adm-icon-btn adm-icon-btn-close" @click="showCreateModal = false">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -247,7 +247,7 @@
                 <label class="adm-form-label">Initial Password <span class="adm-required">*</span></label>
                 <div class="relative">
                   <input v-model="form.password" :type="showFormPwd ? 'text' : 'password'" placeholder="Min 8 characters" class="adm-input pr-10" />
-                  <button type="button" @click="showFormPwd = !showFormPwd" class="absolute right-3 top-1/2 -translate-y-1/2 adm-icon-btn" tabindex="-1">
+                  <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 adm-icon-btn" tabindex="-1" @click="showFormPwd = !showFormPwd">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path v-if="showFormPwd" stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                       <path v-else stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -275,9 +275,9 @@
                     <img :src="form.card" alt="Teacher ID card" class="mx-auto max-h-44 w-full rounded-lg object-contain p-2" />
                     <button
                       type="button"
-                      @click.stop="clearCard"
                       class="absolute top-2 right-2 rounded-lg bg-black/50 p-1.5 text-white hover:bg-black/70 transition"
                       title="Remove image"
+                      @click.stop="clearCard"
                     >
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -318,14 +318,14 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 px-6 py-4 bg-muted/10 border-t border-border">
-              <button @click="showCreateModal = false" class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition">
+              <button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition" @click="showCreateModal = false">
                 {{ createdEmail ? 'Close' : 'Cancel' }}
               </button>
               <button
                 v-if="!createdEmail"
-                @click="submitCreateTeacher"
                 :disabled="formLoading || !form.name.trim() || form.password.length < 8"
                 class="adm-btn-primary"
+                @click="submitCreateTeacher"
               >
                 <svg v-if="formLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -347,7 +347,7 @@
           <div class="relative w-full max-w-sm adm-card-2xl shadow-2xl">
             <div class="adm-card-header px-6 py-4">
               <h3 class="adm-h3 text-base">Reset Password</h3>
-              <button @click="resetTarget = null" class="adm-icon-btn adm-icon-btn-close">
+              <button class="adm-icon-btn adm-icon-btn-close" @click="resetTarget = null">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -364,11 +364,11 @@
               <p v-if="resetError" class="text-xs text-red-500">{{ resetError }}</p>
             </div>
             <div class="flex items-center justify-end gap-3 px-6 py-4 bg-muted/10 border-t border-border">
-              <button @click="resetTarget = null" class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition">Cancel</button>
+              <button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition" @click="resetTarget = null">Cancel</button>
               <button
-                @click="submitResetPwd"
                 :disabled="resetLoading || newPwd.length < 8"
                 class="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-white rounded-lg transition"
+                @click="submitResetPwd"
               >
                 <svg v-if="resetLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -402,8 +402,8 @@
               </p>
             </div>
             <div class="flex items-center justify-end gap-3 px-6 py-4 bg-muted/10 border-t border-border">
-              <button @click="deleteTarget = null" class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition">Cancel</button>
-              <button @click="submitDelete" :disabled="deleteLoading" class="adm-btn-danger">
+              <button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition" @click="deleteTarget = null">Cancel</button>
+              <button :disabled="deleteLoading" class="adm-btn-danger" @click="submitDelete">
                 <svg v-if="deleteLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -424,7 +424,7 @@
           <div class="relative w-full max-w-md adm-card-2xl shadow-2xl">
             <div class="adm-card-header px-6 py-4">
               <h3 class="adm-h3 text-base">User Profile</h3>
-              <button @click="profileTarget = null" class="adm-icon-btn adm-icon-btn-close">
+              <button class="adm-icon-btn adm-icon-btn-close" @click="profileTarget = null">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -518,7 +518,7 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 px-6 py-4 bg-muted/10 border-t border-border">
-              <button @click="profileTarget = null" class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition">Close</button>
+              <button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition" @click="profileTarget = null">Close</button>
             </div>
           </div>
         </div>
@@ -545,8 +545,8 @@
               </p>
             </div>
             <div class="flex items-center justify-end gap-3 px-6 py-4 bg-muted/10 border-t border-border">
-              <button @click="bulkDeleteOpen = false" class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition">Cancel</button>
-              <button @click="submitBulkDelete" :disabled="bulkDeleting" class="adm-btn-danger">
+              <button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition" @click="bulkDeleteOpen = false">Cancel</button>
+              <button :disabled="bulkDeleting" class="adm-btn-danger" @click="submitBulkDelete">
                 <svg v-if="bulkDeleting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -570,7 +570,7 @@
                 <h3 class="adm-h3 text-base">Teacher ID Card</h3>
                 <p class="adm-meta">{{ cardViewTarget?.name ?? cardViewTarget?.email }}</p>
               </div>
-              <button @click="cardViewTarget = null" class="adm-icon-btn adm-icon-btn-close">
+              <button class="adm-icon-btn adm-icon-btn-close" @click="cardViewTarget = null">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>

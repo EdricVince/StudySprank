@@ -58,7 +58,8 @@
       <div v-else class="mx-auto max-w-2xl">
         <!-- Progress bar (time) -->
         <div class="bg-secondary mb-4 h-2 overflow-hidden rounded-full">
-          <div class="bg-primary h-full rounded-full transition-all duration-1000"
+          <div
+class="bg-primary h-full rounded-full transition-all duration-1000"
             :style="{ width: (timeLeft / 60 * 100) + '%' }"
             :class="timeLeft <= 10 ? 'bg-red-500!' : ''" />
         </div>

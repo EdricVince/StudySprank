@@ -119,7 +119,8 @@
             <div class="relative h-14 w-14">
               <svg class="h-14 w-14 -rotate-90">
                 <circle cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none" class="text-secondary" />
-                <circle cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none"
+                <circle
+cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none"
                   :stroke-dasharray="circumference" :stroke-dashoffset="timerOffset"
                   :class="timeLeft <= 3 ? 'text-destructive' : 'text-primary'" class="transition-all duration-100" />
               </svg>
@@ -194,7 +195,8 @@
     <!-- RESULT -->
     <template v-else-if="phase === 'result'">
       <div class="mx-auto max-w-lg">
-        <div class="mb-6 rounded-3xl p-8 text-center"
+        <div
+class="mb-6 rounded-3xl p-8 text-center"
           :class="resultKind === 'win' ? 'bg-primary/10' : resultKind === 'draw' ? 'bg-secondary' : 'bg-destructive/10'">
           <div class="mb-4 text-6xl">{{ resultKind === 'win' ? '🏆' : resultKind === 'draw' ? '🤝' : '😔' }}</div>
           <h1 class="text-foreground mb-2 text-3xl font-black">{{ resultKind === 'win' ? 'Victory!' : resultKind === 'draw' ? 'Draw!' : 'Defeated!' }}</h1>
@@ -409,7 +411,8 @@ function submitAnswer(index: number) {
   if (answeredIndex.value !== null) return
   answeredIndex.value = index
   if (qTimer) clearInterval(qTimer)
-  socket?.emit('battle:answer', { questionIndex: currentQ.value, answerIndex: index, timeLeft: timeLeft.value })
+  // The server measures the answer time itself (it ignores any client-sent timeLeft).
+  socket?.emit('battle:answer', { questionIndex: currentQ.value, answerIndex: index })
 }
 
 function nextQuestion() {

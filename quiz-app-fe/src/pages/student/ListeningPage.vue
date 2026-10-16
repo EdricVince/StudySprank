@@ -10,9 +10,9 @@
         <div class="flex items-center gap-1.5">
           <button
             v-for="l in ['', ...levels]" :key="l"
-            @click="filterLevel = l"
             class="rounded-lg border px-3 py-1.5 text-xs font-bold transition-all"
             :class="filterLevel === l ? levelFilterClass(l) : 'border-border text-muted-foreground hover:text-foreground hover:border-emerald-500/30'"
+            @click="filterLevel = l"
           >{{ l || 'All' }}</button>
         </div>
       </div>
@@ -25,9 +25,10 @@
           <div v-for="cat in filteredLibrary" :key="cat.name" class="mb-5">
             <div class="lib-cat-label"><span>{{ cat.icon }}</span> {{ cat.name }}</div>
             <div class="space-y-1">
-              <button v-for="ex in cat.exercises" :key="ex.title" @click="selectExercise(ex, cat.type)"
-                class="lib-item"
-                :class="selectedExercise?.title === ex.title ? 'lib-item-active-emerald' : 'lib-item-inactive'">
+              <button
+v-for="ex in cat.exercises" :key="ex.title" class="lib-item"
+                :class="selectedExercise?.title === ex.title ? 'lib-item-active-emerald' : 'lib-item-inactive'"
+                @click="selectExercise(ex, cat.type)">
                 <div class="flex items-start justify-between gap-2">
                   <span class="text-foreground text-sm font-medium leading-tight">{{ ex.title }}</span>
                   <span class="mt-0.5 shrink-0" :class="levelBadge(ex.level)">{{ ex.level }}</span>
@@ -45,7 +46,7 @@
           <div class="mb-4 text-5xl">⚠️</div>
           <h3 class="text-foreground text-xl font-bold">Failed to load exercise</h3>
           <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ fetchError }}</p>
-          <button @click="reloadExercise" class="btn-emerald mt-4 px-5 py-2 text-sm">Retry</button>
+          <button class="btn-emerald mt-4 px-5 py-2 text-sm" @click="reloadExercise">Retry</button>
         </div>
         <div v-else-if="!exercise && !loading" class="empty-state">
           <div class="mb-4 text-5xl">🎧</div>
@@ -71,7 +72,8 @@
             <!-- Waveform + controls -->
             <div class="audio-player audio-player-emerald">
               <div class="mb-4 flex items-end justify-center gap-0.5 h-10">
-                <div v-for="i in 32" :key="i"
+                <div
+v-for="i in 32" :key="i"
                   class="w-1 rounded-full bg-emerald-400 transition-all duration-75"
                   :style="{ height: isSpeaking ? `${8 + Math.abs(Math.sin(i * 0.4 + wavePhase)) * 28}px` : '6px', opacity: isSpeaking ? 0.7 + Math.sin(i*0.3)*0.3 : 0.3 }">
                 </div>
@@ -82,14 +84,14 @@
               </div>
               <!-- Buttons -->
               <div class="flex items-center justify-center gap-3">
-                <button @click="replay" class="rounded-xl border border-emerald-500/30 p-2.5 text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                <button class="rounded-xl border border-emerald-500/30 p-2.5 text-emerald-400 hover:bg-emerald-500/10 transition-colors" @click="replay">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
-                <button @click="togglePlay" class="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30 hover:scale-105 transition-transform">
+                <button class="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30 hover:scale-105 transition-transform" @click="togglePlay">
                   <svg v-if="!isSpeaking" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                   <svg v-else class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                 </button>
-                <button @click="cycleSpeed" class="rounded-xl border border-emerald-500/30 px-3 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/10 transition-colors">{{ speed }}×</button>
+                <button class="rounded-xl border border-emerald-500/30 px-3 py-2.5 text-sm font-bold text-emerald-400 hover:bg-emerald-500/10 transition-colors" @click="cycleSpeed">{{ speed }}×</button>
               </div>
             </div>
           </div>
@@ -97,8 +99,8 @@
           <!-- Script / Key phrases tabs -->
           <div class="sk-card-p">
             <div class="mb-4 flex gap-2 border-b border-border pb-3">
-              <button @click="tab='script'" class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='script' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'">Transcript</button>
-              <button @click="tab='phrases'" class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='phrases' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'">Key Phrases</button>
+              <button class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='script' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'" @click="tab='script'">Transcript</button>
+              <button class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='phrases' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'" @click="tab='phrases'">Key Phrases</button>
             </div>
             <div v-if="tab==='script'" class="space-y-2">
               <p v-for="(line,i) in scriptLines" :key="i" class="text-foreground text-sm leading-relaxed rounded-lg px-2 py-1" :class="Number(i)%2===0?'bg-muted/5':''">{{ line }}</p>
@@ -118,9 +120,10 @@
               <div v-for="(q,qi) in exercise.questions" :key="q.id" class="border-border border-b pb-5 last:border-0 last:pb-0">
                 <p class="text-foreground mb-3 text-sm font-semibold">{{ Number(qi)+1 }}. {{ q.question }}</p>
                 <div class="grid gap-2 sm:grid-cols-2">
-                  <button v-for="(opt,oi) in q.options" :key="oi" :disabled="qSubmitted" @click="qAnswers[Number(qi)]=Number(oi)"
-                    class="flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all"
-                    :class="qOptClass(qi,oi)">
+                  <button
+v-for="(opt,oi) in q.options" :key="oi" :disabled="qSubmitted" class="flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all"
+                    :class="qOptClass(qi,oi)"
+                    @click="qAnswers[Number(qi)]=Number(oi)">
                     <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-bold" :class="qOptBadge(qi,oi)">{{ 'ABCD'[Number(oi)] }}</span>
                     {{ opt.replace(/^[A-D]\.\s*/,'') }}
                   </button>
@@ -132,11 +135,14 @@
               <div>
                 <div class="font-bold" :class="qPassed?'text-emerald-400':'text-red-400'">{{ qCorrect }}/{{ exercise.questions.length }}</div>
                 <div class="text-muted-foreground text-sm">{{ Math.round(qCorrect/exercise.questions.length*100) }}%  ·  {{ completedAt }}</div>
+                <!-- script, questions and explanations are AI-generated -->
+                <AiGeneratedBadge class="mt-2" />
               </div>
-              <button @click="reloadExercise" class="btn-emerald px-4 py-2 text-sm">Next</button>
+              <button class="btn-emerald px-4 py-2 text-sm" @click="reloadExercise">Next</button>
             </div>
-            <button v-else :disabled="qAnswers.some(a=>a===-1)" @click="submitQ"
-              class="btn-emerald mt-5 w-full py-2.5 disabled:opacity-40">Submit</button>
+            <button
+v-else :disabled="qAnswers.some(a=>a===-1)" class="btn-emerald mt-5 w-full py-2.5 disabled:opacity-40"
+              @click="submitQ">Submit</button>
           </div>
         </div>
       </div>
@@ -147,6 +153,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { api } from '@/utils/api'
+import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
 const levels = ['A1','A2','B1','B2','C1','C2']
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]

@@ -47,7 +47,8 @@
 
               <!-- Progress bar -->
               <div class="target-track mb-4 h-2 w-full overflow-hidden rounded-full">
-                <div class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transition-all duration-300"
+                <div
+class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transition-all duration-300"
                   :style="{ width: ((targetBand - 1) / 8 * 100) + '%' }"></div>
               </div>
 
@@ -55,8 +56,8 @@
               <input
                 type="range" min="1" max="9" step="0.5"
                 :value="targetBand"
-                @input="onSliderInput"
                 class="target-slider w-full"
+                @input="onSliderInput"
               />
 
               <!-- Band marks -->

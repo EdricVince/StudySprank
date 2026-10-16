@@ -20,6 +20,7 @@ import type {
   GeneratedVocabSetData,
   FlashcardDeckData,
   DeckCardData,
+  DueCardsData,
   TestData,
   TestQuestionData,
   TestSubmissionData,
@@ -89,6 +90,8 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
 
     const errorData = responseData as ApiErrorResponse
 
+    // Access token expired → refresh once (rotating the refresh token), then retry
+    // the request exactly ONCE. If the refresh fails, the session is over.
     if (response.status === 401 && requiresAuth) {
       const refreshed = await authStore.refreshAccessToken()
       if (refreshed) {
@@ -99,11 +102,17 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
           headers: requestHeaders,
         })
         const retryText = await retryResponse.text()
-        if (retryResponse.status >= 200 && retryResponse.status < 300) {
-          return (JSON.parse(retryText) as ApiResponse<T>).data
+        let retryData: ApiResponse<T> | ApiErrorResponse | null = null
+        try {
+          retryData = retryText ? JSON.parse(retryText) : null
+        } catch {
+          throw new ApiError(500, 'PARSE_ERROR', 'Failed to parse response')
         }
-        const retryError = JSON.parse(retryText) as ApiErrorResponse
-        throw new ApiError(retryResponse.status, retryError.code || 'ERROR', retryError.message, retryError.details)
+        if (retryResponse.status >= 200 && retryResponse.status < 300) {
+          return retryData ? (retryData as ApiResponse<T>).data : (undefined as T)
+        }
+        const retryError = retryData as ApiErrorResponse | null
+        throw new ApiError(retryResponse.status, retryError?.code || 'ERROR', retryError?.message || 'An error occurred', retryError?.details)
       } else {
         authStore.logout()
         window.location.href = '/login'
@@ -172,7 +181,13 @@ export const api = {
   updateProfile: (data: Partial<UserProfileData>): Promise<UserProfileData> =>
     apiRequest<UserProfileData>('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
 
-  logout: (): Promise<SuccessResponse> => apiRequest<SuccessResponse>('/auth/logout', { method: 'POST' }),
+  // Revokes the refresh token server-side; no access token needed (it may already be expired).
+  logout: (refreshToken: string): Promise<SuccessResponse> =>
+    apiRequest<SuccessResponse>('/auth/logout', {
+      method: 'POST',
+      requiresAuth: false,
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }),
 
   // ── Classes ───────────────────────────────────────────────────
   getClasses: (): Promise<unknown[]> => apiRequest<unknown[]>('/classes'),
@@ -390,6 +405,13 @@ export const api = {
     apiRequest(`/flashcard-decks/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteFlashcardDeck: (id: number): Promise<void> =>
     apiRequest(`/flashcard-decks/${id}`, { method: 'DELETE' }),
+  // Spaced repetition (SM-2)
+  getDueCards: (deckId: number): Promise<DueCardsData> => apiRequest(`/flashcard-decks/${deckId}/due`),
+  reviewCard: (deckId: number, cardKey: string, quality: number): Promise<unknown> =>
+    apiRequest(`/flashcard-decks/${deckId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ card_key: cardKey, quality }),
+    }),
 
   // ── Tests (teacher-created assignments) ───────────────────────
   getTests: (): Promise<TestData[]> => apiRequest('/tests'),

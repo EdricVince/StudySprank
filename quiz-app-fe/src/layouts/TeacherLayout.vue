@@ -151,7 +151,7 @@
           <div class="bg-border h-8 w-px"></div>
 
           <!-- User Dropdown -->
-          <div class="relative" ref="dropdownRef">
+          <div ref="dropdownRef" class="relative">
             <button
               class="hover:bg-accent flex items-center gap-3 rounded-xl p-2 transition-colors"
               @click="isDropdownOpen = !isDropdownOpen"

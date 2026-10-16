@@ -84,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (email: string, password: string, remember = false): Promise<AuthResult> => {
     try {
       const resp = await api.login(email, password)
-      setTokens(resp.access_token)
+      setTokens(resp.access_token, resp.refresh_token)
       setUser({
         id: resp.user.id,
         email: resp.user.email,
@@ -120,11 +120,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Google OAuth — not implemented
-  const loginWithGoogle = async (): Promise<AuthResult> => {
-    return { success: false, message: 'Google login is not available yet' }
-  }
-
   const register = async (email: string, password: string, roleId?: number): Promise<AuthResult> => {
     try {
       const userOut: UserOut = await api.register(email, password, roleId)
@@ -144,10 +139,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const registerWithGoogle = async (): Promise<AuthResult> => {
-    return { success: false, message: 'Google registration is not available yet' }
-  }
-
   const resetPassword = async (email: string): Promise<AuthResult> => {
     try {
       await api.resetPassword(email)
@@ -160,6 +151,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = () => {
+    // Revoke the refresh token server-side (best effort), then forget everything locally.
+    const refreshToken = getRefreshToken()
+    if (refreshToken) api.logout(refreshToken).catch(() => {})
     clearTokens()
     const progressStore = useProgressStore()
     progressStore.$reset()
@@ -187,18 +181,28 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const refreshAccessToken = async (): Promise<boolean> => {
+  // Refresh tokens are single-use (rotated by the server), so concurrent 401s must
+  // share ONE refresh call — a second call with the same token would look like reuse.
+  let refreshInFlight: Promise<boolean> | null = null
+
+  const refreshAccessToken = (): Promise<boolean> => {
+    if (refreshInFlight) return refreshInFlight
     const refreshToken = getRefreshToken()
-    if (!refreshToken) return false
-    try {
-      const resp = await api.refreshToken(refreshToken)
-      setTokens(resp.access_token)
-      return true
-    } catch (error) {
-      console.error('Token refresh error:', error)
-      clearTokens()
-      return false
-    }
+    if (!refreshToken) return Promise.resolve(false)
+    refreshInFlight = (async () => {
+      try {
+        const resp = await api.refreshToken(refreshToken)
+        setTokens(resp.access_token, resp.refresh_token)
+        return true
+      } catch (error) {
+        console.error('Token refresh error:', error)
+        clearTokens()
+        return false
+      } finally {
+        refreshInFlight = null
+      }
+    })()
+    return refreshInFlight
   }
 
   return {
@@ -214,10 +218,10 @@ export const useAuthStore = defineStore('auth', () => {
     isStudent,
     userRole,
     // Actions
+    // Google/Facebook OAuth lives in lib/supabase.ts + OAuthCallbackPage (the old
+    // always-failing loginWithGoogle/registerWithGoogle stubs were removed).
     login,
-    loginWithGoogle,
     register,
-    registerWithGoogle,
     resetPassword,
     logout,
     getRememberedEmail,

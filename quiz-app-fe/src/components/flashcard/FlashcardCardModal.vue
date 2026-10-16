@@ -19,7 +19,7 @@
             </button>
           </div>
 
-          <form @submit.prevent="handleSubmit" class="space-y-5">
+          <form class="space-y-5" @submit.prevent="handleSubmit">
             <!-- Image Upload -->
             <div>
               <label class="text-foreground mb-2 block text-sm font-medium">Image (Optional)</label>

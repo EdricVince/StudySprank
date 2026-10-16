@@ -56,7 +56,7 @@ onMounted(async () => {
 
     // Exchange Supabase session for our own JWT (BE verifies the token with Supabase)
     const resp = await api.oauthLogin(data.session.access_token)
-    authStore.setTokens(resp.access_token)
+    authStore.setTokens(resp.access_token, resp.refresh_token)
     authStore.setUser({
       id: resp.user.id,
       email: resp.user.email,

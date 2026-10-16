@@ -45,7 +45,7 @@ export default {
       and: '和', privacyPolicy: '隐私政策',
       createAccount: '创建账号', creatingAccount: '正在创建账号...',
       alreadyHaveAccount: '已有账号？', signIn: '登录', orSignUpWith: '或使用以下方式注册',
-      emailPlaceholder: 'name@example.com',
+      emailPlaceholder: "name{'@'}example.com", // '@' must be escaped in vue-i18n
       errEmail: '请输入有效的邮箱地址',
       errTeacherOnly: '教师账号仅由管理员创建，请联系管理员。',
       errPasswordMin: '密码至少需要 8 个字符', errPasswordMatch: '两次密码不一致',
@@ -709,5 +709,8 @@ export default {
       next: '新练习', cameraOff: '关闭摄像头', cameraOn: '开启摄像头',
       permissionNeeded: '需要麦克风权限才能开始录音',
     },
+  },
+  ai: {
+    generated: { label: 'AI 生成', notice: '可能有误；并非最终成绩' },
   },
 }

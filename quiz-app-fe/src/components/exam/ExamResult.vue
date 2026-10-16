@@ -1,5 +1,6 @@
 <template>
   <div class="space-y-6">
+    <AiGeneratedBadge />
     <!-- Score Header -->
     <div class="bg-card border-border flex flex-wrap items-center gap-8 rounded-2xl border p-6">
       <!-- Ring -->
@@ -101,6 +102,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
 const props = defineProps<{
   result: {

@@ -10,9 +10,9 @@
         <div class="flex items-center gap-1.5">
           <button
             v-for="l in ['', ...levels]" :key="l"
-            @click="filterLevel = l"
             class="rounded-lg border px-3 py-1.5 text-xs font-bold transition-all"
             :class="filterLevel === l ? levelFilterClass(l) : 'border-border text-muted-foreground hover:text-foreground hover:border-blue-500/30'"
+            @click="filterLevel = l"
           >{{ l || 'All' }}</button>
         </div>
       </div>
@@ -25,9 +25,10 @@
           <div v-for="cat in filteredLibrary" :key="cat.name" class="mb-5">
             <div class="lib-cat-label"><span>{{ cat.icon }}</span> {{ cat.name }}</div>
             <div class="space-y-1">
-              <button v-for="book in cat.books" :key="book.title" @click="selectBook(book, cat.type)"
-                class="lib-item"
-                :class="selectedBook?.title === book.title ? 'lib-item-active-blue' : 'lib-item-inactive'">
+              <button
+v-for="book in cat.books" :key="book.title" class="lib-item"
+                :class="selectedBook?.title === book.title ? 'lib-item-active-blue' : 'lib-item-inactive'"
+                @click="selectBook(book, cat.type)">
                 <div class="flex items-start justify-between gap-2">
                   <span class="text-foreground text-sm font-medium leading-tight">{{ book.title }}</span>
                   <span class="mt-0.5 shrink-0" :class="levelBadge(book.level)">{{ book.level }}</span>
@@ -45,7 +46,7 @@
           <div class="mb-4 text-5xl">⚠️</div>
           <h3 class="text-foreground text-xl font-bold">Failed to load passage</h3>
           <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ fetchError }}</p>
-          <button @click="reloadCurrent" class="btn-blue mt-4 px-5 py-2 text-sm">Retry</button>
+          <button class="btn-blue mt-4 px-5 py-2 text-sm" @click="reloadCurrent">Retry</button>
         </div>
         <div v-else-if="!passage && !loading" class="empty-state">
           <div class="mb-4 text-5xl">📚</div>
@@ -67,7 +68,7 @@
                 <span class="chip capitalize">{{ passage.type }}</span>
                 <span class="chip">~{{ passage.estimated_time }} min · {{ passage.word_count }} words</span>
               </div>
-              <button @click="toggleTTS" class="action-btn action-btn-blue">
+              <button class="action-btn action-btn-blue" @click="toggleTTS">
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-4.536-9.536a5 5 0 000 7.072" /></svg>
                 {{ isSpeaking ? 'Stop' : 'Listen' }}
               </button>
@@ -103,10 +104,11 @@
               <div v-for="(q, qi) in passage.questions" :key="q.id" class="border-border border-b pb-5 last:border-0 last:pb-0">
                 <p class="text-foreground mb-3 text-sm font-semibold">{{ Number(qi) + 1 }}. {{ q.question }}</p>
                 <div class="grid gap-2 sm:grid-cols-2">
-                  <button v-for="(opt, oi) in q.options" :key="oi" :disabled="submitted"
-                    @click="answers[Number(qi)] = Number(oi)"
+                  <button
+v-for="(opt, oi) in q.options" :key="oi" :disabled="submitted"
                     class="flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all"
-                    :class="optClass(qi, oi)">
+                    :class="optClass(qi, oi)"
+                    @click="answers[Number(qi)] = Number(oi)">
                     <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-bold" :class="optBadge(qi, oi)">{{ 'ABCD'[Number(oi)] }}</span>
                     {{ opt.replace(/^[A-D]\.\s*/, '') }}
                   </button>
@@ -123,11 +125,14 @@
                   {{ correctCount }}/{{ passage.questions.length }} — {{ isPassed ? 'Passed ✓' : 'Try Again' }}
                 </div>
                 <div class="text-muted-foreground text-sm">{{ Math.round(correctCount/passage.questions.length*100) }}%  ·  {{ completedAt }}</div>
+                <!-- passage, questions and explanations are AI-generated -->
+                <AiGeneratedBadge class="mt-2" />
               </div>
-              <button @click="reloadCurrent" class="btn-blue px-4 py-2 text-sm">New Passage</button>
+              <button class="btn-blue px-4 py-2 text-sm" @click="reloadCurrent">New Passage</button>
             </div>
-            <button v-else :disabled="answers.some(a => a === -1)" @click="submit"
-              class="btn-blue mt-5 w-full py-2.5 disabled:opacity-40">
+            <button
+v-else :disabled="answers.some(a => a === -1)" class="btn-blue mt-5 w-full py-2.5 disabled:opacity-40"
+              @click="submit">
               Submit Answers
             </button>
           </div>
@@ -140,6 +145,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { api } from '@/utils/api'
+import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
 const levels = ['A1','A2','B1','B2','C1','C2']
 const filterLevel = ref('')

@@ -45,7 +45,7 @@ export default {
       and: 'và', privacyPolicy: 'Chính sách bảo mật',
       createAccount: 'Tạo tài khoản', creatingAccount: 'Đang tạo tài khoản...',
       alreadyHaveAccount: 'Đã có tài khoản?', signIn: 'Đăng nhập', orSignUpWith: 'Hoặc đăng ký với',
-      emailPlaceholder: 'name@example.com',
+      emailPlaceholder: "name{'@'}example.com", // '@' must be escaped in vue-i18n
       errEmail: 'Vui lòng nhập email hợp lệ',
       errTeacherOnly: 'Tài khoản giáo viên chỉ do admin tạo. Vui lòng liên hệ quản trị viên.',
       errPasswordMin: 'Mật khẩu phải có ít nhất 8 ký tự', errPasswordMatch: 'Mật khẩu không khớp',
@@ -709,5 +709,8 @@ export default {
       next: 'Bài mới', cameraOff: 'Tắt camera', cameraOn: 'Bật camera',
       permissionNeeded: 'Cần cấp quyền micro để bắt đầu ghi âm',
     },
+  },
+  ai: {
+    generated: { label: 'Do AI tạo', notice: 'có thể có sai sót; không phải điểm chính thức' },
   },
 }

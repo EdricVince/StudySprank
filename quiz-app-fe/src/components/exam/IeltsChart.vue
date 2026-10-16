@@ -24,9 +24,11 @@
       </g>
 
       <!-- Axes -->
-      <line :x1="bc.PL" :y1="bc.PT" :x2="bc.PL" :y2="bc.PT + bc.chartH"
+      <line
+:x1="bc.PL" :y1="bc.PT" :x2="bc.PL" :y2="bc.PT + bc.chartH"
         stroke="currentColor" stroke-opacity="0.25" stroke-width="1" />
-      <line :x1="bc.PL" :y1="bc.PT + bc.chartH" :x2="bc.PL + bc.chartW" :y2="bc.PT + bc.chartH"
+      <line
+:x1="bc.PL" :y1="bc.PT + bc.chartH" :x2="bc.PL + bc.chartW" :y2="bc.PT + bc.chartH"
         stroke="currentColor" stroke-opacity="0.25" stroke-width="1" />
 
       <!-- Y-axis label (rotated) -->
@@ -60,7 +62,8 @@
       <!-- Legend -->
       <g v-for="(leg, i) in bc.legend" :key="i">
         <rect :x="leg.x" :y="bc.H - 22" width="11" height="11" :fill="leg.color" rx="2" />
-        <text :x="leg.x + 15" :y="bc.H - 13"
+        <text
+:x="leg.x + 15" :y="bc.H - 13"
           font-size="11" fill="currentColor" fill-opacity="0.70">{{ leg.name }}</text>
       </g>
     </svg>
@@ -90,7 +93,8 @@
       <!-- Legend -->
       <g v-for="(leg, i) in pc.legend" :key="i">
         <rect :x="leg.x" :y="leg.y - 9" width="13" height="13" :fill="leg.color" rx="2" />
-        <text :x="leg.x + 18" :y="leg.y + 2"
+        <text
+:x="leg.x + 18" :y="leg.y + 2"
           font-size="12" fill="currentColor" fill-opacity="0.80">{{ leg.label }}</text>
       </g>
     </svg>

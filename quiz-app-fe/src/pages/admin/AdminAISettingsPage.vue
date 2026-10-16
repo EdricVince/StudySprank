@@ -21,9 +21,11 @@
           :class="status?.enabled ? 'adm-status-on' : 'adm-status-off'"
         >
           <span class="relative flex h-2 w-2">
-            <span class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+            <span
+class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
               :class="status?.enabled ? 'adm-ping-on' : 'adm-ping-off'" />
-            <span class="relative inline-flex h-2 w-2 rounded-full"
+            <span
+class="relative inline-flex h-2 w-2 rounded-full"
               :class="status?.enabled ? 'adm-dot-on' : 'adm-dot-off'" />
           </span>
           {{ status?.enabled ? 'AI Active' : 'AI Inactive' }}
@@ -108,7 +110,8 @@
               <div class="adm-meta">Paste your key from console.anthropic.com</div>
             </div>
           </div>
-          <a href="https://console.anthropic.com" target="_blank" rel="noopener"
+          <a
+href="https://console.anthropic.com" target="_blank" rel="noopener"
             class="adm-link text-xs hidden sm:flex items-center gap-1">
             Get a key
             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -130,8 +133,8 @@
                 @keydown.enter="handleSave"
               />
               <button
-                @click="showKey = !showKey"
                 class="absolute right-3 top-1/2 -translate-y-1/2 adm-icon-btn adm-icon-btn-close"
+                @click="showKey = !showKey"
               >
                 <svg v-if="showKey" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
@@ -162,10 +165,10 @@
           <!-- Actions row -->
           <div class="flex gap-3">
             <button
-              @click="handleSave"
               :disabled="saving || !keyInput.trim()"
               class="adm-ai-save-btn"
               :class="keyInput.trim() && !saving ? 'adm-ai-save-btn-on' : 'adm-ai-save-btn-off'"
+              @click="handleSave"
             >
               <svg v-if="saving" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -177,9 +180,9 @@
             </button>
             <button
               v-if="status?.enabled"
-              @click="handleRemove"
               :disabled="saving"
               class="adm-btn-deactivate"
+              @click="handleRemove"
             >
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />

@@ -146,7 +146,7 @@
             <!-- Actions -->
             <div class="flex justify-end gap-3">
               <Button variant="outline" @click="showNewNote = false">Cancel</Button>
-              <Button @click="saveNewNote" :disabled="!newNote.content.trim()">
+              <Button :disabled="!newNote.content.trim()" @click="saveNewNote">
                 Save Note
               </Button>
             </div>
@@ -181,7 +181,7 @@ interface Props {
   lessons?: Lesson[]
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   lessons: () => [
     { id: 1, title: 'Introduction to the Course' },
     { id: 2, title: 'Getting Started' },

@@ -34,7 +34,7 @@
             <Download class="mr-2 h-5 w-5" />
             Export
           </Button>
-          <Button @click="startStudy" :disabled="cards.length === 0">
+          <Button :disabled="cards.length === 0" @click="startStudy">
             <Play class="mr-2 h-5 w-5" />
             Study Now
           </Button>

@@ -126,7 +126,7 @@ router.beforeEach((to, _from, next) => {
 
   // Admin portal guard
   if (to.meta.requiresAdminAuth) {
-    const key = localStorage.getItem('admin_key')
+    const key = sessionStorage.getItem('admin_key')
     if (!key) {
       next('/admin/login')
       return
@@ -138,7 +138,7 @@ router.beforeEach((to, _from, next) => {
   }
 
   // Redirect away from login if already authenticated
-  if (to.meta.isAdminLogin && localStorage.getItem('admin_key')) {
+  if (to.meta.isAdminLogin && sessionStorage.getItem('admin_key')) {
     next('/admin/dashboard')
     return
   }

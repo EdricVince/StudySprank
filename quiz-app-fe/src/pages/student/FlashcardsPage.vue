@@ -327,7 +327,7 @@
               </button>
             </div>
 
-            <form @submit.prevent="saveDeck" class="space-y-5">
+            <form class="space-y-5" @submit.prevent="saveDeck">
               <div>
                 <label class="text-foreground mb-2 block text-sm font-medium">{{ $t('flashcards.modal.deckTitle') }}</label>
                 <input
@@ -362,7 +362,7 @@
 
               <!-- Share publicly so everyone can study this deck -->
               <label class="flex cursor-pointer items-center gap-2.5">
-                <input type="checkbox" v-model="deckForm.isPublic" class="accent-primary h-4 w-4 rounded" />
+                <input v-model="deckForm.isPublic" type="checkbox" class="accent-primary h-4 w-4 rounded" />
                 <span class="text-foreground text-sm">{{ $t('flashcards.modal.sharePublic') }}</span>
               </label>
 
@@ -425,11 +425,11 @@
               <!-- File Upload Area -->
               <div
                 class="border-border hover:border-primary/50 relative cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-colors"
+                :class="{ 'border-primary bg-primary/5': isDragging }"
                 @click="triggerFileInput"
                 @dragover.prevent="isDragging = true"
                 @dragleave.prevent="isDragging = false"
                 @drop.prevent="handleFileDrop"
-                :class="{ 'border-primary bg-primary/5': isDragging }"
               >
                 <input
                   ref="fileInput"

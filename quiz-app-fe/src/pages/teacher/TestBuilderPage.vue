@@ -42,7 +42,7 @@
             </div>
           </div>
           <label class="flex cursor-pointer items-center gap-2.5">
-            <input type="checkbox" v-model="form.is_published" class="accent-primary h-4 w-4 rounded" />
+            <input v-model="form.is_published" type="checkbox" class="accent-primary h-4 w-4 rounded" />
             <span class="text-foreground text-sm">{{ $t('teacher.testBuilder.publishLabel') }}</span>
           </label>
         </div>

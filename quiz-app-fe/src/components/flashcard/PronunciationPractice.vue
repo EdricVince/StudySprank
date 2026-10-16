@@ -4,8 +4,8 @@
     <button
       class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
       :class="isSpeaking ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
-      @click="speak"
       title="Hear pronunciation"
+      @click="speak"
     >
       <Volume2 class="h-4 w-4" />
       <span class="hidden sm:inline">Listen</span>
@@ -16,8 +16,8 @@
       v-if="hasSpeechRecognition"
       class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all"
       :class="isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'"
-      @click="toggleListen"
       title="Practice speaking"
+      @click="toggleListen"
     >
       <Mic class="h-4 w-4" />
       <span class="hidden sm:inline">{{ isListening ? 'Listening...' : 'Practice' }}</span>

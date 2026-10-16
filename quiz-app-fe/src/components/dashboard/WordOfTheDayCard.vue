@@ -46,8 +46,8 @@
               <button
                 class="text-muted-foreground hover:text-violet-500 transition-colors"
                 :class="{ 'text-violet-500': isSpeaking }"
-                @click.stop="speak"
                 title="Listen"
+                @click.stop="speak"
               >
                 <Volume2 class="h-4 w-4" />
               </button>
@@ -83,8 +83,8 @@
               <button
                 class="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60"
                 :disabled="loading"
-                @click.stop="fetchWord(true)"
                 :title="$t('dashboard.newWord')"
+                @click.stop="fetchWord(true)"
               >
                 <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
                 {{ $t('dashboard.newWord') }}

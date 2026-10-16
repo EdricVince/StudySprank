@@ -19,7 +19,7 @@
     <!-- Dashboard error -->
     <div v-if="dashboardError" class="info-box info-box-red mb-6 flex items-center gap-3 text-sm text-red-400">
       <span>⚠</span> {{ dashboardError }}
-      <button @click="dashboardError = ''" class="ml-auto text-red-400/50 hover:text-red-400">✕</button>
+      <button class="ml-auto text-red-400/50 hover:text-red-400" @click="dashboardError = ''">✕</button>
     </div>
 
     <!-- Stats -->

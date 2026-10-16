@@ -32,7 +32,8 @@
           <div v-if="isPlaying" class="listen-sweep" />
           <!-- Waveform bars -->
           <div class="relative flex items-center gap-[2.5px]">
-            <div v-for="(bar, i) in waveformBars" :key="i"
+            <div
+v-for="(bar, i) in waveformBars" :key="i"
               class="rounded-full"
               :class="isPlaying ? 'listen-bar-playing' : hasPlayed ? 'listen-bar-done' : 'listen-bar-idle'"
               :style="{
@@ -50,9 +51,9 @@
       <div class="listen-controls mx-5 mb-4 flex items-center gap-3 rounded-xl px-3 py-2.5">
         <!-- Play / pause -->
         <button
-          @click="togglePlay"
           class="listen-play-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all active:scale-90"
           :title="isPlaying ? 'Pause' : 'Play'"
+          @click="togglePlay"
         >
           <svg v-if="!isPlaying" class="h-4 w-4 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M8 5v14l11-7z"/>
@@ -73,7 +74,8 @@
 
         <!-- Volume icon -->
         <svg class="listen-vol h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round"
+          <path
+stroke-linecap="round" stroke-linejoin="round"
             d="M15.536 8.464a5 5 0 010 7.072M12 6v12M8.464 8.464a5 5 0 000 7.072"/>
         </svg>
       </div>
@@ -81,7 +83,8 @@
     </div>
 
     <!-- READING: show passage normally (not for listening/writing) -->
-    <div v-if="!isListening && !isWriting && question.passage"
+    <div
+v-if="!isListening && !isWriting && question.passage"
       class="border-primary/60 bg-primary/5 border-l-4 rounded-r-lg p-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
       {{ question.passage }}
     </div>
@@ -419,7 +422,9 @@ const chartData = computed<ChartData | null>(() => {
   try {
     const parsed = JSON.parse(props.question.passage)
     if (parsed && parsed.type) return parsed as ChartData
-  } catch {}
+  } catch {
+    // not chart JSON — render as plain passage
+  }
   return null
 })
 

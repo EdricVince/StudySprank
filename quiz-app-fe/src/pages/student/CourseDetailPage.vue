@@ -337,7 +337,8 @@ const toggleBookmark = () => { isBookmarked.value = !isBookmarked.value }
 
 const toggleComp = (i: number) => {
   const s = new Set(revealedComp.value)
-  s.has(i) ? s.delete(i) : s.add(i)
+  if (s.has(i)) s.delete(i)
+  else s.add(i)
   revealedComp.value = s
 }
 

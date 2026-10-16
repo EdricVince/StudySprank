@@ -7,7 +7,8 @@
         class="pointer-events-none fixed z-[9999] select-none font-bold"
         :style="{ left: item.x + 'px', top: item.y + 'px' }"
       >
-        <span class="flex items-center gap-1 rounded-full px-2.5 py-1 text-sm shadow-lg"
+        <span
+class="flex items-center gap-1 rounded-full px-2.5 py-1 text-sm shadow-lg"
           :class="item.color">
           <Zap class="h-3.5 w-3.5" />
           +{{ item.amount }} XP

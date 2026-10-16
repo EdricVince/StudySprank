@@ -24,7 +24,8 @@
            ════════════════════════════════════════ -->
       <div v-if="view === 'list'" class="space-y-5">
         <!-- Empty state -->
-        <div v-if="savedPlans.length === 0"
+        <div
+v-if="savedPlans.length === 0"
           class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 py-20 text-center"
         >
           <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl">📅</div>
@@ -65,7 +66,8 @@
             <div class="flex items-start justify-between gap-4">
               <div class="flex items-start gap-4">
                 <!-- Tier badge -->
-                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+                <div
+class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
                   :class="getTierBadgeBg(sp)">
                   {{ getTierIcon(sp) }}
                 </div>
@@ -80,7 +82,8 @@
                     <span class="text-muted-foreground text-xs">{{ formatDate(sp.createdAt) }}</span>
                   </div>
                   <div class="flex flex-wrap gap-1.5 mt-2">
-                    <span v-for="month in sp.plan.monthly_plan.slice(0, 3)" :key="month.month"
+                    <span
+v-for="month in sp.plan.monthly_plan.slice(0, 3)" :key="month.month"
                       class="rounded-lg bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                       Month {{ month.month }}: {{ month.theme.split('&')[0].trim() }}
                     </span>
@@ -148,7 +151,8 @@
                 :class="form.current_level === lvl.value ? '' : 'border-border hover:border-border/80'"
                 @click="form.current_level = lvl.value"
               >
-                <span class="text-sm font-extrabold transition-colors"
+                <span
+class="text-sm font-extrabold transition-colors"
                   :style="form.current_level === lvl.value ? { color: lvl.hex } : {}"
                   :class="form.current_level !== lvl.value && 'text-muted-foreground'">{{ lvl.value }}</span>
                 <span class="text-center text-[10px] leading-tight" :class="form.current_level === lvl.value ? 'text-foreground font-medium' : 'text-muted-foreground'">{{ lvl.label }}</span>
@@ -205,7 +209,8 @@
           </div>
 
           <!-- Learning tier preview -->
-          <div v-if="form.current_level && form.target_exam" class="rounded-xl border p-4 space-y-1"
+          <div
+v-if="form.current_level && form.target_exam" class="rounded-xl border p-4 space-y-1"
             :class="previewTier === 1 ? 'border-amber-500/30 bg-amber-500/5' : previewTier === 2 ? 'border-blue-500/30 bg-blue-500/5' : 'border-violet-500/30 bg-violet-500/5'">
             <div class="font-semibold text-sm" :class="previewTier === 1 ? 'text-amber-300' : previewTier === 2 ? 'text-blue-300' : 'text-violet-300'">
               {{ previewTier === 1 ? '🐢 Slow & Steady Learning' : previewTier === 2 ? '🚶 Moderate Paced Learning' : '🚀 Professional Level Learning' }}
@@ -272,7 +277,7 @@
               </button>
             </div>
             <div class="space-y-1">
-              <input type="range" min="2" max="40" v-model.number="form.weekly_hours" class="accent-primary w-full" />
+              <input v-model.number="form.weekly_hours" type="range" min="2" max="40" class="accent-primary w-full" />
               <div class="flex justify-between text-xs text-muted-foreground"><span>2h / week</span><span>40h / week</span></div>
             </div>
           </div>
@@ -810,7 +815,8 @@ const previewTier = computed(() => {
 
 function toggleSkill(s: string) {
   const idx = form.value.focus_areas.indexOf(s)
-  idx >= 0 ? form.value.focus_areas.splice(idx, 1) : form.value.focus_areas.push(s)
+  if (idx >= 0) form.value.focus_areas.splice(idx, 1)
+  else form.value.focus_areas.push(s)
 }
 
 function startNewPlan() {

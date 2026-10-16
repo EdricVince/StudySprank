@@ -187,12 +187,14 @@
 
               <div>
                 <label class="text-foreground mb-1.5 block text-sm font-medium">{{ $t('teacher.dashboard.assignModal.titleLabel') }}</label>
-                <input v-model="newAssign.title" type="text" :placeholder="$t('teacher.dashboard.assignModal.titlePlaceholder')"
+                <input
+v-model="newAssign.title" type="text" :placeholder="$t('teacher.dashboard.assignModal.titlePlaceholder')"
                   class="border-border bg-background text-foreground placeholder:text-muted-foreground w-full rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
               </div>
               <div>
                 <label class="text-foreground mb-1.5 block text-sm font-medium">{{ $t('teacher.dashboard.assignModal.descriptionLabel') }}</label>
-                <textarea v-model="newAssign.description" rows="4" :placeholder="$t('teacher.dashboard.assignModal.descriptionPlaceholder')"
+                <textarea
+v-model="newAssign.description" rows="4" :placeholder="$t('teacher.dashboard.assignModal.descriptionPlaceholder')"
                   class="border-border bg-background text-foreground placeholder:text-muted-foreground w-full resize-y rounded-xl border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"></textarea>
               </div>
               <div>

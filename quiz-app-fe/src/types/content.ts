@@ -70,6 +70,26 @@ export interface FlashcardDeckData {
   updated_at: string
 }
 
+// Spaced repetition (SM-2) — GET /flashcard-decks/:id/due
+export interface DueCardData extends DeckCardData {
+  card_key: string
+  reason: 'new' | 'due'
+  due_at: string | null
+  interval_days: number
+  repetitions: number
+  last_quality: number | null
+  last_reviewed_at: string | null
+}
+
+export interface DueCardsData {
+  deck_id: number
+  total_cards: number
+  due_count: number
+  new_count: number
+  next_due_at: string | null
+  cards: DueCardData[]
+}
+
 // Teacher tests (assignments) + student submissions
 export interface TestQuestionData {
   question: string

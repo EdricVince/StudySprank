@@ -21,6 +21,14 @@
           Card {{ currentIndex + 1 }} of {{ cards.length }}
         </span>
         <div class="flex items-center gap-4">
+          <span
+            v-if="dueInfo"
+            data-test="due-count"
+            class="bg-secondary text-foreground rounded-full px-2.5 py-0.5 text-xs font-medium"
+            title="Spaced repetition (SM-2): cards scheduled for review today"
+          >
+            {{ dueInfo.due }} due · {{ dueInfo.fresh }} new
+          </span>
           <span class="text-primary flex items-center gap-1 text-sm font-medium">
             <CheckCircle class="h-4 w-4" />
             {{ knownCount }} known
@@ -105,6 +113,9 @@
             </div>
             <!-- Hint -->
             <div class="p-5 text-center">
+              <p v-if="currentCard?.srsReason" data-test="srs-reason" class="text-muted-foreground mb-2 text-xs">
+                Why this card: {{ currentCard.srsReason }}
+              </p>
               <span class="text-muted-foreground text-sm">
                 Tap the card or press
                 <kbd class="bg-secondary mx-1 rounded px-2 py-0.5 font-mono text-xs">Space</kbd>
@@ -248,7 +259,7 @@
                 <RotateCcw class="mr-2 h-4 w-4" />
                 Study Again
               </Button>
-              <Button variant="outline" class="w-full" @click="reviewUnknown" :disabled="unknownCount === 0">
+              <Button variant="outline" class="w-full" :disabled="unknownCount === 0" @click="reviewUnknown">
                 <RefreshCw class="mr-2 h-4 w-4" />
                 Review {{ unknownCount }} Learning Cards
               </Button>
@@ -273,6 +284,7 @@ import { useLearningLanguage } from '@/composables/useLearningLanguage'
 import { useLocale } from '@/composables/useLocale'
 import { useVocabulary } from '@/composables/useVocabulary'
 import { api } from '@/utils/api'
+import { QUALITY_KNOWN, QUALITY_UNKNOWN, describeDueReason } from '@/utils/srs'
 import {
   X,
   Check,
@@ -298,6 +310,9 @@ const isVocabMode = computed(() => route.name === 'FlashcardVocabPractice' || ro
 const isVocabSetMode = computed(() => route.name === 'FlashcardVocabSetStudy')
 const deckId = computed(() => Number(route.params.id))
 const deckMeta = ref<{ title: string; description: string } | null>(null)
+// Spaced repetition applies to flashcard decks only (not AI practice / teacher vocab sets).
+const isSrsMode = computed(() => !isVocabMode.value && !isVocabSetMode.value)
+const dueInfo = ref<{ due: number; fresh: number } | null>(null)
 
 const cardContainer = ref<HTMLElement | null>(null)
 let hammer: HammerManager | null = null
@@ -326,6 +341,8 @@ interface Flashcard {
   audio?: string
   isFavorite: boolean
   isKnown: boolean | null
+  cardKey?: string // SM-2 key (deck mode)
+  srsReason?: string // why the scheduler shows this card again
 }
 
 const isLoadingCards = ref(false)
@@ -395,9 +412,17 @@ const flipCard = () => {
   isFlipped.value = !isFlipped.value
 }
 
+// Known → quality 4, Don't know → quality 1; the server reschedules the card (SM-2).
+const recordReview = (quality: number) => {
+  const card = currentCard.value
+  if (!isSrsMode.value || !card?.cardKey) return
+  api.reviewCard(deckId.value, card.cardKey, quality).catch(() => {})
+}
+
 const markKnown = () => {
   if (currentCard.value) {
     currentCard.value.isKnown = true
+    recordReview(QUALITY_KNOWN)
   }
   animateSwipe('right')
 }
@@ -405,6 +430,7 @@ const markKnown = () => {
 const markUnknown = () => {
   if (currentCard.value) {
     currentCard.value.isKnown = false
+    recordReview(QUALITY_UNKNOWN)
   }
   animateSwipe('left')
 }
@@ -567,14 +593,31 @@ onMounted(async () => {
         isFavorite: false, isKnown: null,
       }))
     } else {
-      // The user's own flashcard deck.
-      const d = await api.getFlashcardDeck(deckId.value)
+      // A flashcard deck — study what the spaced-repetition scheduler says is due.
+      const [d, due] = await Promise.all([
+        api.getFlashcardDeck(deckId.value),
+        api.getDueCards(deckId.value).catch(() => null),
+      ])
       deckMeta.value = { title: d.title, description: d.description ?? '' }
-      cards.value = d.cards.map((c, i) => ({
-        id: i + 1, term: c.term, definition: c.definition,
-        example: c.example, image: c.image, audio: c.audio,
-        isFavorite: false, isKnown: null,
-      }))
+      if (due && due.cards.length) {
+        dueInfo.value = { due: due.due_count, fresh: due.new_count }
+        cards.value = due.cards.map((c, i) => ({
+          id: i + 1, term: c.term, definition: c.definition,
+          example: c.example, image: c.image, audio: c.audio,
+          cardKey: c.card_key, srsReason: describeDueReason(c),
+          isFavorite: false, isKnown: null,
+        }))
+      } else {
+        // Nothing due (or scheduler unavailable) — practise the whole deck.
+        if (due) dueInfo.value = { due: 0, fresh: 0 }
+        cards.value = d.cards.map((c, i) => ({
+          id: i + 1, term: c.term, definition: c.definition,
+          example: c.example, image: c.image, audio: c.audio,
+          cardKey: due ? c.term : undefined,
+          srsReason: due ? 'Nothing is due right now — practising ahead of schedule.' : undefined,
+          isFavorite: false, isKnown: null,
+        }))
+      }
     }
   } catch {
     router.replace('/flashcards')

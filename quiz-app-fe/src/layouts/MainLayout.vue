@@ -97,8 +97,8 @@
         <button
           class="text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150"
           :class="isCollapsed ? 'justify-center' : ''"
-          @click="toggleSidebar"
           :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="toggleSidebar"
         >
           <component
             :is="isCollapsed ? PanelLeftOpen : PanelLeftClose"
@@ -166,7 +166,7 @@
           </div>
 
           <!-- Notifications -->
-          <div class="relative" ref="notificationRef">
+          <div ref="notificationRef" class="relative">
             <button
               class="text-muted-foreground hover:text-foreground hover:bg-accent relative rounded-lg p-2 transition-colors"
               @click="showNotifications = !showNotifications"
@@ -181,7 +181,7 @@
           <div class="bg-border h-8 w-px"></div>
 
           <!-- User Dropdown -->
-          <div class="relative" ref="dropdownRef">
+          <div ref="dropdownRef" class="relative">
             <button
               class="hover:bg-accent flex items-center gap-3 rounded-xl p-2 transition-colors"
               @click="toggleDropdown"

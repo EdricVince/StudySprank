@@ -49,6 +49,12 @@ describe('ExamResult (component)', () => {
     expect(w.text()).toContain('Practise timed reading')
   })
 
+  it('labels the AI-estimated mock-exam result as AI-generated', () => {
+    const w = mountResult()
+    expect(w.find('[data-test="ai-generated-badge"]').exists()).toBe(true)
+    expect(w.text()).toContain('not a final grade')
+  })
+
   it('emits retry / schedule from the action buttons', async () => {
     const w = mountResult()
     const buttons = w.findAll('button')

@@ -8,9 +8,10 @@
         <p class="text-muted-foreground mt-2">Choose a test type and start your timed exam</p>
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
-        <button v-for="type in examTypes" :key="type.value" @click="startExam(type.value)"
-          class="group rounded-2xl border p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-xl"
-          :class="type.cardClass">
+        <button
+v-for="type in examTypes" :key="type.value" class="group rounded-2xl border p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          :class="type.cardClass"
+          @click="startExam(type.value)">
           <div class="mb-3 text-3xl">{{ type.emoji }}</div>
           <h3 class="text-foreground text-lg font-bold">{{ type.name }}</h3>
           <p class="text-muted-foreground mt-1 text-sm">{{ type.desc }}</p>
@@ -34,7 +35,7 @@
       <div class="mb-4 text-5xl">⚠️</div>
       <h3 class="text-foreground text-xl font-bold">Failed to load prompt</h3>
       <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ fetchError }}</p>
-      <button @click="phase='select'" class="btn-indigo mt-4 px-5 py-2 text-sm">Back</button>
+      <button class="btn-indigo mt-4 px-5 py-2 text-sm" @click="phase='select'">Back</button>
     </div>
 
     <!-- Error submitting essay -->
@@ -43,8 +44,8 @@
       <h3 class="text-foreground text-xl font-bold">Evaluation failed</h3>
       <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ submitError }}</p>
       <div class="mt-4 flex gap-3">
-        <button @click="phase='writing'" class="btn-indigo px-5 py-2 text-sm">Back to Essay</button>
-        <button @click="phase='select'" class="rounded-xl border border-border px-5 py-2 text-sm text-muted-foreground hover:text-foreground">New Topic</button>
+        <button class="btn-indigo px-5 py-2 text-sm" @click="phase='writing'">Back to Essay</button>
+        <button class="rounded-xl border border-border px-5 py-2 text-sm text-muted-foreground hover:text-foreground" @click="phase='select'">New Topic</button>
       </div>
     </div>
 
@@ -54,7 +55,7 @@
       <div class="page-header">
         <div class="mx-auto flex max-w-4xl items-center justify-between gap-4">
           <div class="flex items-center gap-3">
-            <button @click="phase='select'" class="back-btn">
+            <button class="back-btn" @click="phase='select'">
               <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
               Topics
             </button>
@@ -64,7 +65,7 @@
           <div class="flex items-center gap-4">
             <span class="font-mono text-sm font-bold text-foreground">{{ wordCount }} words</span>
             <div class="rounded-xl px-4 py-1.5 font-mono text-lg font-extrabold" :class="timerClass">{{ fmtTime(timeLeft) }}</div>
-            <button @click="submitEssay" class="btn-indigo px-4 py-2 text-sm">Submit</button>
+            <button class="btn-indigo px-4 py-2 text-sm" @click="submitEssay">Submit</button>
           </div>
         </div>
       </div>
@@ -74,7 +75,7 @@
           <!-- SVG Chart for IELTS Task 1 -->
           <div v-if="prompt?.chart_svg && selectedType === 'ielts_task1'" class="sk-card-p overflow-hidden">
             <div class="section-label mb-2">📊 Chart Reference</div>
-            <div v-html="prompt.chart_svg" class="w-full rounded-lg overflow-hidden" />
+            <div class="w-full rounded-lg overflow-hidden" v-html="prompt.chart_svg" />
             <p class="text-muted-foreground mt-2 text-[11px] leading-snug">{{ prompt.context }}</p>
           </div>
 
@@ -102,7 +103,8 @@
         </div>
         <!-- Writing area -->
         <div class="flex-1">
-          <textarea v-model="essay" placeholder="Start writing here..."
+          <textarea
+v-model="essay" placeholder="Start writing here..."
             class="sk-textarea w-full"
             style="min-height: calc(100vh - 180px)" :disabled="timeUp"></textarea>
           <div v-if="timeUp" class="mt-3 info-box-sm info-box-red text-center text-sm text-red-400">
@@ -123,6 +125,7 @@
     <div v-else-if="phase==='results' && evaluation" class="mx-auto max-w-3xl space-y-5 px-6 py-8">
       <!-- Band score -->
       <div class="sk-card-p6 text-center">
+        <AiGeneratedBadge class="mb-3" />
         <div class="text-muted-foreground mb-2 text-sm">Overall Band Score</div>
         <div class="text-6xl font-extrabold text-indigo-400">{{ evaluation.overall_band }}</div>
         <p class="text-muted-foreground mt-2 text-sm">{{ evaluation.summary }}</p>
@@ -176,7 +179,7 @@
         </div>
       </div>
 
-      <button @click="phase='select'" class="btn-indigo w-full py-3">
+      <button class="btn-indigo w-full py-3" @click="phase='select'">
         Try Another Prompt
       </button>
     </div>
@@ -186,6 +189,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { api } from '@/utils/api'
+import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
 type Phase = 'select'|'loading'|'writing'|'evaluating'|'results'|'error'|'submit-error'
 

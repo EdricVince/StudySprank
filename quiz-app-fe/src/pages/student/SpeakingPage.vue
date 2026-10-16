@@ -7,7 +7,7 @@
           <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/15 text-lg">🎙️</div>
           <h1 class="page-title">Speaking Practice</h1>
         </div>
-        <button @click="loadContent" :disabled="loading" class="btn-rose px-4 py-1.5 text-sm disabled:opacity-50">
+        <button :disabled="loading" class="btn-rose px-4 py-1.5 text-sm disabled:opacity-50" @click="loadContent">
           {{ loading ? 'Loading...' : (exercise || speakingPrompt) ? '🔀 Randomize' : 'Get Started' }}
         </button>
       </div>
@@ -24,9 +24,9 @@
         <div class="grid grid-cols-6 gap-2">
           <button
             v-for="lm in levelMeta" :key="lm.code"
-            @click="selectLevel(lm.code)"
             class="flex flex-col items-center gap-1.5 rounded-xl border py-3 px-1 transition-all duration-200 hover:scale-[1.03]"
             :class="selectedLevel === lm.code ? lm.activeClass : 'border-border text-muted-foreground hover:border-rose-500/30 hover:text-foreground'"
+            @click="selectLevel(lm.code)"
           >
             <span class="text-sm font-extrabold tracking-wide">{{ lm.code }}</span>
             <span class="text-[10px] leading-tight text-center opacity-80">{{ lm.label }}</span>
@@ -41,14 +41,16 @@
       <div class="sk-card-p flex items-center justify-between gap-4">
         <span class="section-label">Skill Type</span>
         <div class="flex gap-2">
-          <button @click="switchSkillType('shadowing')"
-            class="rounded-xl border px-5 py-2 text-sm font-semibold transition-all"
-            :class="skillType==='shadowing' ? 'skill-tab-rose' : 'border-border text-muted-foreground hover:text-foreground'">
+          <button
+class="rounded-xl border px-5 py-2 text-sm font-semibold transition-all"
+            :class="skillType==='shadowing' ? 'skill-tab-rose' : 'border-border text-muted-foreground hover:text-foreground'"
+            @click="switchSkillType('shadowing')">
             🔁 Shadowing
           </button>
-          <button @click="switchSkillType('speaking_test')"
-            class="rounded-xl border px-5 py-2 text-sm font-semibold transition-all"
-            :class="skillType==='speaking_test' ? 'skill-tab-rose' : 'border-border text-muted-foreground hover:text-foreground'">
+          <button
+class="rounded-xl border px-5 py-2 text-sm font-semibold transition-all"
+            :class="skillType==='speaking_test' ? 'skill-tab-rose' : 'border-border text-muted-foreground hover:text-foreground'"
+            @click="switchSkillType('speaking_test')">
             🎤 Speaking Test
           </button>
         </div>
@@ -64,7 +66,7 @@
         <div class="mb-4 text-6xl">⚠️</div>
         <h3 class="text-foreground text-xl font-bold">Failed to load content</h3>
         <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ fetchError }}</p>
-        <button @click="loadContent" class="btn-rose mt-4 px-5 py-2 text-sm">Retry</button>
+        <button class="btn-rose mt-4 px-5 py-2 text-sm" @click="loadContent">Retry</button>
       </div>
 
       <!-- Empty state -->
@@ -74,7 +76,7 @@
         <p class="text-muted-foreground mt-2 max-w-sm text-sm">
           Select your level above, choose <strong>Shadowing</strong> or <strong>Speaking Test</strong>, then click <strong>Get Started</strong>.
         </p>
-        <button @click="loadContent" class="btn-rose mt-4 px-6 py-2.5 text-sm font-semibold">Get Started →</button>
+        <button class="btn-rose mt-4 px-6 py-2.5 text-sm font-semibold" @click="loadContent">Get Started →</button>
       </div>
 
       <!-- Main 2-column layout -->
@@ -87,7 +89,8 @@
             <div class="mb-3 flex items-center justify-between">
               <h3 class="text-foreground text-sm font-bold">📷 Camera Analysis</h3>
               <div class="flex items-center gap-2">
-                <span v-if="isRecording && mouthScore !== null"
+                <span
+v-if="isRecording && mouthScore !== null"
                   class="rounded-full px-2 py-0.5 text-xs font-semibold"
                   :class="mouthScore > 40 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'">
                   Articulation {{ mouthScore }}%
@@ -101,7 +104,7 @@
               <div v-if="!cameraActive" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
                 <span class="text-4xl">📷</span>
                 <span class="text-xs text-center max-w-50">{{ cameraError || 'Camera initializing...' }}</span>
-                <button v-if="cameraError" @click="startCamera" class="mt-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-400 hover:bg-rose-500/20">
+                <button v-if="cameraError" class="mt-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-400 hover:bg-rose-500/20" @click="startCamera">
                   Retry Camera
                 </button>
               </div>
@@ -115,9 +118,10 @@
           <!-- Recording controls -->
           <div class="sk-card-p">
             <div class="flex flex-col items-center gap-4">
-              <button @click="toggleRecording"
-                class="flex h-16 w-16 items-center justify-center rounded-full transition-all hover:scale-105"
-                :class="isRecording ? 'bg-red-600 shadow-lg shadow-red-500/40' : 'bg-linear-to-r from-rose-600 to-pink-600 shadow-lg shadow-rose-500/30'">
+              <button
+class="flex h-16 w-16 items-center justify-center rounded-full transition-all hover:scale-105"
+                :class="isRecording ? 'bg-red-600 shadow-lg shadow-red-500/40' : 'bg-linear-to-r from-rose-600 to-pink-600 shadow-lg shadow-rose-500/30'"
+                @click="toggleRecording">
                 <svg v-if="!isRecording" class="h-7 w-7 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                 </svg>
@@ -131,11 +135,12 @@
               </div>
 
               <div v-if="audioBlob" class="flex w-full gap-2">
-                <button @click="playRecording" class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/20 transition-colors">
+                <button class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/20 transition-colors" @click="playRecording">
                   ▶ Play Back
                 </button>
-                <button @click="evaluateRecording" :disabled="evaluating || !spokenTranscript"
-                  class="btn-rose flex flex-1 items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-40">
+                <button
+:disabled="evaluating || !spokenTranscript" class="btn-rose flex flex-1 items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-40"
+                  @click="evaluateRecording">
                   <svg v-if="evaluating" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                   <span>{{ evaluating ? 'Analyzing...' : '✨ Evaluate' }}</span>
                 </button>
@@ -242,7 +247,8 @@
           <!-- Evaluation Results -->
           <template v-if="result">
             <div class="sk-card-p">
-              <h2 class="text-foreground mb-4 text-sm font-bold">Pronunciation Report</h2>
+              <h2 class="text-foreground mb-2 text-sm font-bold">Pronunciation Report</h2>
+              <AiGeneratedBadge class="mb-4" />
               <div class="grid grid-cols-2 gap-3">
                 <div v-for="m in scoreMetrics" :key="m.label" class="rounded-xl border p-3 text-center" :class="m.bg">
                   <div class="text-2xl font-extrabold" :class="m.color">{{ m.value }}</div>
@@ -295,6 +301,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { api } from '@/utils/api'
+import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
 const levelMeta = [
   { code: 'A1', label: 'Beginner',    time: '~0:35', activeClass: 'level-filter-a1' },

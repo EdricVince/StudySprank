@@ -53,7 +53,7 @@
             placeholder="At least 8 characters"
             class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 h-12 w-full rounded-xl border pl-12 pr-12 text-base transition-all focus:ring-2 focus:outline-none"
           />
-          <button type="button" class="text-muted-foreground hover:text-foreground absolute top-1/2 right-4 -translate-y-1/2" @click="show = !show" tabindex="-1">
+          <button type="button" class="text-muted-foreground hover:text-foreground absolute top-1/2 right-4 -translate-y-1/2" tabindex="-1" @click="show = !show">
             <Eye v-if="show" class="h-5 w-5" />
             <EyeOff v-else class="h-5 w-5" />
           </button>

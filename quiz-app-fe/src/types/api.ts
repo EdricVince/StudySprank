@@ -65,7 +65,7 @@ export interface LoginRequest {
  */
 export interface LoginResponseData {
   access_token: string
-  refresh_token?: string
+  refresh_token: string
   user: UserOut
 }
 
@@ -99,7 +99,7 @@ export interface RefreshTokenRequest {
  */
 export interface RefreshTokenResponseData {
   access_token: string
-  refresh_token?: string
+  refresh_token: string
 }
 
 /**

@@ -23,7 +23,8 @@
     <div class="flex gap-1">
       <!-- Day labels -->
       <div class="flex flex-col gap-1 pr-1">
-        <span v-for="day in ['Mon','','Wed','','Fri','','Sun']" :key="day"
+        <span
+v-for="day in ['Mon','','Wed','','Fri','','Sun']" :key="day"
           class="text-muted-foreground h-3 text-[9px] leading-3">{{ day }}</span>
       </div>
 

@@ -54,7 +54,7 @@ export const ROLE_STUDENT = 1
 export const ROLE_TEACHER = 2
 
 export const useAdminStore = defineStore('admin', () => {
-  const adminKey = ref<string>(localStorage.getItem('admin_key') ?? '')
+  const adminKey = ref<string>(sessionStorage.getItem('admin_key') ?? '')
   const isAuthenticated = ref(false)
   const users = ref<AdminUser[]>([])
   const stats = ref<AdminStats | null>(null)
@@ -77,7 +77,10 @@ export const useAdminStore = defineStore('admin', () => {
       if (res.ok) {
         adminKey.value = key
         isAuthenticated.value = true
-        localStorage.setItem('admin_key', key)
+        // sessionStorage: the admin secret is forgotten when the tab closes
+        // (it used to persist in localStorage indefinitely).
+        sessionStorage.setItem('admin_key', key)
+        localStorage.removeItem('admin_key') // clean up keys stored by older builds
         const data = await res.json()
         stats.value = data.data
         return true
@@ -89,16 +92,17 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function tryRestoreSession(): Promise<boolean> {
-    const stored = localStorage.getItem('admin_key')
+    const stored = sessionStorage.getItem('admin_key')
     if (!stored) return false
     const ok = await login(stored)
-    if (!ok) localStorage.removeItem('admin_key')
+    if (!ok) sessionStorage.removeItem('admin_key')
     return ok
   }
 
   function logout() {
     adminKey.value = ''
     isAuthenticated.value = false
+    sessionStorage.removeItem('admin_key')
     localStorage.removeItem('admin_key')
     users.value = []
     stats.value = null

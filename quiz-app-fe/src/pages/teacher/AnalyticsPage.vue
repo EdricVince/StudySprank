@@ -38,7 +38,7 @@
         <div class="font-semibold">{{ $t('teacher.analytics.failedToLoad') }}</div>
         <div class="text-red-400/70 mt-0.5">{{ analyticsError }}</div>
       </div>
-      <button @click="analyticsError = ''" class="ml-auto text-red-400/50 hover:text-red-400">✕</button>
+      <button class="ml-auto text-red-400/50 hover:text-red-400" @click="analyticsError = ''">✕</button>
     </div>
 
     <template v-else>

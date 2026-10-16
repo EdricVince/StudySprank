@@ -34,6 +34,11 @@ export default tseslint.config(
       },
     },
     rules: {
+      // TypeScript already reports undeclared identifiers; core `no-undef` doesn't
+      // know DOM/TS globals (window, HTMLElement, NodeJS…) — typescript-eslint
+      // recommends turning it off for TS/Vue files.
+      'no-undef': 'off',
+
       // Vue-specific rules
       'vue/multi-word-component-names': 'off',
       'vue/require-default-prop': 'off',

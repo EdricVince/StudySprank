@@ -89,8 +89,8 @@
           </div>
           <button
             class="hover:bg-primary/10 rounded-lg p-2 transition-colors"
-            @click="copyCode(cls.class_code)"
             :title="$t('teacher.classes.copyCode')"
+            @click="copyCode(cls.class_code)"
           >
             <Check v-if="copiedCode === cls.class_code" class="text-primary h-5 w-5" />
             <Copy v-else class="text-muted-foreground h-5 w-5" />

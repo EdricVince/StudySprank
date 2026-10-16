@@ -21,11 +21,11 @@
             <!-- File Upload Area -->
             <div
               class="border-border hover:border-primary/50 relative cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-colors"
+              :class="{ 'border-primary bg-primary/5': isDragging }"
               @click="triggerFileInput"
               @dragover.prevent="isDragging = true"
               @dragleave.prevent="isDragging = false"
               @drop.prevent="handleFileDrop"
-              :class="{ 'border-primary bg-primary/5': isDragging }"
             >
               <input
                 ref="fileInput"

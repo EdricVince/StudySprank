@@ -20,7 +20,7 @@
 
     <!-- XP Level Card -->
     <div class="animate-fade-in-up delay-150 mb-6">
-      <XPLevelCard :totalXP="stats.totalXP" />
+      <XPLevelCard :total-x-p="stats.totalXP" />
     </div>
 
     <!-- Word of the Day (full-width slim strip) -->
