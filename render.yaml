@@ -95,6 +95,19 @@ services:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+      # Baseline security headers (same as quiz-app-fe/nginx.conf).
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), microphone=(self), geolocation=()
     envVars:
       # Baked into the client bundle at build time — must match the API URL.
       # Render suffixed the API service name to `studyspark-api-f8f2`.

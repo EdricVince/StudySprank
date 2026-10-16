@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [develop, 'feat/**']
+    branches: [main, develop, 'feat/**']
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
 
 jobs:
   backend:
@@ -24,8 +24,6 @@ jobs:
         run: pnpm --filter quiz-app-be build
       - name: Unit tests (Jest — repositories/SDK mocked, no DB)
         run: pnpm --filter quiz-app-be test
-      # Note: e2e (`pnpm --filter quiz-app-be test:e2e`) is intentionally NOT run
-      # here — it needs a live Supabase database + secrets, unavailable in CI.
 
   frontend:
     name: Frontend — build + unit tests
@@ -44,3 +42,72 @@ jobs:
         run: pnpm --filter quiz-app-fe build
       - name: Unit tests (Vitest)
         run: pnpm --filter quiz-app-fe test
+
+  lint:
+    name: Lint — backend + frontend (ESLint)
+    runs-on: ubuntu-latest
+    # Blocking: any ESLint *error* fails the pipeline (warnings are reported only).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: ESLint backend (no --fix)
+        run: pnpm --filter quiz-app-be lint:ci
+      - name: ESLint frontend
+        if: always()
+        run: pnpm --filter quiz-app-fe lint
+
+  e2e:
+    name: Backend — e2e (Supertest + PostgreSQL 16)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: quiz_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway CI database only — never Supabase, never production.
+      NODE_ENV: test
+      DB_TYPE: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: quiz_test
+      DB_SSL: 'false'
+      # No migrations exist yet, so the empty CI database is created from the entities.
+      DB_SYNCHRONIZE: 'true'
+      JWT_SECRET: ci-e2e-jwt-secret-not-for-production
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      ADMIN_SECRET: ci-e2e-admin-secret-not-for-production
+      CORS_ORIGINS: http://localhost:5173
+      # The e2e suite logs in several times from one IP — relax the auth throttle.
+      THROTTLE_AUTH_LIMIT: '1000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: E2E tests (Jest + Supertest against the Postgres service)
+        run: pnpm --filter quiz-app-be test:e2e
