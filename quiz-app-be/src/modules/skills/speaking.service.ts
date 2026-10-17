@@ -3,7 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type { EvaluateSpeakingDto, CefrLevel } from './dto/skills.dto';
 
@@ -13,34 +17,22 @@ export class SpeakingService {
 
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   async getExercise(level: CefrLevel = 'B1') {
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.generateExercise(level);
   }
 
   async getSpeakingPrompt(level: CefrLevel = 'B1') {
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.generateSpeakingPrompt(level);
   }
 
   async evaluate(dto: EvaluateSpeakingDto) {
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.evaluateSpeaking(dto);
   }
 
@@ -167,7 +159,7 @@ Return ONLY valid JSON (no markdown):
 phonetic_highlights: 4-6 words. key_phrases: 3-5 items.`;
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 1200,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -212,7 +204,7 @@ Return ONLY valid JSON (no markdown):
 bullet_points: 3–4 items. example_vocabulary: 6–8 words/phrases appropriate for ${level}.`;
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 600,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -244,7 +236,7 @@ Return ONLY valid JSON:
 word_errors: up to 6. strengths and improvements: 2–3 each. phonetic_tips: up to 3.`;
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       });

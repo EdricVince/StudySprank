@@ -42,6 +42,10 @@ export class UserProgress {
   @Column({ default: 0 })
   total_quizzes_completed: number;
 
+  /** Last time a self-reported activity earned XP — enforces a cooldown between sessions. */
+  @Column({ type: 'timestamptz', nullable: true, default: null })
+  last_xp_at: Date | null;
+
   @CreateDateColumn()
   created_at: Date;
 

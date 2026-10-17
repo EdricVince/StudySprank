@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 import { EntranceExamService } from './entrance-exam.service';
+import { isAiConfigured } from '../../core/ai/anthropic';
 import { StartExamDto, SubmitExamDto } from './dto/exam.dto';
 
 @Controller('api/v1/entrance-exam')
@@ -17,8 +18,7 @@ export class EntranceExamController {
 
   @Get('ai-status')
   aiStatus() {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    const ai_enabled = !!key && key.startsWith('sk-ant-');
+    const ai_enabled = isAiConfigured();
     return { code: 200, message: 'AI status', data: { ai_enabled } };
   }
 

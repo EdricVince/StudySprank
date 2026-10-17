@@ -4,7 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Anthropic from '@anthropic-ai/sdk';
+import { AI_MODEL, getAnthropicClient } from '../../core/ai/anthropic';
 import * as crypto from 'crypto';
 import { verifyHs256 } from '../../core/security/jwt.util';
 
@@ -103,11 +103,8 @@ export class BattleService {
     return AVATARS[Math.floor(Math.random() * AVATARS.length)];
   }
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   // ── Matchmaking ───────────────────────────────────────────────────────────────
@@ -289,7 +286,7 @@ Return ONLY a valid JSON array (no markdown, no prose):
 "correct" is the 0-based index of the right option.`;
     try {
       const res = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }],
       });

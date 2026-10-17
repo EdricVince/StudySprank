@@ -3,7 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import type {
   GenerateScheduleDto,
   ExtendScheduleDto,
@@ -89,18 +93,12 @@ export class ScheduleService {
   private readonly logger = new Logger(ScheduleService.name);
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   async generatePlan(dto: GenerateScheduleDto): Promise<StudyPlan> {
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
 
     const monthsNeeded = getMonthsNeeded(
       dto.current_level,
@@ -124,7 +122,7 @@ export class ScheduleService {
 
     try {
       const res = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 2800,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -139,10 +137,7 @@ export class ScheduleService {
   }
 
   async extendPlan(dto: ExtendScheduleDto): Promise<MonthPlan> {
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
 
     const monthlyHours = dto.weekly_hours * 4;
     const targetStr = dto.target_band
@@ -194,7 +189,7 @@ Rules: Exactly 4 week_summaries. Each week exactly 7 days (Mon-Sun). Sunday alwa
 
     try {
       const res = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 2500,
         messages: [{ role: 'user', content: prompt }],
       });

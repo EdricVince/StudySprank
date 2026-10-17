@@ -3,7 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type {
   GetListeningDto,
@@ -115,20 +119,14 @@ export class ListeningService {
   private readonly logger = new Logger(ListeningService.name);
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   async getExercise(dto: GetListeningDto) {
     const level = dto.level ?? 'B1';
     const type = dto.type ?? 'monologue';
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.generateExercise(level, type);
   }
 
@@ -179,7 +177,7 @@ Generate 4 comprehension questions (mix of: main idea, specific detail, inferenc
 
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 1800,
         messages: [{ role: 'user', content: prompt }],
       });

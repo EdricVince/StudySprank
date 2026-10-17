@@ -44,6 +44,16 @@ export class ProgressController {
     return { code: HttpStatus.OK, message: 'Activity logged', data };
   }
 
+  @Post('challenges/:id/claim')
+  @HttpCode(HttpStatus.OK)
+  async claimChallenge(
+    @CurrentUser() user: CurrentUserData,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ApiResponse<any>> {
+    const data = await this.progressService.claimChallenge(user.id, id);
+    return { code: HttpStatus.OK, message: 'Challenge reward claimed', data };
+  }
+
   @Get('weekly')
   async getWeeklyActivity(
     @CurrentUser() user: CurrentUserData,

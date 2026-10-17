@@ -4,7 +4,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import { assertPublicUrl } from '../../core/security/ssrf';
 
 export interface ImportedContent {
@@ -79,11 +83,8 @@ export class AiService {
 
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   async scanContent(dto: {
@@ -154,9 +155,7 @@ export class AiService {
     }
 
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Set ANTHROPIC_API_KEY in environment.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
 
     const lang = dto.language || 'English';
@@ -187,7 +186,7 @@ ${rawText}`;
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -229,9 +228,7 @@ ${rawText}`;
     exclude?: string[];
   }): Promise<VocabularyItem[]> {
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
 
     const count = Math.min(Math.max(dto.count ?? 15, 1), 30);
@@ -285,7 +282,7 @@ Return ONLY a valid JSON array (no markdown, no code fences) of exactly ${count}
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -315,9 +312,7 @@ Return ONLY a valid JSON array (no markdown, no code fences) of exactly ${count}
     topic?: string;
   }): Promise<GeneratedLesson> {
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
 
     const lang = this.langName(dto.language ?? 'en');
@@ -357,7 +352,7 @@ Generate the reading passage, 8-12 vocabulary items, 6 multiple-choice quiz ques
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -388,9 +383,7 @@ Generate the reading passage, 8-12 vocabulary items, 6 multiple-choice quiz ques
     count?: number;
   }): Promise<GeneratedVocabSet> {
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
 
     const lang = this.langName(dto.language ?? 'en');
@@ -417,7 +410,7 @@ Include exactly ${count} words.`;
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -443,9 +436,7 @@ Include exactly ${count} words.`;
     count?: number;
   }): Promise<GeneratedTest> {
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
     const lang = this.langName(dto.language ?? 'en');
     const level = (dto.level || 'Intermediate (B1)').trim();
@@ -465,7 +456,7 @@ Return ONLY a valid JSON object (no markdown, no code fences):
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 3072,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -506,9 +497,7 @@ Return ONLY a valid JSON object (no markdown, no code fences):
     if (!fresh && this.cache?.date === today) return this.cache.word;
 
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
 
     // A random seed (theme + starting letter) so each day — and each refresh —
@@ -532,7 +521,7 @@ Return ONLY a valid JSON object (no markdown, no code fences):
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 400,
         messages: [
           {

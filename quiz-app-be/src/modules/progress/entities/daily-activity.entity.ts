@@ -32,6 +32,10 @@ export class DailyActivity {
   @Column({ default: 0 })
   quizzes_completed: number;
 
+  /** Ids of the daily challenges whose reward was claimed on this day. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  claimed_challenges: number[];
+
   @CreateDateColumn()
   created_at: Date;
 }

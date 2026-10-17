@@ -1,4 +1,9 @@
-import { ProgressService } from './progress.service';
+import {
+  ALL_CHALLENGES_BONUS,
+  DAILY_XP_CAP,
+  ProgressService,
+  XP_COOLDOWN_MS,
+} from './progress.service';
 import { UserProgress } from './entities/user-progress.entity';
 import { DailyActivity } from './entities/daily-activity.entity';
 import { LogActivityDto } from './dto/log-activity.dto';
@@ -181,5 +186,130 @@ describe('ProgressService.logActivity (gamification)', () => {
     expect(res.streak_updated).toBe(false);
     expect(res.streak_count).toBe(5);
     expect(res.xp_gained).toBe(50); // 25 + 25
+  });
+});
+
+describe('ProgressService.logActivity (anti-spam)', () => {
+  const todayRow = (xp_earned: number) =>
+    ({
+      user_id: 1,
+      activity_date: today,
+      xp_earned,
+      cards_studied: 0,
+      quizzes_completed: 0,
+    }) as any;
+  const user = (extra: Partial<UserProgress> = {}) =>
+    ({
+      user_id: 1,
+      xp: 100,
+      level: 2,
+      streak_count: 1,
+      longest_streak: 1,
+      last_activity_date: today,
+      total_cards_studied: 0,
+      total_quizzes_completed: 0,
+      ...extra,
+    }) as any;
+
+  it('records nothing when called again within the cooldown', async () => {
+    const res = await build(
+      user({ last_xp_at: new Date(Date.now() - 5_000) }),
+      todayRow(40),
+    ).logActivity(1, dto({ type: 'quiz_completion', score: 100 }));
+    expect(res.throttled).toBe(true);
+    expect(res.xp_gained).toBe(0);
+    expect(res.new_xp).toBe(100);
+  });
+
+  it('pays out again once the cooldown has passed', async () => {
+    const res = await build(
+      user({ last_xp_at: new Date(Date.now() - XP_COOLDOWN_MS - 1) }),
+      todayRow(40),
+    ).logActivity(1, dto({ type: 'quiz_completion', score: 100 }));
+    expect(res.throttled).toBe(false);
+    expect(res.xp_gained).toBe(50);
+  });
+
+  it('stops at the daily XP cap', async () => {
+    const res = await build(user(), todayRow(DAILY_XP_CAP - 10)).logActivity(
+      1,
+      dto({ type: 'quiz_completion', score: 100 }),
+    );
+    expect(res.xp_gained).toBe(10);
+    expect(res.capped).toBe(true);
+  });
+});
+
+describe('ProgressService.claimChallenge', () => {
+  function buildClaim(daily: Partial<DailyActivity> | null) {
+    const saved: any[] = [];
+    const progress = { user_id: 1, xp: 90, level: 1 } as any;
+    const manager = {
+      getRepository: (e: unknown) =>
+        e === UserProgress
+          ? {
+              findOne: jest.fn().mockResolvedValue(progress),
+              create: jest.fn(),
+              save: jest.fn(async (x: any) => x),
+            }
+          : {
+              findOne: jest.fn().mockResolvedValue(daily),
+              save: jest.fn(async (x: any) => (saved.push(x), x)),
+            },
+    };
+    const ds = { transaction: jest.fn((cb: any) => cb(manager)) };
+    const svc = new ProgressService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      ds as any,
+    );
+    return { svc, saved };
+  }
+  const day = (extra: Partial<DailyActivity>) =>
+    ({
+      user_id: 1,
+      activity_date: today,
+      xp_earned: 0,
+      cards_studied: 0,
+      quizzes_completed: 0,
+      claimed_challenges: [],
+      ...extra,
+    }) as any;
+
+  it('rejects a challenge that is not completed', async () => {
+    const { svc } = buildClaim(day({ cards_studied: 3 }));
+    await expect(svc.claimChallenge(1, 1)).rejects.toThrow('not completed');
+  });
+
+  it('pays a completed challenge once', async () => {
+    const { svc } = buildClaim(day({ cards_studied: 12 }));
+    const res = await svc.claimChallenge(1, 1);
+    expect(res.xp_gained).toBe(25);
+    expect(res.new_xp).toBe(115);
+    expect(res.level_up).toBe(true);
+    expect(res.claimed).toEqual([1]);
+  });
+
+  it('refuses a second claim on the same day', async () => {
+    const { svc } = buildClaim(
+      day({ cards_studied: 12, claimed_challenges: [1] }),
+    );
+    await expect(svc.claimChallenge(1, 1)).rejects.toThrow('already claimed');
+  });
+
+  it('adds the bonus when the last challenge is claimed', async () => {
+    const { svc } = buildClaim(
+      day({
+        cards_studied: 25,
+        quizzes_completed: 1,
+        xp_earned: 60,
+        claimed_challenges: [1, 2, 3],
+      }),
+    );
+    const res = await svc.claimChallenge(1, 4);
+    expect(res.bonus).toBe(ALL_CHALLENGES_BONUS);
+    expect(res.new_xp).toBe(90 + 35 + ALL_CHALLENGES_BONUS);
   });
 });

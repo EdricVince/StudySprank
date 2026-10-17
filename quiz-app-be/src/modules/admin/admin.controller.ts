@@ -26,8 +26,8 @@ import {
   ArrayNotEmpty,
   IsInt,
 } from 'class-validator';
-import * as fs from 'fs';
-import * as path from 'path';
+import { isAnthropicKey } from '../../core/ai/anthropic';
+import { AiKeyService } from './ai-key.service';
 
 // ~3.5M chars of base64 ≈ 2.6 MB image — plenty for an ID-card photo.
 const MAX_CARD_LEN = 3_500_000;
@@ -92,23 +92,13 @@ class BulkDeleteDto {
   ids: number[];
 }
 
-class CreateAiFeatureDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(60)
-  name: string;
-
-  @IsString()
-  @Matches(/^sk-ant-[A-Za-z0-9\-_]{10,}$/, {
-    message: 'Invalid Anthropic API key format',
-  })
-  key: string;
-}
-
 @Controller('api/v1/admin')
 @UseGuards(AdminGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private aiKeys: AiKeyService,
+  ) {}
 
   @Get('stats')
   async getStats() {
@@ -225,7 +215,7 @@ export class AdminController {
   @Get('ai/status')
   getAiStatus() {
     const key = process.env.ANTHROPIC_API_KEY ?? '';
-    const enabled = !!key && key.startsWith('sk-ant-');
+    const enabled = isAnthropicKey(key);
     return {
       code: 200,
       message: 'AI status',
@@ -242,95 +232,34 @@ export class AdminController {
           { name: 'AI Study Schedule', key: 'schedule' },
           { name: 'Word of the Day', key: 'word_of_the_day' },
           { name: 'Content Import (AI Scan)', key: 'content_import' },
+          { name: 'Battle Mode Questions', key: 'battle' },
+          { name: 'Vocabulary Practice', key: 'vocabulary' },
+          { name: 'Lesson & Test Generation', key: 'teacher_content' },
         ],
-        custom_features: this.adminService.listAiFeatures(),
       },
     };
   }
 
-  @Get('ai/features')
-  listAiFeatures() {
-    return {
-      code: 200,
-      message: 'Custom AI features',
-      data: this.adminService.listAiFeatures(),
-    };
-  }
-
-  @Post('ai/features')
-  @HttpCode(HttpStatus.CREATED)
-  addAiFeature(@Body() dto: CreateAiFeatureDto) {
-    const data = this.adminService.addAiFeature(dto.name, dto.key);
-    return {
-      code: 201,
-      message: `Feature "${data.name}" added and activated`,
-      data,
-    };
-  }
-
-  @Delete('ai/features/:id')
-  @HttpCode(HttpStatus.OK)
-  removeAiFeature(@Param('id') id: string) {
-    this.adminService.removeAiFeature(id);
-    return { code: 200, message: 'Feature removed', data: null };
-  }
-
   @Post('ai/key')
   @HttpCode(HttpStatus.OK)
-  setAiKey(@Body() body: { key: string }) {
+  async setAiKey(@Body() body: { key: string }) {
     const key = (body.key ?? '').trim();
     if (!key) throw new BadRequestException('API key is required');
-    // Strict allowlist: only base62 chars and hyphens after the prefix
-    if (!/^sk-ant-[A-Za-z0-9\-_]{10,}$/.test(key))
+    if (!isAnthropicKey(key))
       throw new BadRequestException('Invalid Anthropic API key format');
 
-    process.env.ANTHROPIC_API_KEY = key;
-
-    try {
-      const envPath = path.join(process.cwd(), '.env');
-      if (fs.existsSync(envPath)) {
-        let content = fs.readFileSync(envPath, 'utf-8');
-        // Use a replacement function to prevent $-metachar injection
-        if (content.includes('ANTHROPIC_API_KEY=')) {
-          content = content.replace(
-            /ANTHROPIC_API_KEY=.*/m,
-            () => `ANTHROPIC_API_KEY=${key}`,
-          );
-        } else {
-          content += `\nANTHROPIC_API_KEY=${key}`;
-        }
-        fs.writeFileSync(envPath, content, 'utf-8');
-      }
-    } catch {
-      /* non-fatal — process.env already updated in-memory */
-    }
-
+    await this.aiKeys.save(key);
     return {
       code: 200,
-      message: 'AI key updated. All AI features are now active.',
+      message: 'AI key saved. All AI features are now active.',
       data: { enabled: true },
     };
   }
 
   @Delete('ai/key')
   @HttpCode(HttpStatus.OK)
-  removeAiKey() {
-    process.env.ANTHROPIC_API_KEY = '';
-
-    try {
-      const envPath = path.join(process.cwd(), '.env');
-      if (fs.existsSync(envPath)) {
-        let content = fs.readFileSync(envPath, 'utf-8');
-        content = content.replace(
-          /ANTHROPIC_API_KEY=.*/m,
-          () => 'ANTHROPIC_API_KEY=',
-        );
-        fs.writeFileSync(envPath, content, 'utf-8');
-      }
-    } catch {
-      /* non-fatal */
-    }
-
+  async removeAiKey() {
+    await this.aiKeys.remove();
     return {
       code: 200,
       message: 'AI key removed. AI features are now disabled.',

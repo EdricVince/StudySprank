@@ -3,7 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import type {
   ExamQuestion,
   ExamResult,
@@ -178,11 +182,8 @@ export class EntranceExamService {
 
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   private newSessionId(): string {
@@ -197,9 +198,7 @@ export class EntranceExamService {
     session_id: string;
   }> {
     if (!this.client) {
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+      throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     }
 
     const themes =
@@ -234,7 +233,7 @@ export class EntranceExamService {
     let questions: Array<Omit<ExamQuestion, 'passage'> & { passage?: unknown }>;
     try {
       const res = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: maxTokens,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -397,7 +396,7 @@ Return ONLY a JSON array of strings, no markdown:
 
     try {
       const res = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 600,
         messages: [{ role: 'user', content: prompt }],
       });

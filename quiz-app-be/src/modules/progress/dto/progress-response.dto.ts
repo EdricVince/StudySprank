@@ -2,6 +2,7 @@ export class TodayActivityDto {
   cards_studied: number;
   quizzes_completed: number;
   xp_earned: number;
+  claimed_challenges: number[];
 }
 
 export class WeeklyActivityItemDto {

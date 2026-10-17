@@ -3,7 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import type {
   GetWritingPromptDto,
   SubmitWritingDto,
@@ -114,28 +118,19 @@ export class WritingService {
   private readonly logger = new Logger(WritingService.name);
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   async getPrompt(dto: GetWritingPromptDto) {
     const type = dto.type ?? 'general';
     const level = dto.level ?? this.defaultLevel(type);
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.generatePrompt(type, level);
   }
 
   async submitEssay(dto: SubmitWritingDto) {
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.evaluateEssay(dto);
   }
 
@@ -205,7 +200,7 @@ Return ONLY valid JSON (no markdown):
 
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 700,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -238,7 +233,7 @@ Rules: 4-7 data points. Values realistic and clearly varied. Labels max 12 chars
 
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 500,
         messages: [{ role: 'user', content: prompt }],
       });
@@ -499,7 +494,7 @@ grammar_errors: up to 6 real errors (exact quotes). vocabulary suggestions: up t
 
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 1800,
         messages: [{ role: 'user', content: prompt }],
       });

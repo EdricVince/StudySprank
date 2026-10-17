@@ -1,11 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, DataSource, Repository } from 'typeorm';
 import { UserProgress } from './entities/user-progress.entity';
 import { DailyActivity } from './entities/daily-activity.entity';
 import { LessonCompletion } from './entities/lesson-completion.entity';
 import { User } from '../users/entities/user.entity';
-import { LogActivityDto, LogActivityResponseDto } from './dto/log-activity.dto';
+import {
+  ClaimChallengeResponseDto,
+  LogActivityDto,
+  LogActivityResponseDto,
+} from './dto/log-activity.dto';
 import {
   ProgressResponseDto,
   WeeklyActivityItemDto,
@@ -103,6 +111,27 @@ function getYesterdayString(): string {
   d.setDate(d.getDate() - 1);
   return d.toISOString().split('T')[0];
 }
+
+/**
+ * Practice games run in the browser, so their results are self-reported. To keep
+ * XP meaningful the server limits how fast and how much it can be earned:
+ * one XP-earning activity per cooldown, and a daily XP ceiling.
+ */
+export const XP_COOLDOWN_MS = 20_000;
+export const DAILY_XP_CAP = 400;
+
+/** Daily challenges — the server checks completion before paying out (see claimChallenge). */
+export const DAILY_CHALLENGES: {
+  id: number;
+  xp: number;
+  done: (a: DailyActivity) => boolean;
+}[] = [
+  { id: 1, xp: 25, done: (a) => a.cards_studied >= 10 },
+  { id: 2, xp: 30, done: (a) => a.quizzes_completed >= 1 },
+  { id: 3, xp: 20, done: (a) => a.cards_studied >= 20 },
+  { id: 4, xp: 35, done: (a) => a.xp_earned >= 50 },
+];
+export const ALL_CHALLENGES_BONUS = 50;
 
 function calculateXpGained(dto: LogActivityDto): number {
   if (dto.type === 'flashcard_session') {
@@ -207,7 +236,32 @@ export class ProgressService {
         await dailyRepo.save(todayActivity);
       }
 
-      const xpGained = calculateXpGained(dto);
+      // Too soon after the previous session → nothing is recorded (blocks scripted spam).
+      const now = new Date();
+      if (
+        progress.last_xp_at &&
+        now.getTime() - new Date(progress.last_xp_at).getTime() < XP_COOLDOWN_MS
+      ) {
+        return {
+          xp_gained: 0,
+          level_up: false,
+          new_level: progress.level,
+          new_xp: progress.xp,
+          streak_count: progress.streak_count,
+          streak_updated: false,
+          milestone_reached: false,
+          streak_tier: getStreakTier(progress.streak_count).tier,
+          throttled: true,
+          capped: false,
+        };
+      }
+
+      const rawXp = calculateXpGained(dto);
+      const xpGained = Math.min(
+        rawXp,
+        Math.max(0, DAILY_XP_CAP - todayActivity.xp_earned),
+      );
+      if (xpGained > 0) progress.last_xp_at = now;
 
       // Capture the streak BEFORE any increment so milestone detection works.
       const oldStreak = progress.streak_count;
@@ -257,6 +311,59 @@ export class ProgressService {
         streak_updated: streakUpdated,
         milestone_reached: milestoneReached,
         streak_tier: getStreakTier(progress.streak_count).tier,
+        throttled: false,
+        capped: xpGained < rawXp,
+      };
+    });
+  }
+
+  /**
+   * Pay out a daily challenge once its condition is met today (checked against the
+   * server's own counters). Claiming the last one adds the all-challenges bonus.
+   * Challenge XP is not added to today's xp_earned, so claims can't complete challenge 4.
+   */
+  async claimChallenge(
+    userId: number,
+    challengeId: number,
+  ): Promise<ClaimChallengeResponseDto> {
+    const challenge = DAILY_CHALLENGES.find((c) => c.id === challengeId);
+    if (!challenge) throw new NotFoundException('Unknown challenge');
+
+    return this.dataSource.transaction(async (manager) => {
+      const progressRepo = manager.getRepository(UserProgress);
+      const dailyRepo = manager.getRepository(DailyActivity);
+      const today = getTodayString();
+      const activity = await dailyRepo.findOne({
+        where: { user_id: userId, activity_date: today },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!activity || !challenge.done(activity))
+        throw new BadRequestException('Challenge not completed yet');
+      const claimed = activity.claimed_challenges ?? [];
+      if (claimed.includes(challengeId))
+        throw new BadRequestException('Reward already claimed today');
+
+      activity.claimed_challenges = [...claimed, challengeId];
+      const bonus =
+        activity.claimed_challenges.length === DAILY_CHALLENGES.length
+          ? ALL_CHALLENGES_BONUS
+          : 0;
+
+      let progress = await progressRepo.findOne({ where: { user_id: userId } });
+      if (!progress) progress = progressRepo.create({ user_id: userId });
+      const oldLevel = progress.level;
+      progress.xp += challenge.xp + bonus;
+      progress.level = getLevel(progress.xp);
+
+      await dailyRepo.save(activity);
+      await progressRepo.save(progress);
+      return {
+        xp_gained: challenge.xp,
+        bonus,
+        new_xp: progress.xp,
+        new_level: progress.level,
+        level_up: progress.level > oldLevel,
+        claimed: activity.claimed_challenges,
       };
     });
   }
@@ -285,6 +392,7 @@ export class ProgressService {
         cards_studied: todayActivity.cards_studied,
         quizzes_completed: todayActivity.quizzes_completed,
         xp_earned: todayActivity.xp_earned,
+        claimed_challenges: todayActivity.claimed_challenges ?? [],
       },
     };
   }

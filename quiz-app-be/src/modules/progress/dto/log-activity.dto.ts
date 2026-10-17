@@ -9,7 +9,7 @@ export class LogActivityDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(1000)
+  @Max(500)
   cards_count?: number;
 
   @IsOptional()
@@ -28,4 +28,17 @@ export class LogActivityResponseDto {
   streak_updated: boolean;
   milestone_reached: boolean;
   streak_tier: string;
+  /** True when the request came within the cooldown and nothing was recorded. */
+  throttled: boolean;
+  /** True when the daily XP cap reduced the reward. */
+  capped: boolean;
+}
+
+export class ClaimChallengeResponseDto {
+  xp_gained: number;
+  bonus: number;
+  new_xp: number;
+  new_level: number;
+  level_up: boolean;
+  claimed: number[];
 }

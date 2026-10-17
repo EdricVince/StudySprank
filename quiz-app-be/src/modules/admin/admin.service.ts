@@ -25,27 +25,8 @@ import { UserGoalSettings } from '../goals/entities/user-goal-settings.entity';
 import { UserCustomGoal } from '../goals/entities/user-custom-goal.entity';
 import { ROLE_STUDENT, ROLE_TEACHER } from '../roles/entities/role.entity';
 import * as bcrypt from 'bcrypt';
-import * as fs from 'fs';
-import * as path from 'path';
 
 const TEACHER_DOMAIN = '@teacher.sprk';
-
-/** An admin-registered AI feature, persisted to a JSON file next to the app. */
-interface CustomAiFeature {
-  id: string;
-  name: string;
-  key: string;
-  created_at: string;
-}
-
-export interface AiFeatureRow {
-  id: string;
-  name: string;
-  enabled: boolean;
-  key_preview: string | null;
-  custom: true;
-  created_at: string;
-}
 
 export interface AdminUserRow {
   id: number;
@@ -224,71 +205,6 @@ export class AdminService {
       for (const u of existing) await this.purgeUser(m, u.id);
     });
     return existing.length;
-  }
-
-  // ── Custom AI features (admin-registered, persisted to a JSON file) ────────────
-
-  private aiFeaturesFile(): string {
-    return path.join(process.cwd(), 'ai-features.json');
-  }
-
-  private readAiFeatures(): CustomAiFeature[] {
-    try {
-      const p = this.aiFeaturesFile();
-      if (!fs.existsSync(p)) return [];
-      const parsed: unknown = JSON.parse(fs.readFileSync(p, 'utf-8'));
-      return Array.isArray(parsed) ? (parsed as CustomAiFeature[]) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private writeAiFeatures(list: CustomAiFeature[]): void {
-    try {
-      fs.writeFileSync(
-        this.aiFeaturesFile(),
-        JSON.stringify(list, null, 2),
-        'utf-8',
-      );
-    } catch {
-      // Non-fatal — a read-only FS just means custom features don't persist across restarts.
-    }
-  }
-
-  private toFeatureRow(f: CustomAiFeature): AiFeatureRow {
-    return {
-      id: f.id,
-      name: f.name,
-      enabled: !!f.key && f.key.startsWith('sk-ant-'),
-      key_preview: f.key ? `sk-ant-...${f.key.slice(-6)}` : null,
-      custom: true,
-      created_at: f.created_at,
-    };
-  }
-
-  listAiFeatures(): AiFeatureRow[] {
-    return this.readAiFeatures().map((f) => this.toFeatureRow(f));
-  }
-
-  addAiFeature(name: string, key: string): AiFeatureRow {
-    const list = this.readAiFeatures();
-    const feature: CustomAiFeature = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: name.trim(),
-      key: key.trim(),
-      created_at: new Date().toISOString(),
-    };
-    list.push(feature);
-    this.writeAiFeatures(list);
-    return this.toFeatureRow(feature);
-  }
-
-  removeAiFeature(id: string): void {
-    const list = this.readAiFeatures();
-    const next = list.filter((f) => f.id !== id);
-    if (next.length === list.length)
-      throw new NotFoundException('Feature not found');
-    this.writeAiFeatures(next);
   }
 
   /**

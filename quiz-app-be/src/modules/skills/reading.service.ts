@@ -3,7 +3,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  AI_MODEL,
+  AI_NOT_CONFIGURED,
+  getAnthropicClient,
+} from '../../core/ai/anthropic';
 import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type { GetReadingDto, CefrLevel, ReadingType } from './dto/skills.dto';
 
@@ -109,20 +113,14 @@ export class ReadingService {
   private readonly logger = new Logger(ReadingService.name);
   constructor() {}
 
-  private get client(): Anthropic | null {
-    const key = process.env.ANTHROPIC_API_KEY ?? '';
-    return key && key.startsWith('sk-ant-')
-      ? new Anthropic({ apiKey: key })
-      : null;
+  private get client() {
+    return getAnthropicClient();
   }
 
   async getPassage(dto: GetReadingDto) {
     const level = dto.level ?? 'B1';
     const type = dto.type ?? 'ielts';
-    if (!this.client)
-      throw new ServiceUnavailableException(
-        'AI service not configured. Please add your Anthropic API key in admin settings.',
-      );
+    if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
     return this.generatePassage(level, type, dto.topic);
   }
 
@@ -173,7 +171,7 @@ Generate 5 comprehension questions (varied: main idea, detail, inference, vocabu
 
     try {
       const msg = await this.client!.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: AI_MODEL,
         max_tokens: 2200,
         messages: [{ role: 'user', content: prompt }],
       });
