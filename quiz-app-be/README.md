@@ -1,98 +1,73 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# StudySpark API (quiz-app-be)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 11 + TypeORM + PostgreSQL. REST under `/api/v1`, Socket.IO for live quizzes and battles.
+Swagger UI at `/api/docs` when `NODE_ENV=development`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Run
 
 ```bash
-$ pnpm install
+cp .env.example .env        # see "Configuration"
+pnpm install                # from the repo root
+pnpm start:dev              # http://localhost:3000
 ```
 
-## Compile and run the project
+## Configuration
+
+| Variable | Required | Notes |
+|---|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | yes | PostgreSQL (Supabase session pooler in production) |
+| `DB_SSL` | | `false` only for a local Postgres without TLS |
+| `DB_MIGRATIONS_RUN` | | default `true` — apply pending migrations on boot |
+| `DB_SYNCHRONIZE` | | keep `false`; `true` is a local-only shortcut |
+| `JWT_SECRET` | yes | HS256 signing key (long random string) |
+| `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN` | | default `15m` / `7d`; refresh tokens rotate and are stored hashed |
+| `ADMIN_SECRET` | yes | key for the admin dashboard — use a long random value |
+| `CORS_ORIGINS` | yes | comma-separated web origins |
+| `APP_URL` | | web base URL for password-reset links |
+| `ANTHROPIC_API_KEY` | | enables AI features (otherwise AI endpoints return 503) |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | | only for Google/Facebook login |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | | password-reset email (the link is logged if unset) |
+| `THROTTLE_AUTH_LIMIT` | | auth rate limit per window (relaxed in CI) |
+
+## Database & migrations
+
+The schema lives in [src/migrations](src/migrations) and is applied automatically on start-up.
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm migration:show                                   # applied / pending
+pnpm migration:run                                    # apply manually (uses .env)
+pnpm migration:generate src/migrations/AddSomething   # after changing an entity — review the SQL, then commit
+pnpm migration:revert                                 # undo the last migration
 ```
 
-## Run tests
+The baseline migration (`InitialSchema`) creates all tables on an empty database. On a database that was
+created earlier with `synchronize` it skips the tables and only records itself, so existing deployments can
+switch to migrations without data loss. Both cases seed the roles (1 STUDENT, 2 TEACHER, 3 ADMIN).
+
+An Anthropic key saved from the admin dashboard is stored AES-256-GCM-encrypted in `app_settings`
+(key derived from `JWT_SECRET`), loaded on boot and takes precedence over `ANTHROPIC_API_KEY`.
+If `JWT_SECRET` changes, enter the key again.
+
+XP from practice games is self-reported by the browser, so the API limits it: one XP-earning
+activity per 20 s and at most 400 XP per day; daily-challenge rewards are paid only after the
+server checks the day's counters (`POST /progress/challenges/:id/claim`).
+
+Helper scripts: `pnpm seed` (roles), `pnpm create-teacher`, `pnpm sync:fks` (legacy FK repair for old databases).
+
+## Structure
+
+```
+src/core/       security (JWT, guards, rate limit, SSRF guard, CORS, Helmet), ai/anthropic.ts, database/
+src/modules/    auth, users, roles, admin, classes, lessons, tests, assignments, videos, vocab-sets,
+                flashcard-decks (SM-2), progress, goals, live-quiz, battle, skills, entrance-exam, schedule, ai
+src/migrations/ TypeORM migrations
+test/           e2e tests (Supertest)
+```
+
+## Tests
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm test          # unit tests (no database)
+pnpm test:e2e      # needs a throwaway PostgreSQL: DB_* + DB_SSL=false (the schema is built by the migrations)
+pnpm lint:ci       # ESLint + Prettier, no auto-fix
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

@@ -64,7 +64,8 @@ before applying, and update the three URLs to match.
 - **API health:** open `https://<api-url>/` → should return a small JSON/200.
 - **Web:** open `https://<web-url>/` → the login page loads.
 - Register a student, log in, open the dashboard. Create a teacher via the
-  admin flow (teacher emails must end `@teacher.sprk`).
+  admin dashboard (or `pnpm --filter quiz-app-be create-teacher`); the role,
+  not the email domain, decides which portal a user lands in after login.
 - If the API log shows a **database SSL** error, confirm your Supabase host is
   correct; the app already connects with `ssl: { rejectUnauthorized: false }`.
 
@@ -74,11 +75,13 @@ before applying, and update the three URLs to match.
 
 - **Free tier sleeps.** The free API spins down after ~15 min idle; the first
   request afterwards cold-starts (a few seconds). Fine for a demo.
-- **`DB_SYNCHRONIZE=true`** (default here) lets TypeORM create/upgrade tables on
-  boot — convenient for a fresh database. Once the schema is stable, set it to
-  `false` in the API service env to avoid accidental schema changes.
-- **Foreign keys:** if you started from an empty DB and want the DB-level FKs,
-  run `pnpm sync:fks` once locally against the same Supabase DB.
+- **Schema = migrations.** `quiz-app-be/src/migrations` owns the schema and the
+  migrations run automatically when the API boots (`DB_MIGRATIONS_RUN`, default on).
+  Keep `DB_SYNCHRONIZE=false` in production. The baseline migration detects a
+  database that was created earlier by `synchronize` and only records itself
+  (plus seeds the three roles), so switching an existing Supabase DB is safe.
+- **Changing an entity:** run `pnpm --filter quiz-app-be migration:generate src/migrations/<Name>`
+  against a local/dev DB, review the generated SQL, commit it; the next deploy applies it.
 - **Secrets** are entered in the Render dashboard, never committed. `.env`
   stays untracked.
 

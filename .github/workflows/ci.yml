@@ -90,8 +90,8 @@ jobs:
       DB_PASSWORD: postgres
       DB_NAME: quiz_test
       DB_SSL: 'false'
-      # No migrations exist yet, so the empty CI database is created from the entities.
-      DB_SYNCHRONIZE: 'true'
+      # The empty CI database is created by the migrations (run on app boot), exactly as in production.
+      DB_SYNCHRONIZE: 'false'
       JWT_SECRET: ci-e2e-jwt-secret-not-for-production
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d

@@ -54,9 +54,10 @@ services:
         sync: false
       - key: DB_NAME
         sync: false
-      # Create/upgrade tables on boot. Set to false once the schema is stable.
+      # The schema is managed by migrations, which run automatically on boot.
+      # Never enable synchronize in production (it can drop/alter columns).
       - key: DB_SYNCHRONIZE
-        value: "true"
+        value: "false"
       # AI features (Anthropic). Optional — AI endpoints 503 without it.
       - key: ANTHROPIC_API_KEY
         sync: false
