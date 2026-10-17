@@ -20,6 +20,7 @@
         :streak="gameState.streak"
         :time-remaining="timeRemaining"
         :show-timer="true"
+        :progress-label="$t('quizPlay.matching.pairOf', { n: matchedPairs, total: pairs.length })"
         @exit="confirmExit"
       />
 
@@ -27,8 +28,8 @@
       <div class="mx-auto mt-4 max-w-4xl">
         <div class="bg-secondary/50 mb-6 rounded-xl p-4 text-center">
           <p class="text-muted-foreground text-sm">
-            <span class="font-medium">Match the words with their meanings!</span>
-            Click a word, then click its matching definition.
+            <span class="font-medium">{{ $t('quizPlay.matching.instrTitle') }}</span>
+            {{ $t('quizPlay.matching.instrBody') }}
           </p>
         </div>
 
@@ -36,7 +37,7 @@
         <div class="grid grid-cols-2 gap-4 lg:gap-6">
           <!-- Words Column -->
           <div class="space-y-3">
-            <h3 class="text-muted-foreground mb-2 text-center text-sm font-medium">Words</h3>
+            <h3 class="text-muted-foreground mb-2 text-center text-sm font-medium">{{ $t('quizPlay.matching.words') }}</h3>
             <button
               v-for="card in wordCards"
               :key="`word-${card.id}`"
@@ -51,7 +52,7 @@
 
           <!-- Definitions Column -->
           <div class="space-y-3">
-            <h3 class="text-muted-foreground mb-2 text-center text-sm font-medium">Definitions</h3>
+            <h3 class="text-muted-foreground mb-2 text-center text-sm font-medium">{{ $t('quizPlay.matching.definitions') }}</h3>
             <button
               v-for="card in definitionCards"
               :key="`def-${card.id}`"
@@ -79,7 +80,7 @@
                 class="text-lg font-semibold"
                 :class="lastMatchCorrect ? 'text-primary' : 'text-destructive'"
               >
-                {{ lastMatchCorrect ? 'Great Match! +' + (100 + gameState.streak * 10) + ' pts' : 'Try Again!' }}
+                {{ lastMatchCorrect ? $t('quizPlay.matching.greatMatch', { n: 100 + gameState.streak * 10 }) : $t('quizPlay.matching.tryAgain') }}
               </span>
             </div>
           </div>
@@ -89,17 +90,17 @@
         <div class="mt-6 flex items-center justify-center gap-6">
           <div class="text-center">
             <p class="text-foreground text-2xl font-bold">{{ matchedPairs }}</p>
-            <p class="text-muted-foreground text-sm">Matched</p>
+            <p class="text-muted-foreground text-sm">{{ $t('quizPlay.matching.matched') }}</p>
           </div>
           <div class="bg-border h-10 w-px"></div>
           <div class="text-center">
             <p class="text-foreground text-2xl font-bold">{{ attempts }}</p>
-            <p class="text-muted-foreground text-sm">Attempts</p>
+            <p class="text-muted-foreground text-sm">{{ $t('quizPlay.matching.attempts') }}</p>
           </div>
           <div class="bg-border h-10 w-px"></div>
           <div class="text-center">
             <p class="text-foreground text-2xl font-bold">{{ accuracy }}%</p>
-            <p class="text-muted-foreground text-sm">Accuracy</p>
+            <p class="text-muted-foreground text-sm">{{ $t('quizPlay.matching.accuracy') }}</p>
           </div>
         </div>
       </div>
@@ -119,9 +120,7 @@ import QuizResult from '@/components/quiz/QuizResult.vue'
 import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { MatchingPair, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
-import { useProgressStore } from '@/stores/progress.store'
-import { useQuizStore } from '@/stores/quiz.store'
-import { useToast } from '@/composables/useToast'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 import { useVocabulary } from '@/composables/useVocabulary'
 
 interface Card {
@@ -133,9 +132,7 @@ interface Card {
 
 const router = useRouter()
 const route = useRoute()
-const progressStore = useProgressStore()
-const quizStore = useQuizStore()
-const toast = useToast()
+const { finishQuiz, xpEarned } = useQuizCompletion()
 const { generateMatchingPairs } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 8, 3), 30))
@@ -174,16 +171,37 @@ const accuracy = computed(() => {
   return Math.round((matchedPairs.value / attempts.value) * 100)
 })
 
+// One accuracy definition for the result screen and the server: every wrong
+// attempt AND every pair left unmatched when time runs out counts as a miss.
+const finalAccuracy = computed(() => {
+  const misses = attempts.value - matchedPairs.value + (pairs.value.length - matchedPairs.value)
+  const total = matchedPairs.value + misses
+  return total ? Math.round((matchedPairs.value / total) * 100) : 0
+})
+
+const endGame = async () => {
+  if (gameState.value.status === 'finished') return
+  gameState.value.status = 'finished'
+  if (timerInterval) clearInterval(timerInterval)
+  await finishQuiz({
+    modeId: 'matching-pairs',
+    modeName: 'Matching Pairs',
+    score: gameState.value.score,
+    accuracy: finalAccuracy.value,
+    questionCount: pairs.value.length,
+  })
+}
+
 const quizResult = computed<QuizResultType>(() => {
   const timeSpent = 180 - timeRemaining.value
-  const accuracyValue = Math.round((matchedPairs.value / pairs.value.length) * 100)
+  const accuracyValue = finalAccuracy.value
   return {
     totalQuestions: pairs.value.length,
     correctAnswers: matchedPairs.value,
     wrongAnswers: attempts.value - matchedPairs.value,
     score: gameState.value.score,
     timeSpent,
-    xpEarned: gameState.value.score + Math.floor(accuracyValue / 10) * 10,
+    xpEarned: xpEarned.value,
     accuracy: accuracyValue,
     streakBonus: gameState.value.streak > 2 ? gameState.value.streak * 10 : 0,
   }
@@ -286,25 +304,8 @@ const checkMatch = () => {
 
     // Check if all matched
     if (matchedPairs.value === pairs.value.length) {
-      setTimeout(async () => {
-        gameState.value.status = 'finished'
-        if (timerInterval) clearInterval(timerInterval)
-        const accuracy = Math.round((matchedPairs.value / attempts.value) * 100)
-        const result = await progressStore.logQuizCompletion(accuracy, pairs.value.length)
-        quizStore.addGame({
-          modeId: 'matching-pairs',
-          modeName: 'Matching Pairs',
-          score: gameState.value.score,
-          accuracy,
-          questionCount: pairs.value.length,
-          xpEarned: result?.xp_gained ?? 0,
-        })
-        if (result?.level_up) {
-          toast.success(`Level up! You're now Level ${result.new_level}! 🎉`)
-        } else if (result?.xp_gained) {
-          toast.success(`+${result.xp_gained} XP earned!`)
-        }
-      }, 1000)
+      setTimeout(endGame, 1000)
+
     }
   } else {
     gameState.value.streak = 0
@@ -319,27 +320,12 @@ const checkMatch = () => {
 }
 
 const startTimer = () => {
-  timerInterval = setInterval(async () => {
+  timerInterval = setInterval(() => {
     if (timeRemaining.value > 0) {
       timeRemaining.value--
     } else {
-      gameState.value.status = 'finished'
-      if (timerInterval) clearInterval(timerInterval)
-      const acc = Math.round((matchedPairs.value / pairs.value.length) * 100)
-      const result = await progressStore.logQuizCompletion(acc, pairs.value.length)
-      quizStore.addGame({
-        modeId: 'matching-pairs',
-        modeName: 'Matching Pairs',
-        score: gameState.value.score,
-        accuracy: acc,
-        questionCount: pairs.value.length,
-        xpEarned: result?.xp_gained ?? 0,
-      })
-      if (result?.level_up) {
-        toast.success(`Level up! You're now Level ${result.new_level}! 🎉`)
-      } else if (result?.xp_gained) {
-        toast.success(`+${result.xp_gained} XP earned!`)
-      }
+      void endGame()
+
     }
   }, 1000)
 }

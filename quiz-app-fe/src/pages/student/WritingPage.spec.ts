@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { createI18n } from 'vue-i18n'
-import en from '@/i18n/locales/en'
 
 vi.mock('@/utils/api', () => ({
   api: { getWritingPrompt: vi.fn(), submitWriting: vi.fn() },
@@ -12,7 +10,6 @@ import WritingPage from './WritingPage.vue'
 import { api } from '@/utils/api'
 
 const m = api as unknown as Record<'getWritingPrompt' | 'submitWriting', ReturnType<typeof vi.fn>>
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
 
 describe('WritingPage — AI evaluation result', () => {
   beforeEach(() => {
@@ -25,10 +22,11 @@ describe('WritingPage — AI evaluation result', () => {
   })
 
   it('shows the AI-generated badge next to the band score', async () => {
-    const w = mount(WritingPage, { global: { plugins: [i18n] } })
+    const w = mount(WritingPage)
 
     await w.findAll('button')[0]!.trigger('click') // pick IELTS Task 2
     await flushPromises()
+    await w.find('textarea').setValue('Remote work has clear benefits for many employees.')
     const submit = w.findAll('button').find((b) => b.text() === 'Submit')!
     await submit.trigger('click')
     await flushPromises()
@@ -37,6 +35,19 @@ describe('WritingPage — AI evaluation result', () => {
     const badge = w.find('[data-test="ai-generated-badge"]')
     expect(badge.exists()).toBe(true)
     expect(badge.text()).toContain('AI-generated')
+    w.unmount()
+  })
+
+  it('stops the exam clock when going back to the topic list', async () => {
+    vi.useFakeTimers()
+    const w = mount(WritingPage)
+    await w.findAll('button')[0]!.trigger('click')
+    await flushPromises()
+    await w.find('.back-btn').trigger('click') // Topics
+    vi.advanceTimersByTime(2401 * 1000)
+    await flushPromises()
+    expect(m.submitWriting).not.toHaveBeenCalled()
+    vi.useRealTimers()
     w.unmount()
   })
 })

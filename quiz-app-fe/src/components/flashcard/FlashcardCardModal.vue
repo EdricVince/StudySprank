@@ -185,14 +185,9 @@ watch(
   { immediate: true }
 )
 
-const resetForm = () => {
-  form.value = {
-    term: '',
-    definition: '',
-    example: '',
-    image: '',
-    audio: '',
-  }
+// A hoisted function declaration: the immediate watcher above calls it during setup.
+function resetForm() {
+  form.value = { term: '', definition: '', example: '', image: '', audio: '' }
   imageUrl.value = ''
 }
 

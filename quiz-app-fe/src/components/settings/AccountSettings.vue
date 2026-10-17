@@ -60,8 +60,8 @@
       </div>
     </div>
 
-    <!-- Teacher Portal (only shown for @teacher.sprk accounts) -->
-    <div v-if="authStore.isTeacherEmail" class="bg-card border-border rounded-2xl border p-6">
+    <!-- Teacher Portal (only shown for teacher accounts) -->
+    <div v-if="authStore.isTeacher" class="bg-card border-border rounded-2xl border p-6">
       <h2 class="text-foreground mb-4 flex items-center gap-2 text-lg font-semibold">
         <GraduationCap class="text-primary h-5 w-5" />
         {{ $t('settings.account.teacherPortal.title') }}

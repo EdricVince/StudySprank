@@ -123,7 +123,7 @@
         >
           <div v-if="!flippedCards.has(i)">
             <p class="text-foreground text-lg font-bold">{{ word.term }}</p>
-            <p class="text-muted-foreground mt-0.5 text-xs">Click to reveal</p>
+            <p class="text-muted-foreground mt-0.5 text-xs">{{ $t('courses.detail.clickReveal') }}</p>
           </div>
           <div v-else>
             <p class="text-primary text-sm font-semibold">{{ word.term }}</p>
@@ -132,7 +132,7 @@
           </div>
         </div>
         <div v-if="!lessonContent.vocabulary.length" class="col-span-3 py-12 text-center">
-          <p class="text-muted-foreground text-sm">No vocabulary in this lesson.</p>
+          <p class="text-muted-foreground text-sm">{{ $t('courses.detail.noVocab') }}</p>
         </div>
       </div>
 
@@ -160,17 +160,17 @@
             </button>
           </div>
           <div v-if="quizAnswers.has(i)" class="mt-3 rounded-xl bg-secondary/50 px-4 py-2.5 text-sm">
-            <span v-if="quizAnswers.get(i) === q.correct" class="text-chart-2 font-semibold">✓ Correct! </span>
-            <span v-else class="text-destructive font-semibold">✗ Incorrect. </span>
+            <span v-if="quizAnswers.get(i) === q.correct" class="text-chart-2 font-semibold">{{ $t('courses.detail.correct') }}</span>
+            <span v-else class="text-destructive font-semibold">{{ $t('courses.detail.incorrect') }}</span>
             <span class="text-muted-foreground">{{ q.explanation }}</span>
           </div>
         </div>
         <div v-if="!lessonContent.quiz.length" class="py-12 text-center">
-          <p class="text-muted-foreground text-sm">No quiz questions in this lesson.</p>
+          <p class="text-muted-foreground text-sm">{{ $t('courses.detail.noQuiz') }}</p>
         </div>
         <div v-if="lessonContent.quiz.length > 0" class="bg-card border-border rounded-2xl border p-4 text-center">
-          <p class="text-foreground font-semibold">Score: {{ quizScore }}/{{ lessonContent.quiz.length }}</p>
-          <p class="text-muted-foreground text-sm">{{ quizAnswers.size }} answered</p>
+          <p class="text-foreground font-semibold">{{ $t('courses.detail.score', { n: quizScore, total: lessonContent.quiz.length }) }}</p>
+          <p class="text-muted-foreground text-sm">{{ $t('courses.detail.answered', { n: quizAnswers.size }) }}</p>
         </div>
       </div>
 
@@ -205,7 +205,7 @@
           </div>
         </div>
         <div v-if="!lessonContent.comprehension.length" class="py-12 text-center">
-          <p class="text-muted-foreground text-sm">No comprehension questions in this lesson.</p>
+          <p class="text-muted-foreground text-sm">{{ $t('courses.detail.noComp') }}</p>
         </div>
       </div>
     </div>
@@ -213,8 +213,8 @@
     <!-- Empty content state -->
     <div v-else-if="course && !lessonContent" class="bg-card border-border flex flex-col items-center justify-center rounded-2xl border py-16 text-center">
       <BookOpen class="text-muted-foreground mb-4 h-12 w-12" />
-      <p class="text-foreground font-semibold">No content yet</p>
-      <p class="text-muted-foreground mt-1 text-sm">Your teacher hasn't added exercises to this lesson yet.</p>
+      <p class="text-foreground font-semibold">{{ $t('courses.detail.noContent') }}</p>
+      <p class="text-muted-foreground mt-1 text-sm">{{ $t('courses.detail.noContentDesc') }}</p>
     </div>
 
     <!-- Course Certificate Modal -->
@@ -306,8 +306,7 @@ const answerQuiz = (questionIdx: number, optionIdx: number) => {
 
 const userName = computed(() => {
   if (authStore.user?.name) return authStore.user.name
-  if (authStore.user?.email) return authStore.user.email.split('@')[0] ?? 'Guest'
-  return 'Guest'
+  return authStore.user?.email?.split('@')[0] || t('courses.detail.guest')
 })
 
 const getCourseIcon = (category: string) => {

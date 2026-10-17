@@ -19,33 +19,33 @@
       <!-- Score -->
       <div class="bg-secondary/50 mb-6 rounded-2xl p-6">
         <div class="text-primary mb-1 text-5xl font-bold">{{ result.score }}</div>
-        <p class="text-muted-foreground text-sm">Total Score</p>
+        <p class="text-muted-foreground text-sm">{{ $t('quizPlay.result.totalScore') }}</p>
       </div>
 
       <!-- Stats Grid -->
       <div class="mb-8 grid grid-cols-2 gap-4">
         <div class="bg-secondary/30 rounded-xl p-4">
           <div class="text-foreground text-2xl font-bold">{{ result.correctAnswers }}/{{ result.totalQuestions }}</div>
-          <p class="text-muted-foreground text-sm">Correct</p>
+          <p class="text-muted-foreground text-sm">{{ $t('quizPlay.result.correct') }}</p>
         </div>
         <div class="bg-secondary/30 rounded-xl p-4">
           <div class="text-foreground text-2xl font-bold">{{ result.accuracy }}%</div>
-          <p class="text-muted-foreground text-sm">Accuracy</p>
+          <p class="text-muted-foreground text-sm">{{ $t('quizPlay.result.accuracy') }}</p>
         </div>
         <div class="bg-secondary/30 rounded-xl p-4">
           <div class="text-foreground text-2xl font-bold">{{ formattedTime }}</div>
-          <p class="text-muted-foreground text-sm">Time</p>
+          <p class="text-muted-foreground text-sm">{{ $t('quizPlay.result.time') }}</p>
         </div>
         <div class="bg-secondary/30 rounded-xl p-4">
           <div class="text-primary text-2xl font-bold">+{{ result.xpEarned }}</div>
-          <p class="text-muted-foreground text-sm">XP Earned</p>
+          <p class="text-muted-foreground text-sm">{{ $t('quizPlay.result.xpEarned') }}</p>
         </div>
       </div>
 
       <!-- Streak Bonus -->
       <div v-if="result.streakBonus > 0" class="bg-primary/10 mb-6 flex items-center justify-center gap-2 rounded-xl p-3">
         <Flame class="text-primary h-5 w-5" />
-        <span class="text-primary font-medium">+{{ result.streakBonus }} Streak Bonus!</span>
+        <span class="text-primary font-medium">{{ $t('quizPlay.result.streakBonus', { n: result.streakBonus }) }}</span>
       </div>
 
       <!-- Actions -->
@@ -55,14 +55,14 @@
           @click="$emit('playAgain')"
         >
           <RotateCcw class="h-5 w-5" />
-          Play Again
+          {{ $t('quizPlay.result.playAgain') }}
         </button>
         <button
           class="group flex w-full items-center justify-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/8 py-3 text-sm font-semibold text-indigo-400 transition-all duration-200 hover:border-indigo-500/40 hover:bg-indigo-500/15 active:scale-95"
           @click="$emit('goHome')"
         >
           <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-          Quizzes
+          {{ $t('quizPlay.result.quizzes') }}
         </button>
       </div>
     </div>
@@ -71,8 +71,11 @@
 
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Trophy, Star, Medal, ThumbsUp, Flame, RotateCcw } from '@/components/icons'
 import type { QuizResult } from '@/types/quiz'
+
+const { t } = useI18n()
 
 interface Props {
   result: QuizResult
@@ -94,31 +97,17 @@ const formattedTime = computed(() => {
   return `${seconds}s`
 })
 
-const resultIcon = computed<Component>(() => {
-  if (props.result.accuracy >= 90) return Trophy
-  if (props.result.accuracy >= 70) return Star
-  if (props.result.accuracy >= 50) return Medal
-  return ThumbsUp
-})
+// One row per accuracy tier (checked top-down): icon, colours and i18n keys.
+const TIERS: { min: number; icon: Component; cls: string; title: string; msg: string }[] = [
+  { min: 90, icon: Trophy, cls: 'bg-primary/10 text-primary', title: 'excellent', msg: 'msgExcellent' },
+  { min: 70, icon: Star, cls: 'bg-accent text-accent-foreground', title: 'great', msg: 'msgGreat' },
+  { min: 50, icon: Medal, cls: 'bg-secondary text-secondary-foreground', title: 'good', msg: 'msgGood' },
+  { min: 0, icon: ThumbsUp, cls: 'bg-muted text-muted-foreground', title: 'keep', msg: 'msgKeep' },
+]
+const tier = computed(() => TIERS.find((x) => props.result.accuracy >= x.min) ?? TIERS[TIERS.length - 1]!)
 
-const resultIconClass = computed(() => {
-  if (props.result.accuracy >= 90) return 'bg-primary/10 text-primary'
-  if (props.result.accuracy >= 70) return 'bg-accent text-accent-foreground'
-  if (props.result.accuracy >= 50) return 'bg-secondary text-secondary-foreground'
-  return 'bg-muted text-muted-foreground'
-})
-
-const resultTitle = computed(() => {
-  if (props.result.accuracy >= 90) return 'Excellent!'
-  if (props.result.accuracy >= 70) return 'Great Job!'
-  if (props.result.accuracy >= 50) return 'Good Effort!'
-  return 'Keep Practicing!'
-})
-
-const resultMessage = computed(() => {
-  if (props.result.accuracy >= 90) return 'You nailed it! Outstanding performance!'
-  if (props.result.accuracy >= 70) return 'Well done! You\'re making great progress!'
-  if (props.result.accuracy >= 50) return 'Nice try! Keep pushing forward!'
-  return 'Don\'t give up! Practice makes perfect!'
-})
+const resultIcon = computed<Component>(() => tier.value.icon)
+const resultIconClass = computed(() => tier.value.cls)
+const resultTitle = computed(() => t(`quizPlay.result.${tier.value.title}`))
+const resultMessage = computed(() => t(`quizPlay.result.${tier.value.msg}`))
 </script>

@@ -79,12 +79,3 @@ export interface QuizAnswer {
   isCorrect: boolean
   timeSpent: number
 }
-
-export interface LeaderboardEntry {
-  rank: number
-  username: string
-  avatar: string
-  score: number
-  accuracy: number
-  time: number
-}

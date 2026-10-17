@@ -54,7 +54,7 @@
         <div>
           <p class="text-foreground text-sm font-semibold">{{ $t('auth.login.teacherPortalAccess') }}</p>
           <p class="text-muted-foreground mt-0.5 text-xs">
-            {{ $t('auth.login.teacherBanner', { domain: '@teacher.sprk' }) }}
+            {{ $t('auth.login.teacherBanner') }}
           </p>
         </div>
       </div>
@@ -219,8 +219,6 @@ import { loginSchema } from '@/types/auth'
 import { useAuthStore } from '@/stores/auth.store'
 import { signInWithGoogle, signInWithFacebook } from '@/lib/supabase'
 
-const TEACHER_DOMAIN = '@teacher.sprk'
-
 const router = useRouter()
 const authStore = useAuthStore()
 const { t } = useI18n()
@@ -248,30 +246,13 @@ const handleSignIn = handleSubmit(async (formValues) => {
   isSubmitting.value = true
   errorMessage.value = ''
 
-  const emailLower = formValues.email.toLowerCase()
-  const isTeacherEmail = emailLower.endsWith(TEACHER_DOMAIN)
-
-  // Validate: teacher tab must use @teacher.sprk email
-  if (selectedRole.value === 'teacher' && !isTeacherEmail) {
-    errorMessage.value = t('auth.login.errTeacherEmail', { domain: TEACHER_DOMAIN })
-    isSubmitting.value = false
-    return
-  }
-
-  // Validate: student tab must NOT use @teacher.sprk email
-  if (selectedRole.value === 'student' && isTeacherEmail) {
-    errorMessage.value = t('auth.login.errStudentTab')
-    isSubmitting.value = false
-    return
-  }
-
   try {
     const result = await authStore.login(formValues.email, formValues.password, rememberMe.value)
 
     if (result.success) {
-      setTimeout(() => {
-        router.push(isTeacherEmail ? { name: 'TeacherDashboard' } : { name: 'Dashboard' })
-      }, 500)
+      // Route by the role the server returned — not by the email domain or the
+      // selected tab — so a teacher with any email address lands in the teacher portal.
+      router.push(authStore.isTeacher ? { name: 'TeacherDashboard' } : { name: 'Dashboard' })
     } else {
       errorMessage.value = result.message || t('auth.login.failed')
     }

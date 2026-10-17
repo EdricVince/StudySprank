@@ -8,7 +8,7 @@
       >
         <div class="bg-card border-border w-full max-w-lg rounded-3xl border p-6 shadow-xl lg:p-8">
           <div class="mb-6 flex items-center justify-between">
-            <h2 class="text-foreground text-xl font-bold lg:text-2xl">Import Cards</h2>
+            <h2 class="text-foreground text-xl font-bold lg:text-2xl">{{ $t('flashcards.importModal.title') }}</h2>
             <button
               class="hover:bg-secondary rounded-lg p-2 transition-colors"
               @click="close"
@@ -30,7 +30,7 @@
               <input
                 ref="fileInput"
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".csv,text/csv"
                 class="hidden"
                 @change="handleFileSelect"
               />
@@ -38,9 +38,9 @@
                 <FileSpreadsheet class="text-muted-foreground h-8 w-8" />
               </div>
               <p class="text-foreground mb-1 text-base font-medium">
-                Drop your file here or click to browse
+                {{ $t('flashcards.importModal.dropzoneText') }}
               </p>
-              <p class="text-muted-foreground text-sm">Supports CSV, Excel (.xlsx, .xls)</p>
+              <p class="text-muted-foreground text-sm">{{ $t('flashcards.importModal.supportedFormats') }}</p>
             </div>
 
             <!-- Selected File -->
@@ -60,14 +60,14 @@
 
             <!-- Format Guide -->
             <div class="bg-secondary/50 rounded-xl p-4">
-              <p class="text-muted-foreground mb-2 text-sm">Expected format:</p>
+              <p class="text-muted-foreground mb-2 text-sm">{{ $t('flashcards.importModal.expectedFormat') }}</p>
               <div class="bg-card overflow-hidden rounded-lg">
                 <table class="w-full text-sm">
                   <thead class="bg-secondary">
                     <tr>
-                      <th class="text-foreground px-3 py-2 text-left font-medium">Term</th>
-                      <th class="text-foreground px-3 py-2 text-left font-medium">Definition</th>
-                      <th class="text-foreground px-3 py-2 text-left font-medium">Image</th>
+                      <th class="text-foreground px-3 py-2 text-left font-medium">{{ $t('flashcards.importModal.term') }}</th>
+                      <th class="text-foreground px-3 py-2 text-left font-medium">{{ $t('flashcards.importModal.definition') }}</th>
+                      <th class="text-foreground px-3 py-2 text-left font-medium">{{ $t('flashcards.importModal.image') }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -83,11 +83,11 @@
 
             <div class="flex gap-3 pt-4">
               <Button type="button" variant="outline" class="flex-1" @click="close">
-                Cancel
+                {{ $t('flashcards.importModal.cancel') }}
               </Button>
               <Button class="flex-1" :disabled="!selectedFile" @click="handleImport">
                 <Upload class="mr-2 h-4 w-4" />
-                Import Cards
+                {{ $t('flashcards.importModal.import') }}
               </Button>
             </div>
           </div>
@@ -101,6 +101,7 @@
 import { ref } from 'vue'
 import { X, FileSpreadsheet, Upload } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
+import { isCsvFile } from '@/utils/csv'
 
 interface Props {
   modelValue: boolean
@@ -137,9 +138,7 @@ const handleFileDrop = (event: DragEvent) => {
   isDragging.value = false
   if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
     const file = event.dataTransfer.files[0]
-    if (file.type === 'text/csv' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      selectedFile.value = file
-    }
+    if (isCsvFile(file)) selectedFile.value = file
   }
 }
 

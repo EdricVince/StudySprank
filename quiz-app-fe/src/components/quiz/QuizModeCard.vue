@@ -15,7 +15,7 @@
 
     <!-- Play Button -->
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-xs">Start</span>
+      <span class="text-muted-foreground text-xs">{{ $t('quizPlay.start') }}</span>
       <div class="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105">
         <Play class="h-4 w-4" />
       </div>
@@ -24,7 +24,6 @@
 </template>
 
 <script setup lang="ts">
-import {} from 'vue'
 import { Play } from '@/components/icons'
 import type { QuizMode } from '@/types/quiz'
 

@@ -5,15 +5,15 @@
       <div class="mx-auto flex max-w-7xl items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-lg">🎧</div>
-          <h1 class="page-title">Listening Practice</h1>
+          <h1 class="page-title">{{ $t('skills.listening.title') }}</h1>
         </div>
         <div class="flex items-center gap-1.5">
           <button
-            v-for="l in ['', ...levels]" :key="l"
+            v-for="l in ['', ...CEFR_LEVELS]" :key="l"
             class="rounded-lg border px-3 py-1.5 text-xs font-bold transition-all"
-            :class="filterLevel === l ? levelFilterClass(l) : 'border-border text-muted-foreground hover:text-foreground hover:border-emerald-500/30'"
+            :class="filterLevel === l ? levelFilterClass(l, 'emerald') : 'border-border text-muted-foreground hover:text-foreground hover:border-emerald-500/30'"
             @click="filterLevel = l"
-          >{{ l || 'All' }}</button>
+          >{{ l || $t('skills.common.all') }}</button>
         </div>
       </div>
     </div>
@@ -22,8 +22,8 @@
       <!-- Library sidebar -->
       <div class="lib-sidebar">
         <div class="lib-sidebar-inner">
-          <div v-for="cat in filteredLibrary" :key="cat.name" class="mb-5">
-            <div class="lib-cat-label"><span>{{ cat.icon }}</span> {{ cat.name }}</div>
+          <div v-for="cat in filteredLibrary" :key="cat.key" class="mb-5">
+            <div class="lib-cat-label"><span>{{ cat.icon }}</span> {{ $t(`skills.listening.categories.${cat.key}`) }}</div>
             <div class="space-y-1">
               <button
 v-for="ex in cat.exercises" :key="ex.title" class="lib-item"
@@ -44,19 +44,19 @@ v-for="ex in cat.exercises" :key="ex.title" class="lib-item"
       <div class="flex-1 overflow-y-auto">
         <div v-if="fetchError" class="empty-state">
           <div class="mb-4 text-5xl">⚠️</div>
-          <h3 class="text-foreground text-xl font-bold">Failed to load exercise</h3>
+          <h3 class="text-foreground text-xl font-bold">{{ $t('skills.listening.loadFailed') }}</h3>
           <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ fetchError }}</p>
-          <button class="btn-emerald mt-4 px-5 py-2 text-sm" @click="reloadExercise">Retry</button>
+          <button class="btn-emerald mt-4 px-5 py-2 text-sm" @click="reloadExercise">{{ $t('skills.common.retry') }}</button>
         </div>
         <div v-else-if="!exercise && !loading" class="empty-state">
           <div class="mb-4 text-5xl">🎧</div>
-          <h3 class="text-foreground text-xl font-bold">Select an exercise</h3>
-          <p class="text-muted-foreground mt-2 max-w-sm text-sm">Choose a listening exercise from the library on the left.</p>
+          <h3 class="text-foreground text-xl font-bold">{{ $t('skills.listening.emptyTitle') }}</h3>
+          <p class="text-muted-foreground mt-2 max-w-sm text-sm">{{ $t('skills.listening.emptyDesc') }}</p>
         </div>
 
         <div v-else-if="loading" class="flex flex-col items-center justify-center py-24">
           <svg class="sk-spinner-emerald" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-          <p class="text-muted-foreground mt-4 text-sm">Generating exercise...</p>
+          <p class="text-muted-foreground mt-4 text-sm">{{ $t('skills.listening.generating') }}</p>
         </div>
 
         <div v-else-if="exercise" class="space-y-5 p-6">
@@ -65,7 +65,7 @@ v-for="ex in cat.exercises" :key="ex.title" class="lib-item"
             <div class="mb-3 flex flex-wrap gap-2">
               <span :class="levelBadge(exercise.level)">{{ exercise.level }}</span>
               <span class="chip">{{ exercise.type }}</span>
-              <span class="chip">~{{ Math.round(exercise.duration_seconds/60) }} min</span>
+              <span class="chip">{{ $t('skills.common.minutes', { n: Math.max(1, Math.round(exercise.duration_seconds/60)) }) }}</span>
             </div>
             <h2 class="text-foreground mb-5 text-xl font-extrabold">{{ exercise.title }}</h2>
 
@@ -99,8 +99,8 @@ v-for="i in 32" :key="i"
           <!-- Script / Key phrases tabs -->
           <div class="sk-card-p">
             <div class="mb-4 flex gap-2 border-b border-border pb-3">
-              <button class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='script' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'" @click="tab='script'">Transcript</button>
-              <button class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='phrases' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'" @click="tab='phrases'">Key Phrases</button>
+              <button class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='script' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'" @click="tab='script'">{{ $t('skills.listening.transcript') }}</button>
+              <button class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors" :class="tab==='phrases' ? 'sec-emerald' : 'text-muted-foreground hover:text-foreground'" @click="tab='phrases'">{{ $t('skills.common.keyPhrases') }}</button>
             </div>
             <div v-if="tab==='script'" class="space-y-2">
               <p v-for="(line,i) in scriptLines" :key="i" class="text-foreground text-sm leading-relaxed rounded-lg px-2 py-1" :class="Number(i)%2===0?'bg-muted/5':''">{{ line }}</p>
@@ -115,7 +115,7 @@ v-for="i in 32" :key="i"
 
           <!-- Questions -->
           <div class="sk-card-p">
-            <h3 class="text-foreground mb-4 text-sm font-bold">Questions</h3>
+            <h3 class="text-foreground mb-4 text-sm font-bold">{{ $t('skills.common.questions') }}</h3>
             <div class="space-y-5">
               <div v-for="(q,qi) in exercise.questions" :key="q.id" class="border-border border-b pb-5 last:border-0 last:pb-0">
                 <p class="text-foreground mb-3 text-sm font-semibold">{{ Number(qi)+1 }}. {{ q.question }}</p>
@@ -138,11 +138,11 @@ v-for="(opt,oi) in q.options" :key="oi" :disabled="qSubmitted" class="flex items
                 <!-- script, questions and explanations are AI-generated -->
                 <AiGeneratedBadge class="mt-2" />
               </div>
-              <button class="btn-emerald px-4 py-2 text-sm" @click="reloadExercise">Next</button>
+              <button class="btn-emerald px-4 py-2 text-sm" @click="reloadExercise">{{ $t('skills.common.next') }}</button>
             </div>
             <button
 v-else :disabled="qAnswers.some(a=>a===-1)" class="btn-emerald mt-5 w-full py-2.5 disabled:opacity-40"
-              @click="submitQ">Submit</button>
+              @click="submitQ">{{ $t('skills.common.submitAnswers') }}</button>
           </div>
         </div>
       </div>
@@ -152,10 +152,12 @@ v-else :disabled="qAnswers.some(a=>a===-1)" class="btn-emerald mt-5 w-full py-2.
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/utils/api'
+import { CEFR_LEVELS, levelBadge, levelFilterClass, clockTime, errorText } from '@/utils/skills'
 import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
-const levels = ['A1','A2','B1','B2','C1','C2']
+const { t } = useI18n()
 const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
 const filterLevel = ref('')
 const loading = ref(false)
@@ -178,30 +180,30 @@ const qCorrect = computed(() => qAnswers.value.filter((a,i) => a === exercise.va
 const qPassed = computed(() => exercise.value ? qCorrect.value/exercise.value.questions.length >= 0.6 : false)
 
 const library = [
-  { name: 'IELTS Listening', icon: '🎓', type: 'ielts', exercises: [
+  { key: 'ielts', icon: '🎓', type: 'ielts', exercises: [
     { title: 'Section 1 – Conversation', desc: 'Social situation dialogue', level: 'B1' },
     { title: 'Section 2 – Monologue', desc: 'Public information talk', level: 'B1' },
     { title: 'Section 3 – Discussion', desc: 'Academic discussion', level: 'B2' },
     { title: 'Section 4 – Lecture', desc: 'University lecture', level: 'C1' },
   ]},
-  { name: 'TOEIC Listening', icon: '💼', type: 'toeic', exercises: [
+  { key: 'toeic', icon: '💼', type: 'toeic', exercises: [
     { title: 'Part 1 – Photographs', desc: 'Picture descriptions', level: 'B1' },
     { title: 'Part 2 – Q&A', desc: 'Short conversations', level: 'B1' },
     { title: 'Part 3 – Conversations', desc: 'Workplace dialogues', level: 'B2' },
     { title: 'Part 4 – Talks', desc: 'Announcements & reports', level: 'B2' },
   ]},
-  { name: 'Academic Lectures', icon: '🔬', type: 'lecture', exercises: [
+  { key: 'lecture', icon: '🔬', type: 'lecture', exercises: [
     { title: 'Psychology 101', desc: 'Intro lecture style', level: 'B2' },
     { title: 'AI & Society', desc: 'Tech lecture excerpt', level: 'C1' },
     { title: 'Climate Science', desc: 'Research presentation', level: 'C2' },
   ]},
-  { name: 'Daily Conversations', icon: '💬', type: 'conversation', exercises: [
+  { key: 'conversation', icon: '💬', type: 'conversation', exercises: [
     { title: 'At the Café', desc: 'Simple daily chat', level: 'A1' },
     { title: 'Making Plans', desc: 'Friends arranging meeting', level: 'A2' },
     { title: 'Job Interview', desc: 'Formal conversation', level: 'B1' },
     { title: 'Business Meeting', desc: 'Office discussion', level: 'B2' },
   ]},
-  { name: 'Monologues', icon: '🎙️', type: 'monologue', exercises: [
+  { key: 'monologue', icon: '🎙️', type: 'monologue', exercises: [
     { title: 'My Daily Routine', desc: 'Simple monologue', level: 'A2' },
     { title: 'Travel Experience', desc: 'Storytelling', level: 'B1' },
     { title: 'Opinion Talk', desc: 'Argumentative speech', level: 'B2' },
@@ -213,18 +215,6 @@ const filteredLibrary = computed(() =>
     ? library.map(c => ({ ...c, exercises: c.exercises.filter(e => e.level === filterLevel.value) })).filter(c => c.exercises.length)
     : library
 )
-
-function levelBadge(l: string) {
-  const m: Record<string,string> = { A1:'badge-a1', A2:'badge-a2', B1:'badge-b1', B2:'badge-b2', C1:'badge-c1', C2:'badge-c2' }
-  return m[l] ?? 'chip'
-}
-function levelFilterClass(l: string) {
-  const m: Record<string,string> = {
-    '': 'level-filter-all-emerald', A1: 'level-filter-a1', A2: 'level-filter-a2',
-    B1: 'level-filter-b1', B2: 'level-filter-b2', C1: 'level-filter-c1', C2: 'level-filter-c2',
-  }
-  return m[l] ?? 'level-filter-all-emerald'
-}
 
 let utterance: SpeechSynthesisUtterance | null = null
 
@@ -240,9 +230,9 @@ async function selectExercise(ex: any, type: string) {
     exercise.value = await api.getListeningExercise({ level: ex.level, type, topic: ex.title })
     qAnswers.value = new Array(exercise.value?.questions?.length ?? 0).fill(-1)
     tab.value = 'script'
-  } catch (e: any) {
+  } catch (e) {
     exercise.value = null
-    fetchError.value = e?.errorMessage || e?.message || 'Could not connect to server. Make sure you are logged in.'
+    fetchError.value = errorText(e, t('skills.common.connectError'))
   }
   finally { loading.value = false }
 }
@@ -253,8 +243,11 @@ function reloadExercise() {
 
 function submitQ() {
   qSubmitted.value = true
-  completedAt.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  completedAt.value = clockTime()
 }
+
+function startWave() { stopWave(); waveTimer = setInterval(() => { wavePhase.value += 0.15 }, 50) }
+function stopWave() { if (waveTimer) { clearInterval(waveTimer); waveTimer = null } }
 
 function startSpeech() {
   stopSpeech()
@@ -262,19 +255,19 @@ function startSpeech() {
   utterance.rate = speed.value
   let words = 0; const total = (exercise.value?.script ?? '').split(' ').length
   utterance.onboundary = (e) => { if(e.name==='word') { words++; progress.value = Math.min(words/total*100, 100) } }
-  utterance.onend = () => { isSpeaking.value = false; if (waveTimer) { clearInterval(waveTimer); waveTimer = null } }
+  utterance.onend = () => { isSpeaking.value = false; stopWave() }
   window.speechSynthesis?.speak(utterance)
   isSpeaking.value = true
-  waveTimer = setInterval(() => { wavePhase.value += 0.15 }, 50)
+  startWave()
 }
 function stopSpeech() {
   window.speechSynthesis?.cancel()
   isSpeaking.value = false
-  if (waveTimer) { clearInterval(waveTimer); waveTimer = null }
+  stopWave()
 }
 function togglePlay() {
-  if (isSpeaking.value) { window.speechSynthesis?.pause(); isSpeaking.value = false; if (waveTimer) { clearInterval(waveTimer); waveTimer = null }; return }
-  if (window.speechSynthesis?.paused) { window.speechSynthesis.resume(); isSpeaking.value = true; waveTimer = setInterval(() => { wavePhase.value += 0.15 }, 50); return }
+  if (isSpeaking.value) { window.speechSynthesis?.pause(); isSpeaking.value = false; stopWave(); return }
+  if (window.speechSynthesis?.paused) { window.speechSynthesis.resume(); isSpeaking.value = true; startWave(); return }
   startSpeech()
 }
 function replay() { progress.value = 0; startSpeech() }

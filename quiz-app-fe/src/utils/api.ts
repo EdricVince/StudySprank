@@ -28,7 +28,7 @@ import type {
   AssignmentData,
 } from '@/types/content'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
+import { API_BASE_URL } from '@/lib/apiBase'
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean
@@ -252,6 +252,8 @@ export const api = {
 
   logActivity: (data: { type: string; cards_count?: number; score?: number }): Promise<unknown> =>
     apiRequest<unknown>('/progress/activity', { method: 'POST', body: JSON.stringify(data) }),
+  claimChallenge: (id: number): Promise<unknown> =>
+    apiRequest<unknown>(`/progress/challenges/${id}/claim`, { method: 'POST' }),
 
   getWeeklyActivity: (): Promise<unknown[]> => apiRequest<unknown[]>('/progress/weekly'),
 

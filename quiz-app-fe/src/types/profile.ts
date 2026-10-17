@@ -57,26 +57,6 @@ export interface EnhancedAchievement {
   target?: number
 }
 
-export interface ProfileAchievements {
-  achievements: EnhancedAchievement[]
-  totalEarned: number
-  totalAvailable: number
-}
-
-export interface LearningPreferences {
-  dailyGoal: number
-  reminder: boolean
-  reminderTime: string
-  language: string
-  theme: string
-}
-
-export interface ThemeOption {
-  value: string
-  label: string
-  icon: Component
-}
-
 export interface SocialLinkForm {
   platform: string
   url: string
@@ -145,10 +125,4 @@ export interface Milestone {
   current: number
   completed: boolean
   icon: Component
-}
-
-export interface ProfileGoals {
-  dailyGoals: DailyGoal[]
-  weeklyChallenges: WeeklyChallenge[]
-  milestones: Milestone[]
 }

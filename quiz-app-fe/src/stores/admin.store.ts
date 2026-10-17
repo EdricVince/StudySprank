@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-const BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1').replace(/\/api\/v1$/, '')
+import { API_BASE_URL } from '@/lib/apiBase'
+
+const ADMIN_API = `${API_BASE_URL}/admin`
 
 export interface AdminUser {
   id: number
@@ -21,15 +23,6 @@ export interface AdminStats {
   teachers: number
   active: number
   newThisWeek: number
-}
-
-export interface AiCustomFeature {
-  id: string
-  name: string
-  enabled: boolean
-  key_preview: string | null
-  custom: true
-  created_at: string
 }
 
 export interface AdminUserProfile {
@@ -71,7 +64,7 @@ export const useAdminStore = defineStore('admin', () => {
 
   async function login(key: string): Promise<boolean> {
     try {
-      const res = await fetch(`${BASE}/api/v1/admin/stats`, {
+      const res = await fetch(`${ADMIN_API}/stats`, {
         headers: { 'x-admin-key': key },
       })
       if (res.ok) {
@@ -109,7 +102,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function fetchStats() {
-    const res = await fetch(`${BASE}/api/v1/admin/stats`, { headers: headers.value })
+    const res = await fetch(`${ADMIN_API}/stats`, { headers: headers.value })
     if (!res.ok) { isAuthenticated.value = false; throw new Error('Unauthorized') }
     const data = await res.json()
     stats.value = data.data
@@ -118,7 +111,7 @@ export const useAdminStore = defineStore('admin', () => {
   async function fetchUsers() {
     loading.value = true
     try {
-      const res = await fetch(`${BASE}/api/v1/admin/users`, { headers: headers.value })
+      const res = await fetch(`${ADMIN_API}/users`, { headers: headers.value })
       if (!res.ok) throw new Error('Failed to fetch users')
       const data = await res.json()
       users.value = data.data
@@ -132,7 +125,7 @@ export const useAdminStore = defineStore('admin', () => {
     const previous = user?.is_active
     if (user) user.is_active = isActive // optimistic
     try {
-      const res = await fetch(`${BASE}/api/v1/admin/users/${userId}/active`, {
+      const res = await fetch(`${ADMIN_API}/users/${userId}/active`, {
         method: 'PATCH',
         headers: headers.value,
         body: JSON.stringify({ is_active: isActive }),
@@ -146,7 +139,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function resetPassword(userId: number, newPassword: string) {
-    const res = await fetch(`${BASE}/api/v1/admin/users/${userId}/reset-password`, {
+    const res = await fetch(`${ADMIN_API}/users/${userId}/reset-password`, {
       method: 'PATCH',
       headers: headers.value,
       body: JSON.stringify({ new_password: newPassword }),
@@ -155,7 +148,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function deleteUser(userId: number) {
-    const res = await fetch(`${BASE}/api/v1/admin/users/${userId}`, {
+    const res = await fetch(`${ADMIN_API}/users/${userId}`, {
       method: 'DELETE',
       headers: headers.value,
     })
@@ -165,7 +158,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function bulkDeleteUsers(ids: number[]): Promise<number> {
-    const res = await fetch(`${BASE}/api/v1/admin/users/bulk-delete`, {
+    const res = await fetch(`${ADMIN_API}/users/bulk-delete`, {
       method: 'POST',
       headers: headers.value,
       body: JSON.stringify({ ids }),
@@ -178,14 +171,14 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function getUserProfile(userId: number): Promise<AdminUserProfile> {
-    const res = await fetch(`${BASE}/api/v1/admin/users/${userId}/profile`, { headers: headers.value })
+    const res = await fetch(`${ADMIN_API}/users/${userId}/profile`, { headers: headers.value })
     if (!res.ok) throw new Error('Failed to load user profile')
     const data = await res.json()
     return data.data as AdminUserProfile
   }
 
   async function createTeacher(name: string, password: string, email?: string, teacherCardImage?: string): Promise<string> {
-    const res = await fetch(`${BASE}/api/v1/admin/create-teacher`, {
+    const res = await fetch(`${ADMIN_API}/create-teacher`, {
       method: 'POST',
       headers: headers.value,
       body: JSON.stringify({
@@ -205,7 +198,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function getTeacherCard(userId: number): Promise<string | null> {
-    const res = await fetch(`${BASE}/api/v1/admin/users/${userId}/teacher-card`, { headers: headers.value })
+    const res = await fetch(`${ADMIN_API}/users/${userId}/teacher-card`, { headers: headers.value })
     if (!res.ok) throw new Error('Failed to load teacher card')
     const data = await res.json()
     return data.data.teacher_card_image as string | null
@@ -216,7 +209,7 @@ export const useAdminStore = defineStore('admin', () => {
     const previous = user?.is_verified
     if (user) user.is_verified = verified // optimistic
     try {
-      const res = await fetch(`${BASE}/api/v1/admin/users/${userId}/verify`, {
+      const res = await fetch(`${ADMIN_API}/users/${userId}/verify`, {
         method: 'PATCH',
         headers: headers.value,
         body: JSON.stringify({ verified }),
@@ -231,37 +224,15 @@ export const useAdminStore = defineStore('admin', () => {
   async function fetchAiStatus(): Promise<{
     enabled: boolean; provider: string; key_preview: string | null;
     features: { name: string; key: string }[];
-    custom_features: AiCustomFeature[];
   }> {
-    const res = await fetch(`${BASE}/api/v1/admin/ai/status`, { headers: headers.value })
+    const res = await fetch(`${ADMIN_API}/ai/status`, { headers: headers.value })
     if (!res.ok) throw new Error('Failed to fetch AI status')
     const data = await res.json()
     return data.data
   }
 
-  async function addAiFeature(name: string, key: string): Promise<AiCustomFeature> {
-    const res = await fetch(`${BASE}/api/v1/admin/ai/features`, {
-      method: 'POST',
-      headers: headers.value,
-      body: JSON.stringify({ name, key }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      throw new Error((Array.isArray(data.message) ? data.message[0] : data.message) ?? 'Failed to add feature')
-    }
-    return data.data as AiCustomFeature
-  }
-
-  async function removeAiFeature(id: string): Promise<void> {
-    const res = await fetch(`${BASE}/api/v1/admin/ai/features/${id}`, {
-      method: 'DELETE',
-      headers: headers.value,
-    })
-    if (!res.ok) throw new Error('Failed to remove feature')
-  }
-
   async function setAiKey(key: string): Promise<string> {
-    const res = await fetch(`${BASE}/api/v1/admin/ai/key`, {
+    const res = await fetch(`${ADMIN_API}/ai/key`, {
       method: 'POST',
       headers: headers.value,
       body: JSON.stringify({ key }),
@@ -272,7 +243,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function removeAiKey(): Promise<void> {
-    const res = await fetch(`${BASE}/api/v1/admin/ai/key`, {
+    const res = await fetch(`${ADMIN_API}/ai/key`, {
       method: 'DELETE',
       headers: headers.value,
     })
@@ -286,6 +257,6 @@ export const useAdminStore = defineStore('admin', () => {
     fetchStats, fetchUsers,
     setActive, resetPassword, deleteUser, bulkDeleteUsers, getUserProfile, createTeacher,
     getTeacherCard, setVerified,
-    fetchAiStatus, setAiKey, removeAiKey, addAiFeature, removeAiFeature,
+    fetchAiStatus, setAiKey, removeAiKey,
   }
 })

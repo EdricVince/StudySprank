@@ -6,25 +6,25 @@
         <div class="bg-primary/10 mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full">
           <Keyboard class="text-primary h-10 w-10" />
         </div>
-        <h2 class="text-foreground mb-2 text-2xl font-bold">Challenge Complete!</h2>
-        <p class="text-muted-foreground text-sm mb-4 capitalize">{{ difficulty }} difficulty</p>
+        <h2 class="text-foreground mb-2 text-2xl font-bold">{{ $t('quizPlay.typing.complete') }}</h2>
+        <p class="text-muted-foreground text-sm mb-4">{{ $t('quizPlay.typing.difficulty', { level: $t(`quizPlay.difficulty.${difficulty}`) }) }}</p>
         <div class="mt-4 grid grid-cols-3 gap-4">
           <div class="bg-secondary/30 rounded-xl p-4">
             <p class="text-foreground text-2xl font-bold">{{ wpm }}</p>
-            <p class="text-muted-foreground text-xs">WPM</p>
+            <p class="text-muted-foreground text-xs">{{ $t('quizPlay.typing.wpm') }}</p>
           </div>
           <div class="bg-secondary/30 rounded-xl p-4">
             <p class="text-foreground text-2xl font-bold">{{ accuracy }}%</p>
-            <p class="text-muted-foreground text-xs">Accuracy</p>
+            <p class="text-muted-foreground text-xs">{{ $t('quizPlay.typing.accuracy') }}</p>
           </div>
           <div class="bg-secondary/30 rounded-xl p-4">
             <p class="text-primary text-2xl font-bold">+{{ xpEarned }}</p>
-            <p class="text-muted-foreground text-xs">XP Earned</p>
+            <p class="text-muted-foreground text-xs">{{ $t('quizPlay.typing.xpEarned') }}</p>
           </div>
         </div>
         <div class="mt-6 flex gap-3">
-          <button class="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1 rounded-xl py-3 text-sm font-medium" @click="backToSelect">Try Again</button>
-          <button class="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 rounded-xl py-3 text-sm font-medium" @click="$router.push('/quizzes')">Back</button>
+          <button class="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1 rounded-xl py-3 text-sm font-medium" @click="backToSelect">{{ $t('quizPlay.typing.tryAgain') }}</button>
+          <button class="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 rounded-xl py-3 text-sm font-medium" @click="$router.push('/quizzes')">{{ $t('quizPlay.typing.back') }}</button>
         </div>
       </div>
     </div>
@@ -35,14 +35,14 @@
       <div class="mb-6 flex items-center justify-between">
         <button class="group flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/8 px-3.5 py-1.5 text-sm font-semibold text-indigo-400 transition-all duration-200 hover:border-indigo-500/40 hover:bg-indigo-500/15 active:scale-95" @click="$router.push('/quizzes')">
           <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-          Quizzes
+          {{ $t('quizPlay.typing.quizzes') }}
         </button>
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-1.5 text-sm font-semibold" :class="timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-foreground'">
             <Clock class="h-4 w-4" /> {{ timeLeft }}s
           </div>
           <div class="text-primary flex items-center gap-1.5 text-sm font-semibold">
-            <Zap class="h-4 w-4" /> {{ score }} pts
+            <Zap class="h-4 w-4" /> {{ $t('quizPlay.pts', { n: score }) }}
           </div>
         </div>
       </div>
@@ -67,7 +67,7 @@ class="bg-primary h-full rounded-full transition-all duration-1000"
         <!-- Word display -->
         <div class="bg-card border-border mb-4 rounded-2xl border p-6">
           <div class="mb-2 flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Words: <span class="text-foreground font-semibold">{{ wordsTyped }}</span></span>
+            <span class="text-muted-foreground">{{ $t('quizPlay.typing.words') }} <span class="text-foreground font-semibold">{{ wordsTyped }}</span></span>
             <ComboMultiplier :combo="combo" />
           </div>
 
@@ -90,17 +90,17 @@ class="bg-primary h-full rounded-full transition-all duration-1000"
             v-model="inputValue"
             class="bg-secondary text-foreground placeholder-muted-foreground w-full rounded-xl border-2 border-transparent px-4 py-3 text-lg font-mono outline-none transition-colors focus:border-primary"
             :class="inputShake ? 'border-red-500! animate-shake' : ''"
-            placeholder="Type here..."
+            :placeholder="$t('quizPlay.typing.placeholder')"
             autocomplete="off"
             autocorrect="off"
             spellcheck="false"
             @keydown.space.prevent="submitWord"
             @keydown.enter.prevent="submitWord"
           />
-          <p class="text-muted-foreground mt-2 text-xs text-center">
-            Press <kbd class="bg-secondary-foreground/10 rounded px-1">Space</kbd> or
-            <kbd class="bg-secondary-foreground/10 rounded px-1">Enter</kbd> to submit
-          </p>
+          <i18n-t keypath="quizPlay.typing.press" tag="p" class="text-muted-foreground mt-2 text-xs text-center">
+            <template #space><kbd class="bg-secondary-foreground/10 rounded px-1">{{ $t('quizPlay.typing.space') }}</kbd></template>
+            <template #enter><kbd class="bg-secondary-foreground/10 rounded px-1">{{ $t('quizPlay.typing.enter') }}</kbd></template>
+          </i18n-t>
         </div>
       </div>
     </template>
@@ -115,12 +115,13 @@ import { Keyboard, Clock, Zap } from '@/components/icons'
 import ComboMultiplier from '@/components/quiz/ComboMultiplier.vue'
 import XPFloat from '@/components/ui/XPFloat.vue'
 import { sfx } from '@/utils/soundFx'
-import { useProgressStore } from '@/stores/progress.store'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 import { api } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
-const progressStore = useProgressStore()
+// XP shown on the result screen is what the server actually awarded.
+const { finishQuiz, xpEarned } = useQuizCompletion()
 
 const WORDS_EASY = ['cat','dog','sun','run','play','book','home','food','tree','fish','jump','blue','rain','cake','door','ship','ball','hand','face','bird','love','soft','warm','cool','star','look','talk','walk','read','draw']
 const WORDS_MEDIUM = ['apple','garden','journey','picture','morning','window','purple','simple','follow','between','country','example','hundred','nothing','quickly','several','village','already','another','because','certain','during','enough','family','middle','people','result','school','system','travel','wonder','yellow']
@@ -216,10 +217,7 @@ const accuracy = computed(() => {
   const total = wordResults.value.length
   return total > 0 ? Math.round((correctWords.value / total) * 100) : 100
 })
-const xpEarned = computed(() => {
-  const diffBonus = difficulty.value === 'hard' ? 2 : difficulty.value === 'medium' ? 1.5 : 1
-  return Math.round((correctWords.value * 5 + Math.floor(wpm.value / 10) * 10) * diffBonus)
-})
+
 
 const startGame = async () => {
   void fetchAiWords() // background: game starts instantly on local words, AI blends in
@@ -277,7 +275,13 @@ const triggerShake = () => {
 const endGame = () => {
   if (timer) clearInterval(timer)
   status.value = 'finished'
-  progressStore.logQuizCompletion(accuracy.value, wordsTyped.value)
+  void finishQuiz({
+    modeId: 'typing-challenge',
+    modeName: 'Typing Challenge',
+    score: score.value,
+    accuracy: accuracy.value,
+    questionCount: wordsTyped.value,
+  })
 }
 
 const backToSelect = () => {

@@ -14,11 +14,11 @@
     <template v-else-if="showCountdown">
       <div class="flex min-h-[80vh] flex-col items-center justify-center">
         <div class="text-center">
-          <h2 class="text-foreground mb-4 text-2xl font-bold">Get Ready!</h2>
+          <h2 class="text-foreground mb-4 text-2xl font-bold">{{ $t('quizPlay.speed.getReady') }}</h2>
           <div class="bg-primary text-primary-foreground mx-auto flex h-32 w-32 items-center justify-center rounded-full text-6xl font-bold">
             {{ countdownValue }}
           </div>
-          <p class="text-muted-foreground mt-6 text-lg">Answer as fast as you can!</p>
+          <p class="text-muted-foreground mt-6 text-lg">{{ $t('quizPlay.speed.answerFast') }}</p>
         </div>
       </div>
     </template>
@@ -36,7 +36,7 @@
           </button>
 
           <div class="flex-1 text-center">
-            <span class="text-foreground text-lg font-bold">{{ gameState.score }} pts</span>
+            <span class="text-foreground text-lg font-bold">{{ $t('quizPlay.pts', { n: gameState.score }) }}</span>
           </div>
 
           <!-- Question Timer (circular progress) -->
@@ -92,7 +92,7 @@
             <div v-if="gameState.streak > 1" class="mb-4 flex justify-center">
               <div class="bg-primary/10 text-primary flex items-center gap-2 rounded-full px-4 py-2">
                 <Flame class="h-5 w-5" />
-                <span class="font-bold">{{ gameState.streak }}x Streak!</span>
+                <span class="font-bold">{{ $t('quizPlay.speed.streak', { n: gameState.streak }) }}</span>
               </div>
             </div>
 
@@ -118,7 +118,7 @@
             <!-- Speed Bonus Indicator -->
             <div class="mt-6 text-center">
               <p class="text-muted-foreground text-sm">
-                Speed Bonus: <span class="text-primary font-bold">+{{ speedBonus }}</span> pts
+                {{ $t('quizPlay.speed.bonus') }} <span class="text-primary font-bold">{{ $t('quizPlay.plusPts', { n: speedBonus }) }}</span>
               </p>
             </div>
           </div>
@@ -132,23 +132,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { X, Flame } from '@/components/icons'
 import QuizResult from '@/components/quiz/QuizResult.vue'
 import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { MultipleChoiceQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
-import { useProgressStore } from '@/stores/progress.store'
-import { useQuizStore } from '@/stores/quiz.store'
-import { useToast } from '@/composables/useToast'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 import { useVocabulary, type VocabMCQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
 const route = useRoute()
-const progressStore = useProgressStore()
-const quizStore = useQuizStore()
-const toast = useToast()
+const { finishQuiz, xpEarned } = useQuizCompletion()
 const { generateSpeedQuestions } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 15, 3), 50))
@@ -208,7 +204,7 @@ const quizResult = computed<QuizResultType>(() => {
     wrongAnswers: gameState.value.wrongCount,
     score: gameState.value.score,
     timeSpent,
-    xpEarned: gameState.value.score + Math.floor(accuracy / 10) * 10,
+    xpEarned: xpEarned.value,
     accuracy,
     streakBonus: gameState.value.streak > 2 ? gameState.value.streak * 10 : 0,
   }
@@ -254,8 +250,9 @@ const startCountdown = () => {
   }, 1000)
 }
 
-const startQuestionTimer = () => {
-  questionTimeLeft.value = QUESTION_TIME
+// reset=false resumes the current question's countdown (after "Continue" in the exit dialog).
+const startQuestionTimer = (reset = true) => {
+  if (reset) questionTimeLeft.value = QUESTION_TIME
   if (questionTimer) clearInterval(questionTimer)
 
   questionTimer = setInterval(() => {
@@ -314,20 +311,13 @@ const nextQuestion = async () => {
   if (isLastQuestion.value) {
     gameState.value.status = 'finished'
     const accuracy = Math.round((gameState.value.correctCount / questions.value.length) * 100)
-    const result = await progressStore.logQuizCompletion(accuracy, questions.value.length)
-    quizStore.addGame({
+    await finishQuiz({
       modeId: 'speed-round',
       modeName: 'Speed Round',
       score: gameState.value.score,
       accuracy,
       questionCount: questions.value.length,
-      xpEarned: result?.xp_gained ?? 0,
     })
-    if (result?.level_up) {
-      toast.success(`Level up! You're now Level ${result.new_level}! 🎉`)
-    } else if (result?.xp_gained) {
-      toast.success(`+${result.xp_gained} XP earned!`)
-    }
   } else {
     gameState.value.currentQuestion++
     selectedAnswer.value = null
@@ -365,6 +355,12 @@ const restartQuiz = () => {
   countdownValue.value = 3
   startCountdown()
 }
+
+// The exit dialog pauses the clock; closing it with "Continue" must resume it,
+// otherwise the current question would never time out.
+watch(showExitModal, (open) => {
+  if (!open && gameState.value.status === 'playing' && selectedAnswer.value === null) startQuestionTimer(false)
+})
 
 onMounted(() => {
   startCountdown()

@@ -11,13 +11,6 @@ export interface Course {
   estimatedHours: number
 }
 
-export interface CourseStats {
-  totalCourses: number
-  completed: number
-  totalHours: number
-  avgProgress: number
-}
-
 export interface FilterTab {
   value: string
   label: string

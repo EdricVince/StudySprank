@@ -8,13 +8,13 @@
           <div class="bg-primary/10 mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl">
             <Swords class="text-primary h-10 w-10" />
           </div>
-          <h1 class="text-foreground text-3xl font-black">Battle Mode</h1>
-          <p class="text-muted-foreground mt-2">Real-time 1-vs-1 — get matched with another online student and compete!</p>
+          <h1 class="text-foreground text-3xl font-black">{{ $t('battle.title') }}</h1>
+          <p class="text-muted-foreground mt-2">{{ $t('battle.subtitle') }}</p>
         </div>
 
         <!-- Difficulty -->
         <div class="bg-card border-border mb-6 rounded-2xl border p-6">
-          <h3 class="text-foreground mb-4 font-semibold">Choose Difficulty</h3>
+          <h3 class="text-foreground mb-4 font-semibold">{{ $t('battle.chooseDifficulty') }}</h3>
           <div class="grid grid-cols-3 gap-3">
             <button
               v-for="d in difficulties"
@@ -24,7 +24,7 @@
               @click="selectedDifficulty = d.value"
             >
               <span class="text-2xl">{{ d.emoji }}</span>
-              <span class="text-foreground text-sm font-semibold">{{ d.label }}</span>
+              <span class="text-foreground text-sm font-semibold">{{ $t(`quizPlay.difficulty.${d.value}`) }}</span>
               <span class="text-muted-foreground text-xs">{{ d.desc }}</span>
             </button>
           </div>
@@ -33,9 +33,9 @@
         <!-- Info -->
         <div class="bg-secondary/40 border-border mb-6 flex items-start gap-3 rounded-2xl border p-4">
           <span class="text-2xl">🌐</span>
-          <p class="text-muted-foreground text-sm">
-            Questions are generated live by AI at the chosen difficulty. You'll play against a <span class="text-foreground font-semibold">real opponent</span> — scores update in real time.
-          </p>
+          <i18n-t keypath="battle.info" tag="p" class="text-muted-foreground text-sm">
+            <template #real><span class="text-foreground font-semibold">{{ $t('battle.realOpponent') }}</span></template>
+          </i18n-t>
         </div>
 
         <p v-if="errorMsg" class="mb-4 text-center text-sm text-destructive">{{ errorMsg }}</p>
@@ -45,14 +45,14 @@
             class="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1 rounded-xl py-4 font-medium transition-colors"
             @click="leave"
           >
-            Cancel
+            {{ $t('battle.cancel') }}
           </button>
           <button
             class="bg-primary text-primary-foreground hover:bg-primary/90 flex flex-1 items-center justify-center gap-2 rounded-xl py-4 font-semibold transition-colors"
             @click="findMatch"
           >
             <Swords class="h-5 w-5" />
-            Find Match
+            {{ $t('battle.findMatch') }}
           </button>
         </div>
       </div>
@@ -65,14 +65,13 @@
           <div class="border-primary/30 border-t-primary absolute inset-0 animate-spin rounded-full border-4" />
           <Swords class="text-primary h-10 w-10" />
         </div>
-        <h2 class="text-foreground text-2xl font-black">Finding an opponent…</h2>
-        <p class="text-muted-foreground mt-2">Matching you with another <span class="capitalize">{{ selectedDifficulty }}</span> player</p>
-        <p class="text-muted-foreground mt-1 text-sm">Open Battle Mode in another account/tab to test a match.</p>
+        <h2 class="text-foreground text-2xl font-black">{{ $t('battle.finding') }}</h2>
+        <p class="text-muted-foreground mt-2">{{ $t('battle.matching', { level: $t(`quizPlay.difficulty.${selectedDifficulty}`) }) }}</p>
         <button
           class="bg-secondary text-secondary-foreground hover:bg-secondary/80 mt-8 rounded-xl px-8 py-3 font-medium transition-colors"
           @click="cancelSearch"
         >
-          Cancel
+          {{ $t('battle.cancel') }}
         </button>
       </div>
     </template>
@@ -81,16 +80,16 @@
     <template v-else-if="phase === 'countdown'">
       <div class="flex min-h-[80vh] flex-col items-center justify-center">
         <div class="mb-6 text-center">
-          <p class="text-muted-foreground mb-2 text-lg">Opponent found! Battle starts in</p>
+          <p class="text-muted-foreground mb-2 text-lg">{{ $t('battle.found') }}</p>
           <div class="bg-primary text-primary-foreground mx-auto flex h-32 w-32 items-center justify-center rounded-full text-6xl font-black leading-none shadow-2xl">
             {{ countdownNum }}
           </div>
-          <p class="text-muted-foreground mt-4 text-base">Get ready to fight!</p>
+          <p class="text-muted-foreground mt-4 text-base">{{ $t('battle.getReady') }}</p>
         </div>
         <div class="flex items-center gap-8">
           <div class="text-center">
             <div class="bg-primary/10 mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl">👤</div>
-            <p class="text-foreground font-semibold">You</p>
+            <p class="text-foreground font-semibold">{{ $t('battle.you') }}</p>
           </div>
           <div class="text-primary text-2xl font-black">VS</div>
           <div class="text-center">
@@ -109,7 +108,7 @@
           <div class="flex flex-1 flex-col items-start gap-1">
             <div class="flex items-center gap-2">
               <div class="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-xl text-base">👤</div>
-              <span class="text-foreground text-sm font-semibold">You</span>
+              <span class="text-foreground text-sm font-semibold">{{ $t('battle.you') }}</span>
               <span v-if="streak > 1" class="bg-chart-1/10 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold text-chart-1">🔥 {{ streak }}x</span>
             </div>
             <div class="text-primary text-xl font-black">{{ playerScore }}</div>
@@ -151,8 +150,8 @@ cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none"
       <!-- Waiting overlay -->
       <div v-if="waitingForOpponent" class="mx-auto max-w-2xl rounded-3xl bg-card border border-border p-10 text-center shadow-lg">
         <div class="border-primary/30 border-t-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4" />
-        <h2 class="text-foreground text-xl font-bold">You finished! 🎉</h2>
-        <p class="text-muted-foreground mt-2">Waiting for {{ opponent.name }} to complete the battle…</p>
+        <h2 class="text-foreground text-xl font-bold">{{ $t('battle.finished') }}</h2>
+        <p class="text-muted-foreground mt-2">{{ $t('battle.waitingFor', { name: opponent.name }) }}</p>
       </div>
 
       <!-- Question Card -->
@@ -160,10 +159,10 @@ cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none"
         <Transition name="slide-up" mode="out-in">
           <div :key="currentQ" class="bg-card border-border rounded-3xl border p-6 shadow-lg lg:p-8">
             <div class="mb-4 flex items-center justify-between">
-              <span class="text-muted-foreground text-sm">Question {{ currentQ + 1 }}</span>
+              <span class="text-muted-foreground text-sm">{{ $t('battle.questionN', { n: currentQ + 1 }) }}</span>
               <div class="flex items-center gap-2 text-sm">
                 <div class="flex h-2 w-2 animate-pulse rounded-full" :class="opponentAnswered ? 'bg-chart-1' : 'bg-chart-2'" />
-                <span class="text-muted-foreground">{{ opponentAnswered ? opponent.name + ' answered!' : opponent.name + ' thinking…' }}</span>
+                <span class="text-muted-foreground">{{ opponentAnswered ? $t('battle.answered', { name: opponent.name }) : $t('battle.thinking', { name: opponent.name }) }}</span>
               </div>
             </div>
 
@@ -184,8 +183,8 @@ cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none"
             </div>
 
             <div class="mt-4 text-center">
-              <span class="text-muted-foreground text-sm">Speed bonus: </span>
-              <span class="text-primary font-bold">+{{ Math.max(0, timeLeft * 10) }} pts</span>
+              <span class="text-muted-foreground text-sm">{{ $t('battle.speedBonus') }} </span>
+              <span class="text-primary font-bold">{{ $t('quizPlay.plusPts', { n: Math.max(0, timeLeft * 10) }) }}</span>
             </div>
           </div>
         </Transition>
@@ -199,9 +198,9 @@ cx="28" cy="28" r="24" stroke="currentColor" stroke-width="4" fill="none"
 class="mb-6 rounded-3xl p-8 text-center"
           :class="resultKind === 'win' ? 'bg-primary/10' : resultKind === 'draw' ? 'bg-secondary' : 'bg-destructive/10'">
           <div class="mb-4 text-6xl">{{ resultKind === 'win' ? '🏆' : resultKind === 'draw' ? '🤝' : '😔' }}</div>
-          <h1 class="text-foreground mb-2 text-3xl font-black">{{ resultKind === 'win' ? 'Victory!' : resultKind === 'draw' ? 'Draw!' : 'Defeated!' }}</h1>
+          <h1 class="text-foreground mb-2 text-3xl font-black">{{ resultKind === 'win' ? $t('battle.victory') : resultKind === 'draw' ? $t('battle.draw') : $t('battle.defeat') }}</h1>
           <p class="text-muted-foreground">
-            {{ resultData?.forfeit ? 'Your opponent left — you win by walkover!' : resultKind === 'win' ? 'Outstanding performance!' : resultKind === 'draw' ? 'Neck and neck!' : 'Keep practicing!' }}
+            {{ resultData?.forfeit ? $t('battle.walkover') : resultKind === 'win' ? $t('battle.msgWin') : resultKind === 'draw' ? $t('battle.msgDraw') : $t('battle.msgLose') }}
           </p>
         </div>
 
@@ -210,7 +209,7 @@ class="mb-6 rounded-3xl p-8 text-center"
             <div class="text-center">
               <div class="bg-primary/10 mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl text-2xl">👤</div>
               <p class="text-primary text-3xl font-black">{{ playerScore }}</p>
-              <p class="text-muted-foreground text-sm">You</p>
+              <p class="text-muted-foreground text-sm">{{ $t('battle.you') }}</p>
             </div>
             <div class="text-muted-foreground text-xl font-bold">VS</div>
             <div class="text-center">
@@ -223,15 +222,15 @@ class="mb-6 rounded-3xl p-8 text-center"
           <div class="grid grid-cols-3 gap-3 border-t border-border pt-4 text-center text-sm">
             <div>
               <p class="text-foreground font-bold">{{ correctCount }}</p>
-              <p class="text-muted-foreground text-xs">Correct</p>
+              <p class="text-muted-foreground text-xs">{{ $t('battle.correct') }}</p>
             </div>
             <div>
               <p class="text-foreground font-bold">{{ questions.length ? Math.round(correctCount / questions.length * 100) : 0 }}%</p>
-              <p class="text-muted-foreground text-xs">Accuracy</p>
+              <p class="text-muted-foreground text-xs">{{ $t('battle.accuracy') }}</p>
             </div>
             <div>
               <p class="text-foreground font-bold">{{ resultData?.opponent?.correctCount ?? '-' }}</p>
-              <p class="text-muted-foreground text-xs">Opp. Correct</p>
+              <p class="text-muted-foreground text-xs">{{ $t('battle.oppCorrect') }}</p>
             </div>
           </div>
         </div>
@@ -241,16 +240,16 @@ class="mb-6 rounded-3xl p-8 text-center"
             <Zap class="text-primary h-6 w-6" />
           </div>
           <div>
-            <p class="text-foreground font-semibold">+{{ xpEarned }} XP earned</p>
-            <p class="text-muted-foreground text-sm">{{ resultKind === 'win' ? 'Victory bonus included!' : 'Keep fighting to earn more!' }}</p>
+            <p class="text-foreground font-semibold">{{ $t('battle.xpEarned', { xp: xpEarned }) }}</p>
+            <p class="text-muted-foreground text-sm">{{ resultKind === 'win' ? $t('battle.xpWin') : $t('battle.xpLose') }}</p>
           </div>
         </div>
 
         <div class="flex gap-3">
-          <button class="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1 rounded-xl py-4 font-medium transition-colors" @click="leave">Exit</button>
+          <button class="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex-1 rounded-xl py-4 font-medium transition-colors" @click="leave">{{ $t('battle.exit') }}</button>
           <button class="bg-primary text-primary-foreground hover:bg-primary/90 flex flex-1 items-center justify-center gap-2 rounded-xl py-4 font-semibold transition-colors" @click="rematch">
             <RefreshCw class="h-4 w-4" />
-            Play Again
+            {{ $t('battle.playAgain') }}
           </button>
         </div>
       </div>
@@ -264,11 +263,15 @@ import { ref, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { io, type Socket } from 'socket.io-client'
 import { Swords, RefreshCw, Zap } from '@/components/icons'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/utils/api'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
+// XP shown on the result screen is what the server actually awarded (no client-side estimate).
+const { finishQuiz, xpEarned } = useQuizCompletion()
 
 type Phase = 'lobby' | 'searching' | 'countdown' | 'battle' | 'result'
 const phase = ref<Phase>('lobby')
@@ -276,14 +279,14 @@ const selectedDifficulty = ref('medium')
 const errorMsg = ref('')
 
 const difficulties = [
-  { value: 'easy', emoji: '🌱', label: 'Easy', desc: 'A2–B1' },
-  { value: 'medium', emoji: '⚡', label: 'Medium', desc: 'B1–B2' },
-  { value: 'hard', emoji: '💀', label: 'Hard', desc: 'C1–C2' },
+  { value: 'easy', emoji: '🌱', desc: 'A2–B1' },
+  { value: 'medium', emoji: '⚡', desc: 'B1–B2' },
+  { value: 'hard', emoji: '💀', desc: 'C1–C2' },
 ]
 
 interface Q { question: string; options: string[] }
 const questions = ref<Q[]>([])
-const opponent = ref<{ name: string; avatar: string }>({ name: 'Opponent', avatar: '🤖' })
+const opponent = ref<{ name: string; avatar: string }>({ name: t('battle.opponent'), avatar: '🤖' })
 const currentQ = ref(0)
 const timeLeft = ref(10)
 const answeredIndex = ref<number | null>(null)
@@ -304,17 +307,12 @@ const maxScore = computed(() => Math.max(1, questions.value.length * (100 + QUES
 const playerPercent = computed(() => Math.min(100, (playerScore.value / maxScore.value) * 100))
 const opponentPercent = computed(() => Math.min(100, (opponentScore.value / maxScore.value) * 100))
 const resultKind = computed(() => resultData.value?.result ?? (playerScore.value > opponentScore.value ? 'win' : playerScore.value === opponentScore.value ? 'draw' : 'lose'))
-const xpEarned = computed(() => {
-  const total = questions.value.length || 1
-  return Math.round((correctCount.value / total) * 50) + (resultKind.value === 'win' ? 50 : 0)
-})
 
 let socket: Socket | null = null
 let qTimer: ReturnType<typeof setInterval> | null = null
 let cdTimer: ReturnType<typeof setInterval> | null = null
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3000/api/v1'
-const SOCKET_URL = API_BASE.replace(/\/api\/v1\/?$/, '')
+import { API_ORIGIN as SOCKET_URL } from '@/lib/apiBase'
 
 function connectSocket(): Socket {
   if (socket?.connected) return socket
@@ -356,9 +354,9 @@ function connectSocket(): Socket {
     })
   })
 
-  socket.on('connect_error', () => { errorMsg.value = 'Cannot reach the battle server.'; phase.value = 'lobby' })
+  socket.on('connect_error', () => { errorMsg.value = t('battle.errServer'); phase.value = 'lobby' })
   socket.on('disconnect', () => {
-    if (phase.value === 'searching') { errorMsg.value = 'Disconnected.'; phase.value = 'lobby' }
+    if (phase.value === 'searching') { errorMsg.value = t('battle.errDisconnected'); phase.value = 'lobby' }
   })
   return socket
 }
@@ -432,11 +430,14 @@ async function finishBattle(d: NonNullable<typeof resultData.value> & { you?: { 
   if (typeof d.you?.correctCount === 'number') correctCount.value = d.you.correctCount
   waitingForOpponent.value = false
   phase.value = 'result'
-  try {
-    const total = d.you?.total || questions.value.length || 1
-    const acc = Math.round((correctCount.value / total) * 100)
-    await api.logActivity({ type: 'quiz_completion', score: acc })
-  } catch { /* non-critical */ }
+  const total = d.you?.total || questions.value.length || 1
+  await finishQuiz({
+    modeId: 'battle',
+    modeName: 'Battle Mode',
+    score: playerScore.value,
+    accuracy: (correctCount.value / total) * 100,
+    questionCount: total,
+  })
 }
 
 function getOptionClass(i: number) {

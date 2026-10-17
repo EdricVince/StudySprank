@@ -118,8 +118,7 @@ const authStore = useAuthStore()
 
 type Phase = 'join' | 'waiting' | 'live' | 'ended'
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3000/api/v1'
-const SOCKET_URL = API_BASE.replace(/\/api\/v1\/?$/, '')
+import { API_ORIGIN as SOCKET_URL } from '@/lib/apiBase'
 const ICE = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },

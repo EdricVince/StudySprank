@@ -384,6 +384,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   Flame,
   Zap,
@@ -471,8 +472,10 @@ const getRankClass = (rank: number): string => {
   return 'bg-muted text-muted-foreground'
 }
 
-// Quiz modes
-const quizModes = ref<QuizMode[]>([
+const { t } = useI18n()
+
+// Quiz modes — title/description are replaced by the translations below.
+const BASE_MODES: QuizMode[] = [
   {
     id: 'multiple-choice',
     title: 'Multiple Choice',
@@ -543,7 +546,16 @@ const quizModes = ref<QuizMode[]>([
     questionsCount: 10,
     color: 'primary',
   },
-])
+]
+const MODE_KEYS: Record<string, string> = {
+  'multiple-choice': 'multipleChoice', 'word-scramble': 'wordScramble', 'matching-pairs': 'matchingPairs',
+  'speed-round': 'speedRound', 'true-false': 'trueFalse', 'typing-challenge': 'typingChallenge', 'idiom-quiz': 'idiomMaster',
+}
+const quizModes = computed(() => BASE_MODES.map((m) => ({
+  ...m,
+  title: t(`quizzesPage.modes.${MODE_KEYS[m.id]}`),
+  description: t(`quizzesPage.modes.${MODE_KEYS[m.id]}Desc`),
+})))
 
 // Difficulty modal
 const showDifficultyModal = ref(false)

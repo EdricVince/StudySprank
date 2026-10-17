@@ -323,157 +323,6 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
         </div>
       </div>
 
-      <!-- ── Custom (admin-added) features + add form ── -->
-      <div class="border-t border-border bg-linear-to-b from-violet-50/50 to-transparent dark:from-violet-500/6 p-6 space-y-5">
-        <!-- Sub-header -->
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl adm-icon-violet">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-              </svg>
-            </div>
-            <div>
-              <div class="adm-h3">Custom Features</div>
-              <div class="adm-meta">Register extra AI features, each with its own key</div>
-            </div>
-          </div>
-          <span
-            class="rounded-full px-3 py-1 text-xs font-semibold shrink-0"
-            :class="customFeatures.length ? 'adm-feat-status-on' : 'adm-feat-status-off'"
-          >
-            {{ customFeatures.length }} added
-          </span>
-        </div>
-
-        <!-- Existing custom features -->
-        <div v-if="customFeatures.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div
-            v-for="feat in customFeatures"
-            :key="feat.id"
-            class="group relative flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-violet-300/70 dark:hover:border-violet-500/40"
-          >
-            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl adm-feat-bg-violet transition-transform group-hover:scale-105">🧩</div>
-            <div class="flex-1 min-w-0">
-              <div class="adm-h3 truncate">{{ feat.name }}</div>
-              <div class="mt-1 flex items-center gap-2">
-                <span
-                  class="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0"
-                  :class="feat.enabled ? 'adm-feat-status-on' : 'adm-feat-status-off'"
-                >
-                  <span class="h-1.5 w-1.5 rounded-full" :class="feat.enabled ? 'adm-dot-on' : 'adm-dot-dim'" />
-                  {{ feat.enabled ? 'Active' : 'Fallback' }}
-                </span>
-                <code class="adm-code truncate">{{ feat.key_preview ?? 'no key' }}</code>
-              </div>
-            </div>
-            <button
-              class="adm-icon-btn adm-icon-btn-del shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-              title="Remove feature"
-              @click="handleRemoveFeature(feat.id, feat.name)"
-            >
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Empty state -->
-        <div
-          v-else
-          class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/70 py-8 text-center"
-        >
-          <div class="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl adm-feat-bg-violet text-2xl">🧩</div>
-          <p class="adm-h4">No custom features yet</p>
-          <p class="adm-meta mt-0.5 max-w-xs">Use the form below to register a new AI-powered feature with its own Anthropic key.</p>
-        </div>
-
-        <!-- Add form card -->
-        <div class="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
-          <div class="flex items-center gap-2.5">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg adm-icon-violet">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </div>
-            <div>
-              <div class="adm-h4">Add a new feature</div>
-              <div class="adm-meta">Activates instantly once a valid key is saved</div>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="space-y-1.5">
-              <label class="adm-label uppercase tracking-wider">Feature name</label>
-              <input
-                v-model="newFeatureName"
-                type="text"
-                placeholder="e.g. Grammar Coach"
-                maxlength="60"
-                class="adm-api-input pr-4! font-sans!"
-                @keydown.enter="handleAddFeature"
-              />
-            </div>
-            <div class="space-y-1.5">
-              <label class="adm-label uppercase tracking-wider">Anthropic API key</label>
-              <div class="relative">
-                <input
-                  v-model="newFeatureKey"
-                  :type="showNewFeatureKey ? 'text' : 'password'"
-                  placeholder="sk-ant-api03-..."
-                  class="adm-api-input"
-                  @keydown.enter="handleAddFeature"
-                />
-                <button
-                  type="button"
-                  class="absolute right-3 top-1/2 -translate-y-1/2 adm-icon-btn adm-icon-btn-close"
-                  @click="showNewFeatureKey = !showNewFeatureKey"
-                >
-                  <svg v-if="showNewFeatureKey" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
-                  </svg>
-                  <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                </button>
-              </div>
-              <p class="adm-meta">Keys start with <code class="adm-code">sk-ant-</code></p>
-            </div>
-          </div>
-
-          <div v-if="featError" class="adm-alert adm-alert-error">
-            <svg class="adm-alert-icon-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p class="adm-alert-text-error">{{ featError }}</p>
-          </div>
-
-          <div class="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p class="adm-meta flex items-center gap-1.5">
-              <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-              </svg>
-              Stored server-side — never shown in full.
-            </p>
-            <button
-              class="adm-ai-save-btn flex-none! w-full sm:w-auto sm:px-8"
-              :class="(newFeatureName.trim() && newFeatureKey.trim() && !addingFeature) ? 'adm-ai-save-btn-on' : 'adm-ai-save-btn-off'"
-              :disabled="addingFeature || !newFeatureName.trim() || !newFeatureKey.trim()"
-              @click="handleAddFeature"
-            >
-              <svg v-if="addingFeature" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              {{ addingFeature ? 'Adding…' : 'Add Feature & Activate' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -481,7 +330,7 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useAdminStore, type AiCustomFeature } from '@/stores/admin.store'
+import { useAdminStore } from '@/stores/admin.store'
 
 const adminStore = useAdminStore()
 
@@ -490,7 +339,6 @@ const status = ref<{
   provider: string
   key_preview: string | null
   features: { name: string; key: string }[]
-  custom_features: AiCustomFeature[]
 } | null>(null)
 const statusLoading = ref(true)
 const keyInput = ref('')
@@ -499,15 +347,7 @@ const saving = ref(false)
 const saveError = ref('')
 const saveSuccess = ref('')
 
-// Add-a-custom-feature form
-const newFeatureName = ref('')
-const newFeatureKey = ref('')
-const showNewFeatureKey = ref(false)
-const addingFeature = ref(false)
-const featError = ref('')
-
 const features = computed(() => status.value?.features ?? [])
-const customFeatures = computed(() => status.value?.custom_features ?? [])
 
 // Keyed by the exact feature keys returned by the backend (admin.controller getAiStatus),
 // so every built-in feature shows its own icon, colour tint and description.
@@ -570,32 +410,6 @@ async function handleRemove() {
     saveError.value = e?.message ?? 'Failed to remove key'
   } finally {
     saving.value = false
-  }
-}
-
-async function handleAddFeature() {
-  featError.value = ''
-  if (!newFeatureName.value.trim() || !newFeatureKey.value.trim() || addingFeature.value) return
-  addingFeature.value = true
-  try {
-    await adminStore.addAiFeature(newFeatureName.value.trim(), newFeatureKey.value.trim())
-    newFeatureName.value = ''
-    newFeatureKey.value = ''
-    await loadStatus()
-  } catch (e: any) {
-    featError.value = e?.message ?? 'Failed to add feature'
-  } finally {
-    addingFeature.value = false
-  }
-}
-
-async function handleRemoveFeature(id: string, name: string) {
-  if (!confirm(`Remove the "${name}" feature?`)) return
-  try {
-    await adminStore.removeAiFeature(id)
-    await loadStatus()
-  } catch (e: any) {
-    featError.value = e?.message ?? 'Failed to remove feature'
   }
 }
 

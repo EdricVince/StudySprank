@@ -32,10 +32,10 @@
             <!-- Category + Difficulty badges -->
             <div class="mb-5 flex items-center justify-between">
               <span class="rounded-full px-3 py-1 text-xs font-semibold capitalize" :class="categoryColor">
-                {{ q.category }}
+                {{ $te(`quizPlay.idiom.categories.${q.category}`) ? $t(`quizPlay.idiom.categories.${q.category}`) : q.category }}
               </span>
               <span class="rounded-full px-3 py-1 text-xs font-bold" :class="difficultyColor">
-                {{ q.difficulty }}
+                {{ $t(`quizPlay.difficulty.${q.difficulty}`) }}
               </span>
             </div>
 
@@ -43,7 +43,7 @@
             <div class="mb-6 rounded-2xl border border-violet-500/20 bg-linear-to-br from-violet-500/10 via-indigo-500/5 to-transparent p-6 text-center">
               <div class="mb-2 text-3xl">💬</div>
               <p class="text-foreground text-2xl font-extrabold tracking-tight">"{{ q.phrase }}"</p>
-              <p class="text-muted-foreground mt-2 text-sm">What does this idiom mean?</p>
+              <p class="text-muted-foreground mt-2 text-sm">{{ $t('quizPlay.idiom.whatMeans') }}</p>
             </div>
 
             <!-- Answer options -->
@@ -79,14 +79,14 @@
                   :class="isCorrect ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'"
                 >
                   <span class="text-base">{{ isCorrect ? '🎉' : '❌' }}</span>
-                  <span>{{ isCorrect ? 'Correct!' : `Incorrect — "${q.meaning}"` }}</span>
+                  <span>{{ isCorrect ? $t('quizPlay.correct') : $t('quizPlay.idiom.incorrectMeaning', { meaning: q.meaning }) }}</span>
                 </div>
 
                 <!-- Example sentence -->
                 <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
                   <div class="mb-1.5 flex items-center gap-1.5">
                     <span class="text-sm">📖</span>
-                    <span class="text-xs font-semibold uppercase tracking-wide text-amber-400">Example</span>
+                    <span class="text-xs font-semibold uppercase tracking-wide text-amber-400">{{ $t('quizPlay.idiom.example') }}</span>
                   </div>
                   <p class="text-foreground text-sm italic leading-relaxed">"{{ q.example }}"</p>
                 </div>
@@ -100,7 +100,7 @@
                 class="bg-primary text-primary-foreground hover:bg-primary/90 mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold transition-colors"
                 @click="next"
               >
-                {{ isLastQuestion ? 'See Results' : 'Next Idiom' }}
+                {{ isLastQuestion ? $t('quizPlay.seeResults') : $t('quizPlay.idiom.nextIdiom') }}
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                 </svg>
@@ -124,12 +124,12 @@ import QuizResult from '@/components/quiz/QuizResult.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import XPFloat from '@/components/ui/XPFloat.vue'
 import { sfx } from '@/utils/soundFx'
-import { useProgressStore } from '@/stores/progress.store'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 import { generateIdiomQuestions, type IdiomQuestion } from '@/data/idioms'
 
 const router = useRouter()
 const route = useRoute()
-const progressStore = useProgressStore()
+const { finishQuiz, xpEarned } = useQuizCompletion()
 
 const difficulty = (route.query.difficulty as 'easy' | 'medium' | 'hard') || undefined
 const count = Math.min(Math.max(parseInt(route.query.count as string) || 10, 5), 45)
@@ -220,9 +220,22 @@ function next() {
 }
 
 function finish() {
-    progressStore.logQuizCompletion(score.value, questions.value.length)
   status.value = 'finished'
+  // Send ACCURACY (0–100) — the old code sent the points total, which the API
+  // rejected (> 100), so idiom quizzes never awarded XP.
+  void finishQuiz({
+    modeId: 'idiom-quiz',
+    modeName: 'Idiom Quiz',
+    score: score.value,
+    accuracy: accuracyPct.value,
+    questionCount: questions.value.length,
+  })
 }
+
+const accuracyPct = computed(() => {
+  const total = questions.value.length
+  return total ? Math.round((correctCount.value / total) * 100) : 0
+})
 
 const quizResult = computed(() => {
   const total = questions.value.length
@@ -232,8 +245,8 @@ const quizResult = computed(() => {
     wrongAnswers: total - correctCount.value,
     score: score.value,
     timeSpent: Math.floor((Date.now() - startTime.value) / 1000),
-    xpEarned: score.value,
-    accuracy: total ? Math.round((correctCount.value / total) * 100) : 0,
+    xpEarned: xpEarned.value,
+    accuracy: accuracyPct.value,
     streakBonus: Math.max(0, score.value - correctCount.value * 10),
   }
 })

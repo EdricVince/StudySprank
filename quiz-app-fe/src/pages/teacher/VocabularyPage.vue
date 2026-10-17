@@ -48,12 +48,16 @@
           </div>
 
           <div class="divide-border divide-y">
-            <button
+            <!-- A div row (not a button) so the delete button inside is valid HTML. -->
+            <div
               v-for="set in sets"
               :key="set.id"
-              class="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors"
+              role="button"
+              tabindex="0"
+              class="flex w-full cursor-pointer items-center gap-3 px-5 py-4 text-left transition-colors"
               :class="selectedSet?.id === set.id ? 'bg-primary/5' : 'hover:bg-secondary/50'"
               @click="selectedSet = set"
+              @keydown.enter="selectedSet = set"
             >
               <div class="bg-primary/10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl">🔤</div>
               <div class="min-w-0 flex-1">
@@ -66,7 +70,7 @@
               <button class="text-muted-foreground hover:text-destructive shrink-0 rounded-lg p-1.5 transition-colors hover:bg-destructive/10" @click.stop="confirmDeleteSet(set)">
                 <Trash2 class="h-3.5 w-3.5" />
               </button>
-            </button>
+            </div>
           </div>
 
           <div v-if="sets.length === 0" class="flex flex-col items-center justify-center py-12 text-center">

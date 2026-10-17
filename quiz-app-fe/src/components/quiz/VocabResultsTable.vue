@@ -1,13 +1,13 @@
 <template>
   <div v-if="entries.length > 0" class="mx-auto mt-6 max-w-2xl pb-8">
-    <h3 class="text-foreground mb-4 text-lg font-semibold">Vocabulary Results</h3>
+    <h3 class="text-foreground mb-4 text-lg font-semibold">{{ $t('quizPlay.vocab.title') }}</h3>
     <div class="bg-card border-border overflow-hidden rounded-2xl border">
       <table class="w-full text-sm">
         <thead class="bg-secondary">
           <tr>
-            <th class="text-foreground px-4 py-3 text-left font-medium">Word</th>
-            <th class="text-foreground px-4 py-3 text-left font-medium">Meaning</th>
-            <th class="text-foreground px-4 py-3 text-center font-medium">Result</th>
+            <th class="text-foreground px-4 py-3 text-left font-medium">{{ $t('quizPlay.vocab.word') }}</th>
+            <th class="text-foreground px-4 py-3 text-left font-medium">{{ $t('quizPlay.vocab.meaning') }}</th>
+            <th class="text-foreground px-4 py-3 text-center font-medium">{{ $t('quizPlay.vocab.result') }}</th>
           </tr>
         </thead>
         <tbody>

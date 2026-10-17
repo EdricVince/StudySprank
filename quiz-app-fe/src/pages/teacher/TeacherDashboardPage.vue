@@ -267,9 +267,9 @@ const userName = computed(() => {
 
 const greeting = computed(() => {
   const h = new Date().getHours()
-  if (h < 12) return t('dashboard.greeting.morning', 'Good morning 👋')
-  if (h < 18) return t('dashboard.greeting.afternoon', 'Good afternoon 👋')
-  return t('dashboard.greeting.evening', 'Good evening 👋')
+  if (h < 12) return t('dashboard.greeting.morning')
+  if (h < 18) return t('dashboard.greeting.afternoon')
+  return t('dashboard.greeting.evening')
 })
 
 const CLASS_EMOJIS = ['📚', '🎓', '🌟', '💡', '🔬', '🎨', '📖', '🏆']

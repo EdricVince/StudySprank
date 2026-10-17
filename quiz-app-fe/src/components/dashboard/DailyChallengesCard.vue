@@ -35,11 +35,12 @@
             <div class="flex items-center gap-2">
               <h4 class="text-foreground text-sm font-medium">{{ challenge.title }}</h4>
               <span
-                v-if="challenge.completed"
+                v-if="challenge.claimed"
                 class="text-primary text-xs font-medium"
               >
-                ✓
+                ✓ {{ $t('dashboard.challenges.claimed') }}
               </span>
+              <span v-else-if="challenge.completed" class="text-primary text-xs font-medium">✓</span>
             </div>
             <p class="text-muted-foreground text-xs">{{ challenge.description }}</p>
 
@@ -155,6 +156,16 @@
               <ArrowRight class="h-4 w-4" />
               {{ $t('dashboard.challenges.start') }}
             </button>
+            <button
+              v-else-if="!selectedChallenge.claimed"
+              data-test="claim-challenge"
+              class="bg-primary text-primary-foreground hover:bg-primary/90 flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
+              :disabled="claiming"
+              @click="claim(selectedChallenge)"
+            >
+              <Zap class="h-4 w-4" />
+              {{ $t('dashboard.challenges.claim') }}
+            </button>
           </div>
         </div>
       </div>
@@ -165,10 +176,13 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Flame, Clock, Zap, BookOpen, Brain, Layers, Target, X, ArrowRight } from '@/components/icons'
 import { useProgressStore } from '@/stores/progress.store'
+import { useToast } from '@/composables/useToast'
+import { ApiError } from '@/utils/api'
 
-defineEmits<{ claimReward: [challengeId: number] }>()
+const emit = defineEmits<{ claimReward: [challengeId: number, xpReward: number] }>()
 
 const props = withDefaults(defineProps<{ dailyGoalXp?: number }>(), { dailyGoalXp: 50 })
 
@@ -182,9 +196,12 @@ interface Challenge {
   xp: number
   completed: boolean
   path: string
+  claimed: boolean
 }
 
+const { t } = useI18n()
 const router = useRouter()
+const toast = useToast()
 const progressStore = useProgressStore()
 const selectedId = ref<number | null>(null)
 
@@ -196,26 +213,27 @@ const challenges = computed<Challenge[]>(() => {
   const quizzes = progressStore.todayQuizzes
   const todayXp = progressStore.todayXP
   const goalXp = props.dailyGoalXp
+  const claimed = progressStore.claimedChallenges
   return [
     {
-      id: 1, title: 'Learn 10 Words', description: 'Study flashcards to learn new vocabulary',
+      id: 1, title: t('dashboard.challenges.items.learn10'), description: t('dashboard.challenges.items.learn10Desc'),
       icon: BookOpen, current: Math.min(cards, 10), target: 10, xp: 25,
-      completed: cards >= 10, path: '/flashcards',
+      completed: cards >= 10, path: '/flashcards', claimed: claimed.includes(1),
     },
     {
-      id: 2, title: 'Complete a Quiz', description: 'Take any quiz to finish this challenge',
+      id: 2, title: t('dashboard.challenges.items.quiz1'), description: t('dashboard.challenges.items.quiz1Desc'),
       icon: Brain, current: Math.min(quizzes, 1), target: 1, xp: 30,
-      completed: quizzes >= 1, path: '/quizzes',
+      completed: quizzes >= 1, path: '/quizzes', claimed: claimed.includes(2),
     },
     {
-      id: 3, title: 'Review 20 Cards', description: 'Study flashcards to reach 20 cards today',
+      id: 3, title: t('dashboard.challenges.items.review20'), description: t('dashboard.challenges.items.review20Desc'),
       icon: Layers, current: Math.min(cards, 20), target: 20, xp: 20,
-      completed: cards >= 20, path: '/flashcards',
+      completed: cards >= 20, path: '/flashcards', claimed: claimed.includes(3),
     },
     {
-      id: 4, title: 'Reach Daily Goal', description: `Earn ${goalXp} XP from studying today`,
+      id: 4, title: t('dashboard.challenges.items.goal'), description: t('dashboard.challenges.items.goalDesc', { xp: goalXp }),
       icon: Target, current: Math.min(todayXp, goalXp), target: goalXp, xp: 35,
-      completed: todayXp >= goalXp, path: '/goals',
+      completed: todayXp >= goalXp, path: '/goals', claimed: claimed.includes(4),
     },
   ]
 })
@@ -227,6 +245,22 @@ const selectedChallenge = computed(() => challenges.value.find(c => c.id === sel
 
 const openDetail = (challenge: Challenge) => {
   selectedId.value = challenge.id
+}
+
+// The server re-checks completion and pays out (plus the all-challenges bonus).
+const claiming = ref(false)
+const claim = async (challenge: Challenge) => {
+  claiming.value = true
+  try {
+    const res = await progressStore.claimChallenge(challenge.id)
+    selectedId.value = null
+    emit('claimReward', challenge.id, res.xp_gained + res.bonus)
+    void progressStore.fetchProgress()
+  } catch (e) {
+    toast.error(e instanceof ApiError ? e.errorMessage : t('dashboard.challenges.claimFailed'))
+  } finally {
+    claiming.value = false
+  }
 }
 
 const goToChallenge = (challenge: Challenge) => {

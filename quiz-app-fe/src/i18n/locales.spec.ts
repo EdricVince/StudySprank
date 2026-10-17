@@ -29,6 +29,12 @@ describe('i18n locale files', () => {
     },
   )
 
+  it.each([['vi', vi_], ['zh', zh]] as const)('%s has every key that en has', (_locale, messages) => {
+    const have = new Set(keysOf(messages as Record<string, unknown>))
+    const missing = keysOf(en as Record<string, unknown>).filter((k) => !have.has(k))
+    expect(missing).toEqual([])
+  })
+
   it('renders the register email placeholder with a literal @', () => {
     const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
     expect(i18n.global.t('auth.register.emailPlaceholder')).toBe('name@example.com')

@@ -10,7 +10,7 @@
           <div class="max-w-lg">
             <div class="hero-pill-indigo mb-4 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold">
               <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-current"></span>
-              AI-Powered Assessment
+              {{ $t('exam.badge') }}
             </div>
             <h1 class="text-foreground text-4xl font-extrabold leading-tight tracking-tight">
               {{ $t('exam.pageTitle') }}
@@ -35,14 +35,14 @@
           <div class="hidden lg:block w-64 shrink-0">
             <div class="target-panel rounded-2xl p-5">
               <div class="mb-4 flex items-center justify-between">
-                <span class="target-lbl text-xs font-semibold uppercase tracking-widest">Target Band</span>
+                <span class="target-lbl text-xs font-semibold uppercase tracking-widest">{{ $t('exam.targetBand') }}</span>
                 <span class="target-band-tag rounded-full px-2 py-0.5 text-xs font-bold">{{ bandLabel }}</span>
               </div>
 
               <!-- Score display -->
               <div class="mb-4 text-center">
                 <div class="target-score-num text-5xl font-extrabold tabular-nums leading-none">{{ targetBand }}</div>
-                <div class="target-sub-txt mt-1 text-xs">out of 9.0</div>
+                <div class="target-sub-txt mt-1 text-xs">{{ $t('exam.outOf') }}</div>
               </div>
 
               <!-- Progress bar -->
@@ -67,7 +67,7 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
 
               <!-- CEFR mapping -->
               <div class="target-cefr-box mt-4 rounded-xl px-3 py-2 text-center">
-                <div class="target-cefr-lbl text-[10px] uppercase tracking-wide mb-0.5">CEFR Level</div>
+                <div class="target-cefr-lbl text-[10px] uppercase tracking-wide mb-0.5">{{ $t('exam.cefrLevel') }}</div>
                 <div class="target-cefr-val text-sm font-bold">{{ cefrForBand }}</div>
               </div>
             </div>
@@ -81,14 +81,8 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
       <div v-if="aiReady === false" class="flex items-start gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
         <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-lg">⚠</div>
         <div class="flex-1 space-y-1">
-          <div class="text-sm font-semibold text-amber-400">AI Not Configured</div>
-          <p class="text-xs leading-relaxed text-amber-300/80">
-            This feature requires an Anthropic API key. Exams are generated entirely by AI — no hardcoded questions.
-            Please add your API key in admin settings to enable exam generation.
-          </p>
-          <a href="/admin/ai" class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/30">
-            Go to Admin Settings →
-          </a>
+          <div class="text-sm font-semibold text-amber-400">{{ $t('exam.aiOffTitle') }}</div>
+          <p class="text-xs leading-relaxed text-amber-300/80">{{ $t('exam.aiOffDesc') }}</p>
         </div>
       </div>
 
@@ -113,7 +107,7 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
               </div>
               <div class="flex flex-col items-end gap-1">
                 <span class="rounded-full px-3 py-1 text-xs font-bold" :class="exam.badgeClass">{{ exam.standard }}</span>
-                <span class="text-muted-foreground text-xs">Official Standard</span>
+                <span class="text-muted-foreground text-xs">{{ $t('exam.format') }}</span>
               </div>
             </div>
 
@@ -146,7 +140,7 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
                 :class="exam.sectionClass"
               >
                 <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="exam.dotColor"></span>
-                +{{ exam.sections.length - 4 }} more
+                {{ $t('exam.more', { n: exam.sections.length - 4 }) }}
               </span>
             </div>
 
@@ -156,12 +150,12 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
             <!-- Band range -->
             <div class="mt-4 flex items-center justify-between rounded-xl border p-3" :class="exam.rangeBg">
               <div>
-                <div class="text-muted-foreground text-[11px]">Score Range</div>
+                <div class="text-muted-foreground text-[11px]">{{ $t('exam.scoreRange') }}</div>
                 <div class="text-foreground text-sm font-bold">{{ exam.scoreRange }}</div>
               </div>
               <div class="text-right">
-                <div class="text-muted-foreground text-[11px]">Duration</div>
-                <div class="text-foreground text-sm font-bold">{{ exam.time }} min</div>
+                <div class="text-muted-foreground text-[11px]">{{ $t('exam.duration') }}</div>
+                <div class="text-foreground text-sm font-bold">{{ $t('exam.minutesN', { n: exam.time }) }}</div>
               </div>
             </div>
 
@@ -172,7 +166,7 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
               :disabled="!aiReady"
               @click.stop="aiReady && startExam(exam.type)"
             >
-              {{ aiReady === false ? 'AI Key Required' : $t('exam.startExam') }}
+              {{ aiReady === false ? $t('exam.aiKeyRequired') : $t('exam.startExam') }}
             </button>
           </div>
         </div>
@@ -180,7 +174,7 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
 
       <!-- How it works -->
       <div class="bg-card border-border rounded-2xl border p-6">
-        <h3 class="text-foreground mb-5 text-base font-bold">How It Works</h3>
+        <h3 class="text-foreground mb-5 text-base font-bold">{{ $t('exam.howItWorks') }}</h3>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div v-for="step in steps" :key="step.num" class="flex items-start gap-4">
             <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-extrabold" :class="step.bgClass">
@@ -238,34 +232,21 @@ function onSliderInput(e: Event) {
   localStorage.setItem(TARGET_KEY, v.toString())
 }
 
-const bandLabel = computed(() => {
-  const b = targetBand.value
-  if (b >= 8.5) return 'Expert'
-  if (b >= 7.5) return 'Very Good'
-  if (b >= 6.5) return 'Good'
-  if (b >= 5.5) return 'Competent'
-  if (b >= 4.5) return 'Modest'
-  if (b >= 3.5) return 'Limited'
-  return 'Beginner'
-})
+// [minimum band, label key] — first match wins.
+const BAND_LABELS: [number, string][] = [[8.5, 'expert'], [7.5, 'veryGood'], [6.5, 'good'], [5.5, 'competent'], [4.5, 'modest'], [3.5, 'limited'], [0, 'beginner']]
+const BAND_CEFR: [number, string][] = [[8, 'C2'], [7, 'C1'], [6, 'B2'], [5, 'B1'], [4, 'A2'], [0, 'A1']]
+const pick = (table: [number, string][], b: number) => table.find(([min]) => b >= min)![1]
 
-const cefrForBand = computed(() => {
-  const b = targetBand.value
-  if (b >= 8.0) return 'C2 — Mastery'
-  if (b >= 7.0) return 'C1 — Advanced'
-  if (b >= 6.0) return 'B2 — Upper-Intermediate'
-  if (b >= 5.0) return 'B1 — Intermediate'
-  if (b >= 4.0) return 'A2 — Elementary'
-  return 'A1 — Beginner'
-})
+const bandLabel = computed(() => t(`exam.bands.${pick(BAND_LABELS, targetBand.value)}`))
+const cefrForBand = computed(() => t(`exam.cefr.${pick(BAND_CEFR, targetBand.value)}`))
 
-const heroStats = [
-  { label: 'Questions',    value: '20',           icon: FileText,    bg: 'bg-indigo-500/10', color: 'text-indigo-400' },
-  { label: 'AI Grading',  value: 'Instant',       icon: CheckCircle, bg: 'bg-green-500/10',  color: 'text-green-400' },
-  { label: 'Exam Sets',   value: '6 Unique',      icon: Shuffle,     bg: 'bg-violet-500/10', color: 'text-violet-400' },
-  { label: 'Standards',   value: 'Cambridge+ETS', icon: BarChart3,   bg: 'bg-amber-500/10',  color: 'text-amber-400' },
-  { label: 'Time Limit',  value: '25–35 min',     icon: Clock,       bg: 'bg-blue-500/10',   color: 'text-blue-400' },
-]
+const heroStats = computed(() => [
+  { label: t('exam.stats.questions'),  value: '20',                           icon: FileText,    bg: 'bg-indigo-500/10', color: 'text-indigo-400' },
+  { label: t('exam.stats.aiGrading'),  value: t('exam.stats.instant'),        icon: CheckCircle, bg: 'bg-green-500/10',  color: 'text-green-400' },
+  { label: t('exam.stats.examSets'),   value: t('exam.stats.unique', { n: 6 }), icon: Shuffle,   bg: 'bg-violet-500/10', color: 'text-violet-400' },
+  { label: t('exam.stats.standards'),  value: 'Cambridge+ETS',                icon: BarChart3,   bg: 'bg-amber-500/10',  color: 'text-amber-400' },
+  { label: t('exam.stats.timeLimit'),  value: t('exam.minutesN', { n: '25–35' }), icon: Clock,   bg: 'bg-blue-500/10',   color: 'text-blue-400' },
+])
 
 const exams = computed(() => [
   {
@@ -276,11 +257,11 @@ const exams = computed(() => [
     standard: 'Cambridge',
     questions: 20, time: 30,
     sections: ['Listening Part 1', 'Listening Part 2', 'Reading (11q)', 'Writing (2 tasks)'],
-    scoreRange: 'Band 1.0 – 9.0',
+    scoreRange: t('exam.ranges.ielts'),
     stats: [
-      { value: '20', label: 'Questions' },
-      { value: '30', label: 'Minutes' },
-      { value: '9.0', label: 'Max Band' },
+      { value: '20', label: t('exam.stats.questions') },
+      { value: '30', label: t('exam.stats.minutes') },
+      { value: '9.0', label: t('exam.stats.maxBand') },
     ],
     cardClass: 'card-tint-indigo',
     hoverGradient: 'bg-linear-to-br from-indigo-500/5 to-violet-500/5',
@@ -301,11 +282,11 @@ const exams = computed(() => [
     standard: 'ETS',
     questions: 20, time: 25,
     sections: ['Listening', 'Reading Part 5', 'Reading Part 6', 'Reading Part 7'],
-    scoreRange: 'Score 10 – 990',
+    scoreRange: t('exam.ranges.toeic'),
     stats: [
-      { value: '20', label: 'Questions' },
-      { value: '25', label: 'Minutes' },
-      { value: '990', label: 'Max Score' },
+      { value: '20', label: t('exam.stats.questions') },
+      { value: '25', label: t('exam.stats.minutes') },
+      { value: '990', label: t('exam.stats.maxScore') },
     ],
     cardClass: 'card-tint-amber',
     hoverGradient: 'bg-linear-to-br from-amber-500/5 to-orange-500/5',
@@ -326,11 +307,11 @@ const exams = computed(() => [
     standard: 'ETS',
     questions: 20, time: 35,
     sections: ['Reading Passage 1', 'Reading Passage 2', 'Listening — Lecture', 'Listening — Discussion', 'Writing (2 tasks)'],
-    scoreRange: 'Score 0 – 120',
+    scoreRange: t('exam.ranges.toefl'),
     stats: [
-      { value: '20', label: 'Questions' },
-      { value: '35', label: 'Minutes' },
-      { value: '120', label: 'Max Score' },
+      { value: '20', label: t('exam.stats.questions') },
+      { value: '35', label: t('exam.stats.minutes') },
+      { value: '120', label: t('exam.stats.maxScore') },
     ],
     cardClass: 'card-tint-teal',
     hoverGradient: 'bg-linear-to-br from-teal-500/5 to-cyan-500/5',
@@ -345,13 +326,13 @@ const exams = computed(() => [
   },
 ])
 
-const steps = [
-  { num: '1', title: 'Choose exam type',   desc: 'Select IELTS, TOEIC, or TOEFL iBT based on your target certification.',    bgClass: 'cstep-indigo' },
-  { num: '2', title: 'Complete the test',  desc: '20 AI-generated questions covering key skills. Timer runs automatically.', bgClass: 'cstep-violet' },
-  { num: '3', title: 'Get your results',   desc: 'Instant band score estimation, skill breakdown & AI study tips.',          bgClass: 'cstep-emerald' },
-]
+const steps = computed(() => [
+  { num: '1', title: t('exam.steps.chooseTitle'),   desc: t('exam.steps.chooseDesc'),   bgClass: 'cstep-indigo' },
+  { num: '2', title: t('exam.steps.completeTitle'), desc: t('exam.steps.completeDesc'), bgClass: 'cstep-violet' },
+  { num: '3', title: t('exam.steps.resultTitle'),   desc: t('exam.steps.resultDesc'),   bgClass: 'cstep-emerald' },
+])
 
-const notes = [t('exam.note1'), t('exam.note2'), t('exam.note3')]
+const notes = computed(() => [t('exam.note1'), t('exam.note2'), t('exam.note3')])
 
 function startExam(type: string) {
   router.push({ name: 'ExamSession', query: { type, target: targetBand.value.toString() } })

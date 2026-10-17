@@ -10,83 +10,52 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { supabase } from '@/lib/supabase'
 import { api } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth.store'
-import { useProgressStore } from '@/stores/progress.store'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const progressStore = useProgressStore()
-const message = ref('Signing you in...')
+const { t } = useI18n()
+const message = ref(t('authPages.oauth.signingIn'))
+
+/** Show a failure message, log the cause, and send the user back to the login page. */
+function fail(key: 'failed' | 'loginFailed', cause?: unknown) {
+  if (cause) console.error('OAuth sign-in failed:', cause)
+  message.value = t(`authPages.oauth.${key}`)
+  setTimeout(() => router.push('/login'), 1500)
+}
 
 onMounted(async () => {
   try {
-    // Check if OAuth provider returned an error in URL params
+    // The provider may return an error in the URL
     const urlParams = new URLSearchParams(window.location.search)
     const urlError = urlParams.get('error')
-    if (urlError) {
-      console.error('OAuth error from provider:', urlError, urlParams.get('error_description'))
-      message.value = 'Authentication failed. Redirecting...'
-      setTimeout(() => router.push('/login'), 1500)
-      return
-    }
+    if (urlError) return fail('failed', `${urlError}: ${urlParams.get('error_description') ?? ''}`)
 
-    // PKCE flow: exchange code for session if code is present
+    // PKCE flow: exchange the code for a Supabase session
     const code = urlParams.get('code')
     if (code) {
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-      if (exchangeError) {
-        console.error('Code exchange error:', exchangeError)
-        message.value = 'Authentication failed. Redirecting...'
-        setTimeout(() => router.push('/login'), 1500)
-        return
-      }
+      if (exchangeError) return fail('failed', exchangeError)
     }
 
-    // Get session (works for both implicit and PKCE flow)
+    // Works for both implicit and PKCE flows
     const { data, error } = await supabase.auth.getSession()
+    if (error || !data.session) return fail('failed', error ?? 'no session')
 
-    if (error || !data.session) {
-      console.error('No session after OAuth:', error)
-      message.value = 'Authentication failed. Redirecting...'
-      setTimeout(() => router.push('/login'), 1500)
-      return
-    }
+    // Exchange the Supabase session for our own tokens (the backend verifies it with Supabase)
+    await authStore.completeLogin(await api.oauthLogin(data.session.access_token))
 
-    // Exchange Supabase session for our own JWT (BE verifies the token with Supabase)
-    const resp = await api.oauthLogin(data.session.access_token)
-    authStore.setTokens(resp.access_token, resp.refresh_token)
-    authStore.setUser({
-      id: resp.user.id,
-      email: resp.user.email,
-      is_active: resp.user.is_active,
-      role_id: resp.user.role_id,
-    })
-
-    // Fetch full profile
-    try {
-      const profile = await api.getProfile()
-      authStore.setUser({
-        id: profile.id,
-        email: profile.email,
-        name: profile.name ?? undefined,
-        is_active: profile.is_active,
-        role_id: profile.role_id,
-      })
-    } catch { /* non-critical */ }
-
-    void Promise.all([progressStore.fetchProgress(), progressStore.fetchWeekly(), progressStore.fetchLeaderboard()])
-
-    // Sign out of Supabase (we use our own JWT from here)
+    // From here on we use our own JWT
     await supabase.auth.signOut()
 
-    message.value = 'Success! Redirecting...'
-    setTimeout(() => router.push('/dashboard'), 500)
+    message.value = t('authPages.oauth.success')
+    // Route by role — an existing teacher account signing in with Google lands in the teacher portal.
+    setTimeout(() => router.push(authStore.isTeacher ? '/teacher/dashboard' : '/dashboard'), 500)
   } catch (err) {
-    console.error('OAuth callback error:', err)
-    message.value = 'Login failed. Redirecting...'
-    setTimeout(() => router.push('/login'), 1500)
+    fail('loginFailed', err)
   }
 })
 </script>

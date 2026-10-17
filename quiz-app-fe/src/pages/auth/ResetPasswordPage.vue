@@ -5,8 +5,8 @@
       <div class="bg-primary/10 text-primary mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl lg:mx-0">
         <KeyRound class="h-7 w-7" />
       </div>
-      <h1 class="text-foreground text-3xl font-bold tracking-tight">Set a new password</h1>
-      <p class="text-muted-foreground mt-2 text-base">Choose a strong new password for your account.</p>
+      <h1 class="text-foreground text-3xl font-bold tracking-tight">{{ $t('authPages.reset.title') }}</h1>
+      <p class="text-muted-foreground mt-2 text-base">{{ $t('authPages.reset.subtitle') }}</p>
     </div>
 
     <!-- Invalid link -->
@@ -14,7 +14,7 @@
       <div class="bg-destructive/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
         <AlertCircle class="text-destructive h-5 w-5" />
       </div>
-      <p class="text-foreground text-sm font-medium">This reset link is missing its token. Please request a new one.</p>
+      <p class="text-foreground text-sm font-medium">{{ $t('authPages.reset.missingToken') }}</p>
     </div>
 
     <!-- Success -->
@@ -24,8 +24,8 @@
           <CheckCircle class="text-chart-2 h-5 w-5" />
         </div>
         <div>
-          <p class="text-foreground text-sm font-medium">Password updated</p>
-          <p class="text-muted-foreground text-sm">Redirecting you to sign in…</p>
+          <p class="text-foreground text-sm font-medium">{{ $t('authPages.reset.updated') }}</p>
+          <p class="text-muted-foreground text-sm">{{ $t('authPages.reset.redirecting') }}</p>
         </div>
       </div>
     </Transition>
@@ -43,14 +43,14 @@
     <!-- Form -->
     <form v-if="token && !success" class="animate-fade-in-up delay-100 space-y-5" @submit.prevent="handleSubmit">
       <div class="space-y-2">
-        <label class="text-foreground text-sm font-medium">New password</label>
+        <label class="text-foreground text-sm font-medium">{{ $t('authPages.reset.newPassword') }}</label>
         <div class="relative">
           <Lock class="text-muted-foreground pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2" />
           <input
             v-model="password"
             :type="show ? 'text' : 'password'"
             autocomplete="new-password"
-            placeholder="At least 8 characters"
+            :placeholder="$t('authPages.reset.newPlaceholder')"
             class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 h-12 w-full rounded-xl border pl-12 pr-12 text-base transition-all focus:ring-2 focus:outline-none"
           />
           <button type="button" class="text-muted-foreground hover:text-foreground absolute top-1/2 right-4 -translate-y-1/2" tabindex="-1" @click="show = !show">
@@ -61,14 +61,14 @@
       </div>
 
       <div class="space-y-2">
-        <label class="text-foreground text-sm font-medium">Confirm new password</label>
+        <label class="text-foreground text-sm font-medium">{{ $t('authPages.reset.confirm') }}</label>
         <div class="relative">
           <Lock class="text-muted-foreground pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2" />
           <input
             v-model="confirm"
             :type="show ? 'text' : 'password'"
             autocomplete="new-password"
-            placeholder="Re-enter your new password"
+            :placeholder="$t('authPages.reset.confirmPlaceholder')"
             class="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary/20 h-12 w-full rounded-xl border pl-12 text-base transition-all focus:ring-2 focus:outline-none"
           />
         </div>
@@ -80,7 +80,7 @@
         class="bg-primary text-primary-foreground hover:bg-primary/90 h-12 w-full cursor-pointer rounded-xl text-base font-semibold shadow-sm transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Spinner v-if="loading" class="mr-2 h-5 w-5 animate-spin" />
-        <span>{{ loading ? 'Updating…' : 'Reset password' }}</span>
+        <span>{{ loading ? $t('authPages.reset.submitting') : $t('authPages.reset.submit') }}</span>
       </Button>
     </form>
 
@@ -90,7 +90,7 @@
       @click="router.push({ name: 'Login' })"
     >
       <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-      Back to Sign In
+      {{ $t('authPages.reset.back') }}
     </button>
   </div>
 </template>
@@ -101,10 +101,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { KeyRound, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
+import { useI18n } from 'vue-i18n'
 import { api, ApiError } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const token = ref((route.query.token as string) || '')
 const password = ref('')
@@ -117,8 +119,8 @@ const error = ref('')
 const handleSubmit = async () => {
   if (loading.value) return
   error.value = ''
-  if (password.value.length < 8) { error.value = 'Password must be at least 8 characters.'; return }
-  if (password.value !== confirm.value) { error.value = 'Passwords do not match.'; return }
+  if (password.value.length < 8) { error.value = t('authPages.reset.errMin'); return }
+  if (password.value !== confirm.value) { error.value = t('authPages.reset.errMatch'); return }
 
   loading.value = true
   try {
@@ -126,7 +128,7 @@ const handleSubmit = async () => {
     success.value = true
     setTimeout(() => router.push({ name: 'Login' }), 1800)
   } catch (e) {
-    error.value = e instanceof ApiError ? e.errorMessage : 'Could not reset your password. Please try again.'
+    error.value = e instanceof ApiError ? e.errorMessage : t('authPages.reset.errFailed')
   } finally {
     loading.value = false
   }

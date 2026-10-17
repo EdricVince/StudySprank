@@ -12,8 +12,10 @@
       <!-- Progress -->
       <div class="flex-1">
         <div class="mb-1 flex items-center justify-between text-sm">
-          <span class="text-muted-foreground">Question {{ currentQuestion }} of {{ totalQuestions }}</span>
-          <span class="text-foreground font-medium">{{ score }} pts</span>
+          <span class="text-muted-foreground">
+            {{ progressLabel ?? $t('quizPlay.questionOf', { n: currentQuestion, total: totalQuestions }) }}
+          </span>
+          <span class="text-foreground font-medium">{{ $t('quizPlay.pts', { n: score }) }}</span>
         </div>
         <div class="bg-secondary h-2 overflow-hidden rounded-full">
           <div
@@ -53,12 +55,15 @@ interface Props {
   timeRemaining?: number
   showTimer?: boolean
   streak?: number
+  /** Overrides the default "Question n of total" text (e.g. "Pair n of total"). */
+  progressLabel?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   timeRemaining: 0,
   showTimer: false,
   streak: 0,
+  progressLabel: undefined,
 })
 
 defineEmits<{

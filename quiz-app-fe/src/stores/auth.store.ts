@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { setCookie, getCookie, removeCookie } from '@/utils/cookies'
 import { api, ApiError } from '@/utils/api'
-import type { UserOut, UserProfileData } from '@/types/api'
+import type { LoginResponseData, UserOut, UserProfileData } from '@/types/api'
 import { UserRole } from '@/types/role'
 import { useProgressStore } from '@/stores/progress.store'
 
@@ -10,7 +10,6 @@ const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 const REMEMBER_EMAIL_KEY = 'remembered_email'
 const USER_KEY = 'user_data'
-const TEACHER_DOMAIN = '@teacher.sprk'
 
 export interface AuthUser {
   id: number
@@ -43,8 +42,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => currentUser.value?.role_id === UserRole.ADMIN)
   const isStudent = computed(() => !currentUser.value?.role_id || currentUser.value.role_id === UserRole.STUDENT)
   const userRole = computed(() => currentUser.value?.role_id ?? UserRole.STUDENT)
-  const isTeacherEmail = computed(() => currentUser.value?.email?.toLowerCase().endsWith(TEACHER_DOMAIN) ?? false)
-  const canAccessTeacher = computed(() => isTeacher.value || isTeacherEmail.value)
+  // Access is decided by the role the server assigned, never by the email domain.
+  const canAccessTeacher = computed(() => isTeacher.value)
 
   const setTokens = (accessToken: string, refreshToken?: string) => {
     _accessToken.value = accessToken
@@ -81,37 +80,43 @@ export const useAuthStore = defineStore('auth', () => {
   const getAccessToken = (): string | undefined => _accessToken.value ?? getCookie(ACCESS_TOKEN_KEY)
   const getRefreshToken = (): string | undefined => getCookie(REFRESH_TOKEN_KEY)
 
+  /**
+   * Shared post-login step for password login and OAuth: store the tokens and user,
+   * enrich the user with the full profile (name/avatar), and warm the progress data.
+   */
+  const completeLogin = async (resp: LoginResponseData): Promise<void> => {
+    setTokens(resp.access_token, resp.refresh_token)
+    setUser({
+      id: resp.user.id,
+      email: resp.user.email,
+      is_active: resp.user.is_active,
+      role_id: resp.user.role_id,
+    })
+    try {
+      const profile = await api.getProfile()
+      setUser({
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        is_active: profile.is_active ?? resp.user.is_active,
+        role_id: profile.role_id ?? resp.user.role_id,
+      })
+    } catch {
+      // Non-critical: keep the basic data from the login response
+    }
+    const progressStore = useProgressStore()
+    void Promise.all([progressStore.fetchProgress(), progressStore.fetchWeekly(), progressStore.fetchLeaderboard()])
+  }
+
   const login = async (email: string, password: string, remember = false): Promise<AuthResult> => {
     try {
-      const resp = await api.login(email, password)
-      setTokens(resp.access_token, resp.refresh_token)
-      setUser({
-        id: resp.user.id,
-        email: resp.user.email,
-        is_active: resp.user.is_active,
-        role_id: resp.user.role_id,
-      })
+      await completeLogin(await api.login(email, password))
+      // "Remember me" only pre-fills the email next time; it does not extend the session.
       if (remember) {
         localStorage.setItem(REMEMBER_EMAIL_KEY, email)
       } else {
         localStorage.removeItem(REMEMBER_EMAIL_KEY)
       }
-      // Fetch full profile (includes name/avatar) — non-critical
-      try {
-        const profileData = await api.getProfile()
-        setUser({
-          id: profileData.id,
-          email: profileData.email,
-          name: profileData.name,
-          is_active: profileData.is_active ?? resp.user.is_active,
-          role_id: profileData.role_id ?? resp.user.role_id,
-        })
-      } catch {
-        // Non-critical: continue with basic data from login response
-      }
-      const progressStore = useProgressStore()
-      void Promise.all([progressStore.fetchProgress(), progressStore.fetchWeekly(), progressStore.fetchLeaderboard()])
-
       return { success: true, user: currentUser.value ?? undefined }
     } catch (error) {
       console.error('Login error:', error)
@@ -212,7 +217,6 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     // Role helpers
     isTeacher,
-    isTeacherEmail,
     canAccessTeacher,
     isAdmin,
     isStudent,
@@ -221,6 +225,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Google/Facebook OAuth lives in lib/supabase.ts + OAuthCallbackPage (the old
     // always-failing loginWithGoogle/registerWithGoogle stubs were removed).
     login,
+    completeLogin,
     register,
     resetPassword,
     logout,

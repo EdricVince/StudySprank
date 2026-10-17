@@ -434,7 +434,7 @@
                 <input
                   ref="fileInput"
                   type="file"
-                  accept=".csv,.xlsx,.xls"
+                  accept=".csv,text/csv"
                   class="hidden"
                   @change="handleFileSelect"
                 />
@@ -642,12 +642,15 @@ import { useProgressStore } from '@/stores/progress.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiError } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
+import { useI18n } from 'vue-i18n'
+import { isCsvFile, parseCardsCsv } from '@/utils/csv'
 import type { FlashcardDeckData as Deck, VocabSetData } from '@/types/content'
 
 const router = useRouter()
 const progressStore = useProgressStore()
 const authStore = useAuthStore()
 const toast = useToast()
+const { t } = useI18n()
 
 // State
 const searchQuery = ref('')
@@ -917,9 +920,11 @@ const handleFileDrop = (event: DragEvent) => {
   isDragging.value = false
   if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
     const file = event.dataTransfer.files[0]
-    if (file.type === 'text/csv' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+    if (isCsvFile(file)) {
       importFile.value = file
       importDeckName.value = file.name.replace(/\.[^/.]+$/, '')
+    } else {
+      toast.error(t('flashcards.importModal.onlyCsv'))
     }
   }
 }
@@ -932,17 +937,24 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
+// Create a deck from the CSV's rows (Term, Definition, Example, Image, Audio).
 const importCards = async () => {
+  const file = importFile.value
+  if (!file) return
+  if (!isCsvFile(file)) return toast.error(t('flashcards.importModal.onlyCsv'))
+  const cards = parseCardsCsv(await file.text())
+  if (!cards.length) return toast.error(t('flashcards.importModal.noRows'))
   try {
     const deck = await api.createFlashcardDeck({
-      title: importDeckName.value || 'Imported deck',
-      description: importFile.value ? 'Imported from ' + importFile.value.name : '',
+      title: importDeckName.value || file.name.replace(/\.[^/.]+$/, ''),
+      description: '',
       category: 'General',
+      cards,
     })
     showImportModal.value = false
     importFile.value = null
     importDeckName.value = ''
-    // Navigate to the new deck to add cards from the file
+    toast.success(t('flashcards.importModal.imported', { n: cards.length }))
     router.push(`/flashcards/${deck.id}`)
   } catch (e) {
     toast.error(errMsg(e, 'Failed to create deck'))

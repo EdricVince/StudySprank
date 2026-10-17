@@ -4,7 +4,7 @@
     <template v-if="isLoading">
       <div class="flex min-h-[60vh] flex-col items-center justify-center gap-4">
         <div class="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary"></div>
-        <p class="text-muted-foreground text-base">Preparing your word clues…</p>
+        <p class="text-muted-foreground text-base">{{ $t('quizPlay.scramble.preparing') }}</p>
       </div>
     </template>
 
@@ -36,26 +36,26 @@
             <!-- Question Badge -->
             <div class="mb-6 flex items-center justify-between">
               <span class="bg-primary/10 text-primary rounded-lg px-3 py-1.5 text-sm font-medium">
-                Word {{ gameState.currentQuestion + 1 }}
+                {{ $t('quizPlay.scramble.wordN', { n: gameState.currentQuestion + 1 }) }}
               </span>
               <span class="text-muted-foreground text-sm">
-                +{{ 100 + gameState.streak * 10 }} points
+                {{ $t('quizPlay.scramble.plusPoints', { n: 100 + gameState.streak * 10 }) }}
               </span>
             </div>
 
             <!-- Hint: a descriptive clue to read, then guess the word -->
             <div class="bg-secondary/50 mb-6 rounded-xl p-4">
               <p class="text-foreground text-sm leading-relaxed">
-                <span class="text-primary font-semibold">Clue:</span> {{ currentQuestion?.hint }}
+                <span class="text-primary font-semibold">{{ $t('quizPlay.scramble.clue') }}</span> {{ currentQuestion?.hint }}
               </p>
               <p v-if="currentQuestion?.example" class="text-muted-foreground mt-2 text-sm italic">
-                e.g. {{ currentQuestion.example }}
+                {{ $t('quizPlay.scramble.eg', { text: currentQuestion.example }) }}
               </p>
             </div>
 
             <!-- Scrambled Letters -->
             <div class="mb-8">
-              <p class="text-muted-foreground mb-3 text-center text-sm">Unscramble the letters:</p>
+              <p class="text-muted-foreground mb-3 text-center text-sm">{{ $t('quizPlay.scramble.unscramble') }}</p>
               <div class="flex flex-wrap justify-center gap-2">
                 <button
                   v-for="(letter, index) in availableLetters"
@@ -71,7 +71,7 @@
 
             <!-- Answer Area -->
             <div class="mb-6">
-              <p class="text-muted-foreground mb-3 text-center text-sm">Your answer:</p>
+              <p class="text-muted-foreground mb-3 text-center text-sm">{{ $t('quizPlay.scramble.yourAnswer') }}</p>
               <div
                 class="bg-secondary/30 border-border mx-auto flex min-h-16 max-w-md flex-wrap items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-4"
                 :class="answerAreaClass"
@@ -86,7 +86,7 @@
                   {{ letter }}
                 </button>
                 <span v-if="selectedLetters.length === 0" class="text-muted-foreground text-sm">
-                  Tap letters above to form the word
+                  {{ $t('quizPlay.scramble.tapLetters') }}
                 </span>
               </div>
             </div>
@@ -99,7 +99,7 @@
                 @click="clearAnswer"
               >
                 <RotateCcw class="mr-2 inline h-5 w-5" />
-                Clear
+                {{ $t('quizPlay.scramble.clear') }}
               </button>
               <button
                 class="bg-primary text-primary-foreground hover:bg-primary/90 flex-1 rounded-xl py-3.5 font-medium transition-colors disabled:opacity-50"
@@ -107,7 +107,7 @@
                 @click="submitAnswer"
               >
                 <Check class="mr-2 inline h-5 w-5" />
-                Check
+                {{ $t('quizPlay.scramble.check') }}
               </button>
             </div>
 
@@ -125,11 +125,11 @@
                     class="font-semibold"
                     :class="isCorrect ? 'text-primary' : 'text-destructive'"
                   >
-                    {{ isCorrect ? 'Correct!' : 'Incorrect!' }}
+                    {{ isCorrect ? $t('quizPlay.correct') : $t('quizPlay.incorrect') }}
                   </span>
                 </div>
                 <p v-if="!isCorrect" class="text-muted-foreground text-sm">
-                  The correct word is: <strong class="text-foreground uppercase">{{ currentQuestion?.word }}</strong>
+                  {{ $t('quizPlay.scramble.correctWord') }} <strong class="text-foreground uppercase">{{ currentQuestion?.word }}</strong>
                 </p>
               </div>
             </Transition>
@@ -141,7 +141,7 @@
                 class="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold transition-colors"
                 @click="nextQuestion"
               >
-                {{ isLastQuestion ? 'See Results' : 'Next Word' }}
+                {{ isLastQuestion ? $t('quizPlay.seeResults') : $t('quizPlay.scramble.nextWord') }}
                 <ArrowRight class="h-5 w-5" />
               </button>
             </Transition>
@@ -164,16 +164,12 @@ import QuizResult from '@/components/quiz/QuizResult.vue'
 import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { WordScrambleQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
-import { useProgressStore } from '@/stores/progress.store'
-import { useQuizStore } from '@/stores/quiz.store'
-import { useToast } from '@/composables/useToast'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 import { useVocabulary, type VocabScrambleQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
 const route = useRoute()
-const progressStore = useProgressStore()
-const quizStore = useQuizStore()
-const toast = useToast()
+const { finishQuiz, xpEarned } = useQuizCompletion()
 const { generateScrambleQuestions, generateAiScrambleQuestions } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 10, 3), 50))
@@ -234,7 +230,7 @@ const quizResult = computed<QuizResultType>(() => {
     wrongAnswers: gameState.value.wrongCount,
     score: gameState.value.score,
     timeSpent,
-    xpEarned: gameState.value.score + Math.floor(accuracy / 10) * 10,
+    xpEarned: xpEarned.value,
     accuracy,
     streakBonus: gameState.value.streak > 2 ? gameState.value.streak * 10 : 0,
   }
@@ -242,6 +238,9 @@ const quizResult = computed<QuizResultType>(() => {
 
 const shuffleWord = (word: string): string[] => {
   const letters = word.split('')
+  // A single character (e.g. one Chinese hanzi) or all-identical letters cannot be
+  // scrambled — return as-is instead of recursing forever.
+  if (new Set(letters).size < 2) return letters
   for (let i = letters.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[letters[i], letters[j]] = [letters[j]!, letters[i]!]
@@ -315,20 +314,13 @@ const nextQuestion = async () => {
   if (isLastQuestion.value) {
     gameState.value.status = 'finished'
     const accuracy = Math.round((gameState.value.correctCount / questions.value.length) * 100)
-    const result = await progressStore.logQuizCompletion(accuracy, questions.value.length)
-    quizStore.addGame({
+    await finishQuiz({
       modeId: 'word-scramble',
       modeName: 'Word Scramble',
       score: gameState.value.score,
       accuracy,
       questionCount: questions.value.length,
-      xpEarned: result?.xp_gained ?? 0,
     })
-    if (result?.level_up) {
-      toast.success(`Level up! You're now Level ${result.new_level}! 🎉`)
-    } else if (result?.xp_gained) {
-      toast.success(`+${result.xp_gained} XP earned!`)
-    }
   } else {
     gameState.value.currentQuestion++
   }

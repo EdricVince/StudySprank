@@ -29,6 +29,19 @@ export interface LogActivityResult {
   streak_updated: boolean
   milestone_reached?: boolean
   streak_tier?: string
+  /** Sent again within the server cooldown — nothing was recorded. */
+  throttled?: boolean
+  /** The daily XP cap reduced the reward. */
+  capped?: boolean
+}
+
+export interface ClaimChallengeResult {
+  xp_gained: number
+  bonus: number
+  new_xp: number
+  new_level: number
+  level_up: boolean
+  claimed: number[]
 }
 
 const LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000, 2000, 3500, 5000, 7500, 10000]
@@ -58,6 +71,7 @@ export const useProgressStore = defineStore('progress', () => {
   const todayCards = ref<number>(cached?.todayCards ?? 0)
   const todayQuizzes = ref<number>(cached?.todayQuizzes ?? 0)
   const todayXP = ref<number>(cached?.todayXP ?? 0)
+  const claimedChallenges = ref<number[]>(cached?.claimedChallenges ?? [])
   const weeklyActivity = ref<WeeklyActivityItem[]>(cached?.weeklyActivity ?? [])
   const leaderboard = ref<LeaderboardItem[]>(cached?.leaderboard ?? [])
   const isLoading = ref(false)
@@ -80,6 +94,7 @@ export const useProgressStore = defineStore('progress', () => {
       todayCards: todayCards.value,
       todayQuizzes: todayQuizzes.value,
       todayXP: todayXP.value,
+      claimedChallenges: claimedChallenges.value,
       weeklyActivity: weeklyActivity.value,
       leaderboard: leaderboard.value,
     }))
@@ -98,6 +113,26 @@ export const useProgressStore = defineStore('progress', () => {
     todayCards.value = data.today?.cards_studied ?? 0
     todayQuizzes.value = data.today?.quizzes_completed ?? 0
     todayXP.value = data.today?.xp_earned ?? 0
+    claimedChallenges.value = data.today?.claimed_challenges ?? []
+  }
+
+  /** Apply the server's answer to an activity log; counters move only if it was recorded. */
+  function applyActivity(result: LogActivityResult, cards: number, quizzes: number) {
+    xp.value = result.new_xp
+    level.value = result.new_level
+    streakCount.value = result.streak_count
+    if (!result.throttled) {
+      totalCardsStudied.value += cards
+      todayCards.value += cards
+      totalQuizzesCompleted.value += quizzes
+      todayQuizzes.value += quizzes
+      todayXP.value += result.xp_gained
+    }
+    if (result.milestone_reached) {
+      milestoneReached.value = true
+      setTimeout(() => { milestoneReached.value = false }, 4000)
+    }
+    persist()
   }
 
   async function fetchProgress() {
@@ -136,17 +171,7 @@ export const useProgressStore = defineStore('progress', () => {
   async function logFlashcardSession(cardsCount: number): Promise<LogActivityResult | null> {
     try {
       const result = await api.logActivity({ type: 'flashcard_session', cards_count: cardsCount }) as LogActivityResult
-      xp.value = result.new_xp
-      level.value = result.new_level
-      streakCount.value = result.streak_count
-      totalCardsStudied.value += cardsCount
-      todayCards.value += cardsCount
-      todayXP.value += result.xp_gained
-      if (result.milestone_reached) {
-        milestoneReached.value = true
-        setTimeout(() => { milestoneReached.value = false }, 4000)
-      }
-      persist()
+      applyActivity(result, cardsCount, 0)
       return result
     } catch {
       return null
@@ -156,21 +181,21 @@ export const useProgressStore = defineStore('progress', () => {
   async function logQuizCompletion(score: number, _questionsCount?: number): Promise<LogActivityResult | null> {
     try {
       const result = await api.logActivity({ type: 'quiz_completion', score }) as LogActivityResult
-      xp.value = result.new_xp
-      level.value = result.new_level
-      streakCount.value = result.streak_count
-      totalQuizzesCompleted.value += 1
-      todayQuizzes.value += 1
-      todayXP.value += result.xp_gained
-      if (result.milestone_reached) {
-        milestoneReached.value = true
-        setTimeout(() => { milestoneReached.value = false }, 4000)
-      }
-      persist()
+      applyActivity(result, 0, 1)
       return result
     } catch {
       return null
     }
+  }
+
+  /** Ask the server to pay out a daily challenge; it verifies completion itself. */
+  async function claimChallenge(id: number): Promise<ClaimChallengeResult> {
+    const result = await api.claimChallenge(id) as ClaimChallengeResult
+    xp.value = result.new_xp
+    level.value = result.new_level
+    claimedChallenges.value = result.claimed
+    persist()
+    return result
   }
 
   function $reset() {
@@ -186,6 +211,7 @@ export const useProgressStore = defineStore('progress', () => {
     todayCards.value = 0
     todayQuizzes.value = 0
     todayXP.value = 0
+    claimedChallenges.value = []
     weeklyActivity.value = []
     leaderboard.value = []
     localStorage.removeItem(STORAGE_KEY)
@@ -196,13 +222,13 @@ export const useProgressStore = defineStore('progress', () => {
     xp, level, streakCount, longestStreak,
     totalCardsStudied, totalQuizzesCompleted,
     xpForCurrentLevel, xpToNextLevel, xpProgressPercent,
-    todayCards, todayQuizzes, todayXP,
+    todayCards, todayQuizzes, todayXP, claimedChallenges,
     weeklyActivity, leaderboard, isLoading, milestoneReached,
     // Computed
     levelLabel, nextLevelXP,
     // Actions
     fetchProgress, fetchWeekly, fetchLeaderboard,
-    logFlashcardSession, logQuizCompletion,
+    logFlashcardSession, logQuizCompletion, claimChallenge,
     $reset,
   }
 })

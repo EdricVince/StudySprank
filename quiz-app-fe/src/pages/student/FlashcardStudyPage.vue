@@ -9,7 +9,7 @@
         </div>
         <Button variant="outline" @click="exitStudy">
           <X class="mr-2 h-4 w-4" />
-          Exit
+          {{ $t('flashcards.studyPage.exit') }}
         </Button>
       </div>
     </div>
@@ -18,24 +18,24 @@
     <div v-if="!isLoadingCards" class="mb-6">
       <div class="mb-2 flex items-center justify-between">
         <span class="text-muted-foreground text-sm">
-          Card {{ currentIndex + 1 }} of {{ cards.length }}
+          {{ $t('flashcards.studyPage.cardOf', { n: currentIndex + 1, total: cards.length }) }}
         </span>
         <div class="flex items-center gap-4">
           <span
             v-if="dueInfo"
             data-test="due-count"
             class="bg-secondary text-foreground rounded-full px-2.5 py-0.5 text-xs font-medium"
-            title="Spaced repetition (SM-2): cards scheduled for review today"
+            :title="$t('flashcards.studyPage.dueTitle')"
           >
-            {{ dueInfo.due }} due · {{ dueInfo.fresh }} new
+            {{ $t('flashcards.studyPage.due', { due: dueInfo.due, fresh: dueInfo.fresh }) }}
           </span>
           <span class="text-primary flex items-center gap-1 text-sm font-medium">
             <CheckCircle class="h-4 w-4" />
-            {{ knownCount }} known
+            {{ $t('flashcards.studyPage.known', { n: knownCount }) }}
           </span>
           <span class="text-muted-foreground flex items-center gap-1 text-sm">
             <XCircle class="h-4 w-4" />
-            {{ unknownCount }} learning
+            {{ $t('flashcards.studyPage.learning', { n: unknownCount }) }}
           </span>
         </div>
       </div>
@@ -50,7 +50,7 @@
     <!-- Loading State (AI is generating a fresh vocab batch) -->
     <div v-if="isLoadingCards" class="flex flex-1 flex-col items-center justify-center gap-4">
       <div class="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary"></div>
-      <p class="text-muted-foreground text-base">Generating fresh vocabulary…</p>
+      <p class="text-muted-foreground text-base">{{ $t('flashcards.studyPage.generating') }}</p>
     </div>
 
     <!-- Main Card Area -->
@@ -72,13 +72,13 @@
             <div class="flex items-center justify-between p-5">
               <span class="text-muted-foreground text-sm font-medium">
                 <template v-if="isVocabMode">{{ currentLearningOption.flag }} {{ currentLearningOption.label }}</template>
-                <template v-else>Term</template>
+                <template v-else>{{ $t('flashcards.studyPage.term') }}</template>
               </span>
               <div class="flex items-center gap-2">
                 <!-- Speech button always shown -->
                 <button
                   class="hover:bg-secondary rounded-lg p-2 transition-colors"
-                  title="Listen to pronunciation"
+                  :title="$t('flashcards.studyPage.listen')"
                   @click.stop="speakCurrentTerm"
                 >
                   <Volume2 class="text-primary h-5 w-5" />
@@ -114,13 +114,11 @@
             <!-- Hint -->
             <div class="p-5 text-center">
               <p v-if="currentCard?.srsReason" data-test="srs-reason" class="text-muted-foreground mb-2 text-xs">
-                Why this card: {{ currentCard.srsReason }}
+                {{ $t('flashcards.studyPage.why', { reason: currentCard.srsReason }) }}
               </p>
-              <span class="text-muted-foreground text-sm">
-                Tap the card or press
-                <kbd class="bg-secondary mx-1 rounded px-2 py-0.5 font-mono text-xs">Space</kbd>
-                to see the meaning
-              </span>
+              <i18n-t keypath="flashcards.studyPage.flipHint" tag="span" class="text-muted-foreground text-sm">
+                <template #key><kbd class="bg-secondary mx-1 rounded px-2 py-0.5 font-mono text-xs">Space</kbd></template>
+              </i18n-t>
             </div>
           </div>
 
@@ -129,8 +127,8 @@
             <!-- Card Header -->
             <div class="flex items-center justify-between p-5">
               <span class="text-primary text-sm font-medium">
-                <template v-if="isVocabMode">{{ uiLang.toUpperCase() }} Meaning</template>
-                <template v-else>Definition</template>
+                <template v-if="isVocabMode">{{ $t('flashcards.studyPage.meaning', { lang: uiLang.toUpperCase() }) }}</template>
+                <template v-else>{{ $t('flashcards.studyPage.definition') }}</template>
               </span>
               <div class="flex items-center gap-2">
                 <button
@@ -215,15 +213,15 @@
       <div class="mt-6 hidden items-center justify-center gap-6 lg:flex">
         <div class="text-muted-foreground flex items-center gap-2 text-sm">
           <kbd class="bg-secondary rounded px-2 py-1 font-mono text-xs">←</kbd>
-          <span>Don't know</span>
+          <span>{{ $t('flashcards.studyPage.dontKnow') }}</span>
         </div>
         <div class="text-muted-foreground flex items-center gap-2 text-sm">
           <kbd class="bg-secondary rounded px-2 py-1 font-mono text-xs">Space</kbd>
-          <span>Flip card</span>
+          <span>{{ $t('flashcards.studyPage.flip') }}</span>
         </div>
         <div class="text-muted-foreground flex items-center gap-2 text-sm">
           <kbd class="bg-secondary rounded px-2 py-1 font-mono text-xs">→</kbd>
-          <span>Know it</span>
+          <span>{{ $t('flashcards.studyPage.knowIt') }}</span>
         </div>
       </div>
     </div>
@@ -239,32 +237,32 @@
             <div class="bg-primary/10 mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full">
               <Trophy class="text-primary h-10 w-10" />
             </div>
-            <h2 class="text-foreground mb-2 text-2xl font-bold">Session Complete!</h2>
-            <p class="text-muted-foreground mb-6">You've reviewed all {{ cards.length }} cards</p>
+            <h2 class="text-foreground mb-2 text-2xl font-bold">{{ $t('flashcards.studyPage.completeTitle') }}</h2>
+            <p class="text-muted-foreground mb-6">{{ $t('flashcards.studyPage.completeDesc', { n: cards.length }) }}</p>
 
             <!-- Stats -->
             <div class="mb-8 grid grid-cols-2 gap-4">
               <div class="bg-primary/10 rounded-2xl p-4">
                 <p class="text-primary text-3xl font-bold">{{ knownCount }}</p>
-                <p class="text-muted-foreground text-sm">Known</p>
+                <p class="text-muted-foreground text-sm">{{ $t('flashcards.studyPage.knownLabel') }}</p>
               </div>
               <div class="bg-secondary rounded-2xl p-4">
                 <p class="text-foreground text-3xl font-bold">{{ unknownCount }}</p>
-                <p class="text-muted-foreground text-sm">Still Learning</p>
+                <p class="text-muted-foreground text-sm">{{ $t('flashcards.studyPage.stillLearning') }}</p>
               </div>
             </div>
 
             <div class="flex flex-col gap-3">
               <Button class="w-full" @click="restartSession">
                 <RotateCcw class="mr-2 h-4 w-4" />
-                Study Again
+                {{ $t('flashcards.studyPage.studyAgain') }}
               </Button>
               <Button variant="outline" class="w-full" :disabled="unknownCount === 0" @click="reviewUnknown">
                 <RefreshCw class="mr-2 h-4 w-4" />
-                Review {{ unknownCount }} Learning Cards
+                {{ $t('flashcards.studyPage.reviewLearning', { n: unknownCount }) }}
               </Button>
               <Button variant="ghost" class="w-full" @click="exitStudy">
-                Exit Session
+                {{ $t('flashcards.studyPage.exitSession') }}
               </Button>
             </div>
           </div>
@@ -277,6 +275,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Hammer from 'hammerjs'
 import { useProgressStore } from '@/stores/progress.store'
 import { useToast } from '@/composables/useToast'
@@ -298,6 +297,7 @@ import {
 } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const progressStore = useProgressStore()
@@ -325,9 +325,13 @@ const showCompletionModal = ref(false)
 
 const currentDeck = computed(() => {
   if (isVocabMode.value) {
-    return { id: 'vocab', title: `${currentLearningOption.value.flag} Vocabulary Practice`, description: `Learn ${currentLearningOption.value.name} words with ${uiLang.value.toUpperCase()} translations` }
+    return {
+      id: 'vocab',
+      title: t('flashcards.studyPage.vocabTitle', { flag: currentLearningOption.value.flag }),
+      description: t('flashcards.studyPage.vocabDesc', { lang: currentLearningOption.value.name, ui: uiLang.value.toUpperCase() }),
+    }
   }
-  return { id: deckId.value, title: deckMeta.value?.title ?? 'Deck', description: deckMeta.value?.description ?? '' }
+  return { id: deckId.value, title: deckMeta.value?.title ?? t('flashcards.studyPage.deck'), description: deckMeta.value?.description ?? '' }
 })
 
 // Flashcard interface
@@ -395,7 +399,7 @@ const knownCount = computed(() => cards.value.filter(c => c.isKnown === true).le
 const unknownCount = computed(() => cards.value.filter(c => c.isKnown === false).length)
 const progressPercent = computed(() => {
   const reviewed = cards.value.filter(c => c.isKnown !== null).length
-  return (reviewed / cards.value.length) * 100
+  return cards.value.length ? (reviewed / cards.value.length) * 100 : 0
 })
 
 const cardStyle = computed(() => {
@@ -452,10 +456,14 @@ const goToNext = async () => {
   } else {
     showCompletionModal.value = true
     const result = await progressStore.logFlashcardSession(knownCount.value)
-    if (result?.level_up) {
-      toast.success(`Level up! You're now Level ${result.new_level}! 🎉`)
+    if (result?.throttled) {
+      toast.warning(t('quizPlay.throttled'))
+    } else if (result?.level_up) {
+      toast.success(t('quizPlay.levelUp', { level: result.new_level }))
     } else if (result?.xp_gained) {
-      toast.success(`+${result.xp_gained} XP! Great session!`)
+      toast.success(t('quizPlay.xpToast', { xp: result.xp_gained }))
+    } else if (result?.capped) {
+      toast.info(t('quizPlay.capped'))
     }
   }
 }
@@ -614,7 +622,7 @@ onMounted(async () => {
           id: i + 1, term: c.term, definition: c.definition,
           example: c.example, image: c.image, audio: c.audio,
           cardKey: due ? c.term : undefined,
-          srsReason: due ? 'Nothing is due right now — practising ahead of schedule.' : undefined,
+          srsReason: due ? t('flashcards.srs.ahead') : undefined,
           isFavorite: false, isKnown: null,
         }))
       }

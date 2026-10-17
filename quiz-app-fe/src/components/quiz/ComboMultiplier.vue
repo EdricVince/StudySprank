@@ -6,7 +6,7 @@
         :class="comboClass"
       >
         <Zap class="h-4 w-4" />
-        <span>{{ combo }}x COMBO</span>
+        <span>{{ $t('quizPlay.combo', { n: combo }) }}</span>
         <span class="opacity-75 text-xs font-normal">×{{ multiplier }}</span>
       </div>
       <!-- Flame sparks -->

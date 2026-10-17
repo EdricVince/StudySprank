@@ -36,13 +36,6 @@
     "vue-router": "^4.6.4",
     "zod": "3.25.76"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "vue-demi",
-      "@tailwindcss/oxide"
-    ]
-  },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@types/node": "^24.10.1",

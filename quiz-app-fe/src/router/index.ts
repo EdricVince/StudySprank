@@ -69,7 +69,6 @@ const routes = [
       { path: 'courses',         name: 'Courses',        component: () => import('@/pages/student/MyCoursesPage.vue') },
       { path: 'courses/explore', name: 'ExploreCourses', component: () => import('@/pages/student/CourseExplorePage.vue') },
       { path: 'courses/:id',     name: 'CourseDetail',   component: () => import('@/pages/student/CourseDetailPage.vue') },
-      { path: 'courses/:courseId/lessons/:lessonId', name: 'Lesson', component: () => import('@/pages/student/LessonPage.vue') },
 
       // Flashcards
       { path: 'flashcards',                name: 'Flashcards',           component: () => import('@/pages/student/FlashcardsPage.vue') },

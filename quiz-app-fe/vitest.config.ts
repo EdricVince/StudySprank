@@ -13,6 +13,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.{test,spec}.ts'],
+    setupFiles: ['src/test-setup.ts'],
     // Dummy client env so modules that construct the Supabase client at import
     // (via the auth store) don't throw during tests.
     env: {

@@ -25,7 +25,7 @@
             :style="isCollapsed ? { opacity: '0', maxWidth: '0' } : { opacity: '1', maxWidth: '160px' }"
           >
             <div class="text-sidebar-foreground whitespace-nowrap text-sm font-bold tracking-tight">StudySpark</div>
-            <div class="text-sidebar-foreground/40 whitespace-nowrap text-[10px] font-medium">AI Learning Platform</div>
+            <div class="text-sidebar-foreground/40 whitespace-nowrap text-[10px] font-medium">{{ $t('nav.tagline') }}</div>
           </div>
         </button>
       </div>

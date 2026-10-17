@@ -18,33 +18,6 @@ export interface ApiErrorResponse {
 }
 
 /**
- * Paginated API Response
- */
-export interface PaginatedResponse<T> {
-  code: number
-  message: string
-  data: T[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-    hasNext: boolean
-    hasPrev: boolean
-  }
-}
-
-/**
- * API List Response (without pagination)
- */
-export interface ListResponse<T> {
-  code: number
-  message: string
-  data: T[]
-  total: number
-}
-
-/**
  * Empty success response
  */
 export interface SuccessResponse {

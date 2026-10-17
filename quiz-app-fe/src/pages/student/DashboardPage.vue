@@ -246,13 +246,14 @@ const handleQuickAction = (action: string) => {
 }
 
 // Claim reward handler
+// The card has already claimed it on the server; the store holds the new total.
 const handleClaimReward = (_challengeId: number, xpReward?: number) => {
   celebrationType.value = 'success'
   celebrationTitle.value = t('dashboard.celebration.challengeComplete')
   celebrationSubtitle.value = t('dashboard.celebration.challengeCompleteSubtitle')
   celebrationRewards.value = [
     { value: `+${xpReward ?? 0}`, label: t('dashboard.celebration.xpEarned') },
-    { value: (progressStore.xp + (xpReward ?? 0)).toLocaleString(), label: t('dashboard.celebration.totalXP') },
+    { value: progressStore.xp.toLocaleString(), label: t('dashboard.celebration.totalXP') },
   ]
   celebrationBadge.value = undefined
   showCelebration.value = true

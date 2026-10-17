@@ -28,7 +28,7 @@
             <!-- Question Badge -->
             <div class="mb-6 flex items-center justify-center">
               <span class="bg-primary/10 text-primary rounded-lg px-4 py-2 text-sm font-medium">
-                Statement {{ gameState.currentQuestion + 1 }} of {{ questions.length }}
+                {{ $t('quizPlay.statementOf', { n: gameState.currentQuestion + 1, total: questions.length }) }}
               </span>
             </div>
 
@@ -54,7 +54,7 @@
                   >
                     <CheckCircle class="h-8 w-8" :class="selectedAnswer === null ? 'text-primary' : ''" />
                   </div>
-                  <span class="text-xl font-bold">TRUE</span>
+                  <span class="text-xl font-bold">{{ $t('quizPlay.trueLabel') }}</span>
                 </div>
               </button>
 
@@ -71,7 +71,7 @@
                   >
                     <XCircle class="h-8 w-8" :class="selectedAnswer === null ? 'text-destructive' : ''" />
                   </div>
-                  <span class="text-xl font-bold">FALSE</span>
+                  <span class="text-xl font-bold">{{ $t('quizPlay.falseLabel') }}</span>
                 </div>
               </button>
             </div>
@@ -90,7 +90,7 @@
                     class="text-lg font-bold"
                     :class="isCorrect ? 'text-primary' : 'text-destructive'"
                   >
-                    {{ isCorrect ? 'Correct!' : 'Incorrect!' }}
+                    {{ isCorrect ? $t('quizPlay.correct') : $t('quizPlay.incorrect') }}
                   </span>
                 </div>
                 <p class="text-muted-foreground text-center text-sm">
@@ -106,7 +106,7 @@
                 class="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-4 font-semibold transition-colors"
                 @click="nextQuestion"
               >
-                {{ isLastQuestion ? 'See Results' : 'Next Statement' }}
+                {{ isLastQuestion ? $t('quizPlay.seeResults') : $t('quizPlay.nextStatement') }}
                 <ArrowRight class="h-5 w-5" />
               </button>
             </Transition>
@@ -119,11 +119,11 @@
         <div class="flex justify-center gap-8">
           <div class="text-center">
             <div class="text-primary text-2xl font-bold">{{ gameState.correctCount }}</div>
-            <div class="text-muted-foreground text-sm">Correct</div>
+            <div class="text-muted-foreground text-sm">{{ $t('quizPlay.correctLabel') }}</div>
           </div>
           <div class="text-center">
             <div class="text-destructive text-2xl font-bold">{{ gameState.wrongCount }}</div>
-            <div class="text-muted-foreground text-sm">Wrong</div>
+            <div class="text-muted-foreground text-sm">{{ $t('quizPlay.wrongLabel') }}</div>
           </div>
         </div>
       </div>
@@ -143,16 +143,12 @@ import QuizResult from '@/components/quiz/QuizResult.vue'
 import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { TrueFalseQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
-import { useProgressStore } from '@/stores/progress.store'
-import { useQuizStore } from '@/stores/quiz.store'
-import { useToast } from '@/composables/useToast'
+import { useQuizCompletion } from '@/composables/useQuizCompletion'
 import { useVocabulary, type VocabTFQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
 const route = useRoute()
-const progressStore = useProgressStore()
-const quizStore = useQuizStore()
-const toast = useToast()
+const { finishQuiz, xpEarned } = useQuizCompletion()
 const { generateTFQuestions } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 10, 3), 50))
@@ -220,7 +216,7 @@ const quizResult = computed<QuizResultType>(() => {
     wrongAnswers: gameState.value.wrongCount,
     score: gameState.value.score,
     timeSpent,
-    xpEarned: gameState.value.score + Math.floor(accuracy / 10) * 10,
+    xpEarned: xpEarned.value,
     accuracy,
     streakBonus: gameState.value.streak > 2 ? gameState.value.streak * 10 : 0,
   }
@@ -251,20 +247,13 @@ const nextQuestion = async () => {
   if (isLastQuestion.value) {
     gameState.value.status = 'finished'
     const accuracy = Math.round((gameState.value.correctCount / questions.value.length) * 100)
-    const result = await progressStore.logQuizCompletion(accuracy, questions.value.length)
-    quizStore.addGame({
+    await finishQuiz({
       modeId: 'true-false',
       modeName: 'True or False',
       score: gameState.value.score,
       accuracy,
       questionCount: questions.value.length,
-      xpEarned: result?.xp_gained ?? 0,
     })
-    if (result?.level_up) {
-      toast.success(`Level up! You're now Level ${result.new_level}! 🎉`)
-    } else if (result?.xp_gained) {
-      toast.success(`+${result.xp_gained} XP earned!`)
-    }
   } else {
     gameState.value.currentQuestion++
     selectedAnswer.value = null

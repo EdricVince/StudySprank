@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
 
 // ── Mocks for the page's external dependencies ───────────────────────────────
 vi.mock('vue-router', () => ({
@@ -27,8 +26,7 @@ vi.mock('@/utils/api', () => ({
 import FlashcardStudyPage from './FlashcardStudyPage.vue'
 import { api } from '@/utils/api'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} } })
-const mountPage = () => mount(FlashcardStudyPage, { global: { plugins: [createPinia(), i18n] } })
+const mountPage = () => mount(FlashcardStudyPage, { global: { plugins: [createPinia()] } })
 const mockGen = api.generateVocabulary as unknown as ReturnType<typeof vi.fn>
 
 describe('FlashcardStudyPage — vocabulary practice', () => {

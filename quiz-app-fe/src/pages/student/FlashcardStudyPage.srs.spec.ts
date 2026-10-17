@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
 
 // Deck study route (spaced-repetition mode)
 vi.mock('vue-router', () => ({
@@ -26,8 +25,7 @@ vi.mock('@/utils/api', () => ({
 import FlashcardStudyPage from './FlashcardStudyPage.vue'
 import { api } from '@/utils/api'
 
-const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} } })
-const mountPage = () => mount(FlashcardStudyPage, { global: { plugins: [createPinia(), i18n] } })
+const mountPage = () => mount(FlashcardStudyPage, { global: { plugins: [createPinia()] } })
 const m = api as unknown as Record<'getFlashcardDeck' | 'getDueCards' | 'reviewCard', ReturnType<typeof vi.fn>>
 
 const deck = {

@@ -8,7 +8,7 @@
           @click="goBack"
         >
           <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-          Flashcards
+          {{ $t('flashcards.title') }}
         </button>
       </div>
 
@@ -28,15 +28,15 @@
         <div class="flex flex-wrap gap-3">
           <Button v-if="isOwner" variant="outline" @click="showImportModal = true">
             <Upload class="mr-2 h-5 w-5" />
-            Import
+            {{ $t('flashcards.import') }}
           </Button>
           <Button variant="outline" @click="exportDeck">
             <Download class="mr-2 h-5 w-5" />
-            Export
+            {{ $t('flashcards.deckPage.export') }}
           </Button>
           <Button :disabled="cards.length === 0" @click="startStudy">
             <Play class="mr-2 h-5 w-5" />
-            Study Now
+            {{ $t('flashcards.previewModal.studyNow') }}
           </Button>
         </div>
       </div>
@@ -46,19 +46,19 @@
     <div class="animate-fade-in-up delay-100 mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
       <div class="bg-card border-border rounded-2xl border p-5 lg:p-6">
         <span class="text-foreground text-3xl font-bold lg:text-4xl">{{ cards.length }}</span>
-        <p class="text-muted-foreground mt-1 text-base">Total Cards</p>
+        <p class="text-muted-foreground mt-1 text-base">{{ $t('flashcards.stats.totalCards') }}</p>
       </div>
       <div class="bg-card border-border rounded-2xl border p-5 lg:p-6">
         <span class="text-foreground text-3xl font-bold lg:text-4xl">{{ masteredCount }}</span>
-        <p class="text-muted-foreground mt-1 text-base">Mastered</p>
+        <p class="text-muted-foreground mt-1 text-base">{{ $t('flashcards.stats.mastered') }}</p>
       </div>
       <div class="bg-card border-border rounded-2xl border p-5 lg:p-6">
         <span class="text-foreground text-3xl font-bold lg:text-4xl">{{ learningCount }}</span>
-        <p class="text-muted-foreground mt-1 text-base">Learning</p>
+        <p class="text-muted-foreground mt-1 text-base">{{ $t('flashcards.deckPage.learning') }}</p>
       </div>
       <div class="bg-card border-border rounded-2xl border p-5 lg:p-6">
         <span class="text-foreground text-3xl font-bold lg:text-4xl">{{ deck?.is_public ? '🌐' : '🔒' }}</span>
-        <p class="text-muted-foreground mt-1 text-base">{{ deck?.is_public ? 'Public' : 'Private' }}</p>
+        <p class="text-muted-foreground mt-1 text-base">{{ deck?.is_public ? $t('flashcards.deckPage.public') : $t('flashcards.deckPage.private') }}</p>
       </div>
     </div>
 
@@ -69,13 +69,13 @@
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search cards..."
+          :placeholder="$t('flashcards.deckPage.searchCards')"
           class="bg-secondary text-foreground placeholder:text-muted-foreground h-12 w-full rounded-xl border-0 pl-12 pr-4 text-base transition-all focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       </div>
       <Button v-if="isOwner" @click="openCreateCard">
         <Plus class="mr-2 h-5 w-5" />
-        Add Card
+        {{ $t('flashcards.deckPage.addCard') }}
       </Button>
     </div>
 
@@ -98,19 +98,19 @@
         <CreditCard class="text-muted-foreground h-12 w-12" />
       </div>
       <h3 class="text-foreground mb-2 text-xl font-semibold lg:text-2xl">
-        {{ searchQuery ? 'No cards found' : 'No cards yet' }}
+        {{ searchQuery ? $t('flashcards.deckPage.noFound') : $t('flashcards.deckPage.noCards') }}
       </h3>
       <p class="text-muted-foreground mb-6 max-w-md text-base">
-        {{ searchQuery ? 'Try a different search term' : 'Add your first flashcard to start learning' }}
+        {{ searchQuery ? $t('flashcards.deckPage.tryDifferent') : $t('flashcards.deckPage.addFirst') }}
       </p>
       <div v-if="!searchQuery && isOwner" class="flex gap-3">
         <Button variant="outline" @click="showImportModal = true">
           <Upload class="mr-2 h-5 w-5" />
-          Import
+          {{ $t('flashcards.import') }}
         </Button>
         <Button @click="openCreateCard">
           <Plus class="mr-2 h-5 w-5" />
-          Add Card
+          {{ $t('flashcards.deckPage.addCard') }}
         </Button>
       </div>
     </div>
@@ -139,8 +139,8 @@
     <!-- Delete Confirmation Modal -->
     <DeleteConfirmModal
       v-model="showDeleteModal"
-      title="Delete Card?"
-      message="Are you sure you want to delete this card? This action cannot be undone."
+      :title="$t('flashcards.deckPage.deleteTitle')"
+      :message="$t('flashcards.deckPage.deleteMsg')"
       @confirm="deleteCard"
     />
   </div>
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import {
   Plus,
   Upload,
@@ -175,7 +176,9 @@ import type { FlashcardDeckData } from '@/types/content'
 import { api, ApiError } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth.store'
+import { cardsToCsv, isCsvFile, parseCardsCsv } from '@/utils/csv'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -209,7 +212,7 @@ const persist = async () => {
   try {
     await api.updateFlashcardDeck(deck.value.id, { cards: toDeckCards() })
   } catch (e) {
-    toast.error(e instanceof ApiError ? e.errorMessage : 'Failed to save changes')
+    toast.error(e instanceof ApiError ? e.errorMessage : t('flashcards.deckPage.saveFailed'))
   }
 }
 
@@ -312,7 +315,7 @@ const openCardMenu = (cardId: number, event: MouseEvent) => {
 const duplicateCard = async () => {
   const card = cards.value.find((c) => c.id === activeCardId.value)
   if (card) {
-    cards.value.unshift({ ...card, id: Date.now(), term: `${card.term} (Copy)`, status: 'New' })
+    cards.value.unshift({ ...card, id: Date.now(), term: t('flashcards.deckPage.copy', { term: card.term }), status: 'New' })
     await persist()
   }
 }
@@ -333,61 +336,18 @@ const deleteCard = async () => {
   cardToDelete.value = null
 }
 
-// Parse a CSV (the same shape exportDeck produces: Term,Definition,Example,Image,Audio).
-const parseCsv = (text: string): string[][] => {
-  const rows: string[][] = []
-  for (const line of text.split(/\r?\n/)) {
-    if (!line.trim()) continue
-    const cells: string[] = []
-    let cur = '', inQ = false
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (inQ) {
-        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++ }
-        else if (ch === '"') inQ = false
-        else cur += ch
-      } else if (ch === '"') inQ = true
-      else if (ch === ',') { cells.push(cur); cur = '' }
-      else cur += ch
-    }
-    cells.push(cur)
-    rows.push(cells)
-  }
-  if (rows.length && /term/i.test(rows[0]?.[0] ?? '')) rows.shift() // drop header row
-  return rows
-}
-
 const importCards = async (file: File) => {
+  if (!isCsvFile(file)) return toast.error(t('flashcards.importModal.onlyCsv'))
+  const rows = parseCardsCsv(await file.text())
+  if (!rows.length) return toast.error(t('flashcards.importModal.noRows'))
   const now = Date.now()
-  const parsed = parseCsv(await file.text())
-    .filter((r) => (r[0] ?? '').trim())
-    .map((r, i): FlashcardItem => ({
-      id: now + i,
-      term: (r[0] ?? '').trim(),
-      definition: (r[1] ?? '').trim(),
-      example: (r[2] ?? '').trim() || undefined,
-      image: (r[3] ?? '').trim() || undefined,
-      audio: (r[4] ?? '').trim() || undefined,
-      isFavorite: false,
-      status: 'New',
-    }))
-  cards.value.unshift(...parsed)
+  cards.value.unshift(...rows.map((r, i): FlashcardItem => ({ ...r, id: now + i, isFavorite: false, status: 'New' })))
   await persist()
+  toast.success(t('flashcards.importModal.imported', { n: rows.length }))
 }
 
 const exportDeck = () => {
-  const headers = ['Term', 'Definition', 'Example', 'Image', 'Audio']
-  const rows = cards.value.map((card) => [
-    card.term,
-    card.definition,
-    card.example || '',
-    card.image || '',
-    card.audio || '',
-  ])
-
-  const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
-
-  const blob = new Blob([csv], { type: 'text/csv' })
+  const blob = new Blob([cardsToCsv(cards.value)], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

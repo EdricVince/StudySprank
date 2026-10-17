@@ -20,37 +20,3 @@ export interface ClassStudent {
   student_name?: string
   joined_at: string
 }
-
-export interface CreateClassDto {
-  name: string
-  description?: string
-  subject?: string
-  student_limit: number
-}
-
-export interface UpdateClassDto {
-  name?: string
-  description?: string
-  subject?: string
-  student_limit?: number
-  is_active?: boolean
-}
-
-export interface JoinClassDto {
-  class_code: string
-}
-
-// Subject options for classes
-export const CLASS_SUBJECTS = [
-  'General English',
-  'Business English',
-  'IT English',
-  'Tourism English',
-  'Academic English',
-  'Conversation',
-  'Grammar',
-  'Vocabulary',
-  'Other',
-] as const
-
-export type ClassSubject = (typeof CLASS_SUBJECTS)[number]
