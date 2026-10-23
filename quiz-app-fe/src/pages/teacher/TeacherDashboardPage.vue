@@ -247,7 +247,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   BookOpen, Users, FileText, GraduationCap, Plus,
-  Languages, Video, Clock, UserCheck, Activity,
+  Languages, Clock, UserCheck, Activity,
   List,
 } from '@/components/icons'
 import { useAuthStore } from '@/stores/auth.store'
@@ -275,11 +275,10 @@ const greeting = computed(() => {
 const CLASS_EMOJIS = ['📚', '🎓', '🌟', '💡', '🔬', '🎨', '📖', '🏆']
 const CLASS_COLORS = ['bg-primary/10', 'bg-chart-2/10', 'bg-chart-3/10', 'bg-chart-4/10', 'bg-chart-5/10', 'bg-chart-1/10']
 
-const statsValues = ref({ classes: 0, students: 0, videos: 0, tests: 0 })
+const statsValues = ref({ classes: 0, students: 0, tests: 0 })
 const stats = computed(() => [
   { label: t('teacher.dashboard.stats.classes'), value: statsValues.value.classes, icon: BookOpen, color: 'text-primary', bg: 'bg-primary/10' },
   { label: t('teacher.dashboard.stats.students'), value: statsValues.value.students, icon: Users, color: 'text-chart-2', bg: 'bg-chart-2/10' },
-  { label: t('teacher.dashboard.stats.videos'), value: statsValues.value.videos, icon: Video, color: 'text-chart-3', bg: 'bg-chart-3/10' },
   { label: t('teacher.dashboard.stats.tests'), value: statsValues.value.tests, icon: FileText, color: 'text-chart-1', bg: 'bg-chart-1/10' },
 ])
 
@@ -288,7 +287,6 @@ const quickActions = computed(() => [
   { label: t('teacher.dashboard.actions.addLesson'), desc: t('teacher.dashboard.actions.addLessonDesc'), path: '/teacher/lessons', icon: GraduationCap, iconBg: 'bg-chart-2/10', iconColor: 'text-chart-2' },
   { label: t('teacher.dashboard.actions.buildTest'), desc: t('teacher.dashboard.actions.buildTestDesc'), path: '/teacher/tests', icon: FileText, iconBg: 'bg-chart-1/10', iconColor: 'text-chart-1' },
   { label: t('teacher.dashboard.actions.vocabulary'), desc: t('teacher.dashboard.actions.vocabularyDesc'), path: '/teacher/vocabulary', icon: Languages, iconBg: 'bg-chart-3/10', iconColor: 'text-chart-3' },
-  { label: t('teacher.dashboard.actions.uploadVideo'), desc: t('teacher.dashboard.actions.uploadVideoDesc'), path: '/teacher/videos', icon: Video, iconBg: 'bg-chart-4/10', iconColor: 'text-chart-4' },
   { label: t('teacher.dashboard.actions.students'), desc: t('teacher.dashboard.actions.studentsDesc'), path: '/teacher/students', icon: UserCheck, iconBg: 'bg-chart-5/10', iconColor: 'text-chart-5' },
 ])
 
@@ -310,14 +308,12 @@ const classNameFor = (classId: number | null) => {
 
 onMounted(async () => {
   try {
-    const [classes, videos, assigns] = await Promise.all([
+    const [classes, assigns] = await Promise.all([
       api.getClasses() as Promise<(Class & { student_count: number })[]>,
-      api.getVideos() as Promise<{ id: number }[]>,
       api.getAssignments().catch(() => [] as AssignmentData[]),
     ])
     statsValues.value.classes = classes.length
     statsValues.value.students = classes.reduce((sum, c) => sum + (c.student_count ?? 0), 0)
-    statsValues.value.videos = videos.length
     recentClasses.value = classes.slice(0, 5).map((c, i) => ({
       id: c.id,
       name: c.name,

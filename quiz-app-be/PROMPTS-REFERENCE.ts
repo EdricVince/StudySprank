@@ -3,7 +3,7 @@
 /**
  * WRITING_PROMPTS Database Statistics
  * 
- * Total Prompts: 24
+ * Total Prompts: 18
  * 
  * ielts_task1 (Graph/Chart Description): 6 prompts
  *   - ielts_task1_001: Online Shopping Growth Trends
@@ -20,15 +20,7 @@
  *   - ielts_task2_004: Education and Technological Innovation
  *   - ielts_task2_005: Social Media and Mental Health
  *   - ielts_task2_006: Economic Growth vs Environmental Protection
- * 
- * toeic (Business Writing): 6 prompts
- *   - toeic_001: Work-From-Home Policy Decision
- *   - toeic_002: New Office Location Selection
- *   - toeic_003: Training Program Feedback Request
- *   - toeic_004: Project Deadline Extension Request
- *   - toeic_005: Client Communication Issue Resolution
- *   - toeic_006: Budget Allocation Proposal
- * 
+ *
  * general (Personal/Descriptive): 6 prompts
  *   - general_001: A Place That Shaped You
  *   - general_002: A Person Who Influenced You

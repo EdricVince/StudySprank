@@ -352,7 +352,7 @@ const features = computed(() => status.value?.features ?? [])
 // Keyed by the exact feature keys returned by the backend (admin.controller getAiStatus),
 // so every built-in feature shows its own icon, colour tint and description.
 const FEATURE_META: Record<string, { icon: string; bgColor: string; desc: string }> = {
-  entrance_exam:   { icon: '📝', bgColor: 'adm-feat-bg-indigo', desc: 'IELTS · TOEFL · TOEIC mock exams' },
+  entrance_exam:   { icon: '📝', bgColor: 'adm-feat-bg-indigo', desc: 'IELTS mock exams' },
   writing:         { icon: '✍️',  bgColor: 'adm-feat-bg-purple', desc: 'Score & give feedback on essays' },
   speaking:        { icon: '🎤', bgColor: 'adm-feat-bg-pink',   desc: 'Analyse and rate spoken answers' },
   reading:         { icon: '📖', bgColor: 'adm-feat-bg-blue',   desc: 'Generate reading comprehension tasks' },

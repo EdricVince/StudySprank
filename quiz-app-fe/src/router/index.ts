@@ -39,7 +39,6 @@ const TEACHER_ROUTES = {
     { path: 'dashboard',  name: 'TeacherDashboard',  component: () => import('@/pages/teacher/TeacherDashboardPage.vue') },
     { path: 'classes',    name: 'TeacherClasses',    component: () => import('@/pages/teacher/ClassesPage.vue') },
     { path: 'classes/:id', name: 'TeacherClassDetail', component: () => import('@/pages/teacher/ClassDetailPage.vue') },
-    { path: 'videos',     name: 'TeacherVideos',     component: () => import('@/pages/teacher/VideosPage.vue') },
     { path: 'tests',      name: 'TeacherTests',      component: () => import('@/pages/teacher/TestsPage.vue') },
     { path: 'tests/new',  name: 'TeacherTestBuilder', component: () => import('@/pages/teacher/TestBuilderPage.vue') },
     { path: 'tests/:id/edit',    name: 'TeacherTestEdit',    component: () => import('@/pages/teacher/TestBuilderPage.vue') },
@@ -47,7 +46,6 @@ const TEACHER_ROUTES = {
     { path: 'students',   name: 'TeacherStudents',   component: () => import('@/pages/teacher/StudentsPage.vue') },
     { path: 'lessons',    name: 'TeacherLessons',    component: () => import('@/pages/teacher/LessonsPage.vue') },
     { path: 'vocabulary', name: 'TeacherVocabulary', component: () => import('@/pages/teacher/VocabularyPage.vue') },
-    { path: 'live',       name: 'TeacherLiveQuiz',   component: () => import('@/pages/teacher/LiveQuizPage.vue') },
     { path: 'analytics',  name: 'TeacherAnalytics',  component: () => import('@/pages/teacher/AnalyticsPage.vue') },
   ],
 }
@@ -95,9 +93,6 @@ const routes = [
       { path: 'statistics',   name: 'Statistics',   component: () => import('@/pages/student/StatisticsPage.vue') },
       { path: 'settings',     name: 'Settings',     component: () => import('@/pages/student/SettingsPage.vue') },
 
-      // Online Learning
-      { path: 'classroom', name: 'Classroom', component: () => import('@/pages/student/ClassroomPage.vue') },
-      { path: 'live-quiz',  name: 'LiveQuiz',  component: () => import('@/pages/student/LiveQuizPage.vue') },
 
       // New Features
       { path: 'entrance-exam',          name: 'EntranceExam',   component: () => import('@/pages/student/EntranceExamPage.vue') },

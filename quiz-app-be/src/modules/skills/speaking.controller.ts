@@ -1,5 +1,14 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtGuard } from '../../core/guards/jwt.guard';
+import type { AuthenticatedRequest } from '../../core/decorators/current-user.decorator';
 import { SpeakingService } from './speaking.service';
 import { EvaluateSpeakingDto } from './dto/skills.dto';
 import type { CefrLevel } from './dto/skills.dto';
@@ -10,14 +19,23 @@ export class SpeakingController {
   constructor(private readonly speaking: SpeakingService) {}
 
   @Get('exercise')
-  async getExercise(@Query('level') level?: CefrLevel) {
-    const data = await this.speaking.getExercise(level ?? 'B1');
+  async getExercise(
+    @Req() req: AuthenticatedRequest,
+    @Query('level') level?: CefrLevel,
+  ) {
+    const data = await this.speaking.getExercise(level ?? 'B1', req.user.id);
     return { code: 200, message: 'Exercise generated', data };
   }
 
   @Get('prompt')
-  async getSpeakingPrompt(@Query('level') level?: CefrLevel) {
-    const data = await this.speaking.getSpeakingPrompt(level ?? 'B1');
+  async getSpeakingPrompt(
+    @Req() req: AuthenticatedRequest,
+    @Query('level') level?: CefrLevel,
+  ) {
+    const data = await this.speaking.getSpeakingPrompt(
+      level ?? 'B1',
+      req.user.id,
+    );
     return { code: 200, message: 'Prompt generated', data };
   }
 

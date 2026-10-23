@@ -174,11 +174,6 @@ const library = [
     { title: 'Cognitive Neuroscience', author: 'Academic', level: 'C1' },
     { title: 'Behavioral Economics', author: 'Academic', level: 'C2' },
   ]},
-  { key: 'toeic', icon: '💼', type: 'toeic', books: [
-    { title: 'Workplace Communication', author: 'Business', level: 'B1' },
-    { title: 'Global Marketing', author: 'Business', level: 'B2' },
-    { title: 'Corporate Strategy', author: 'Business', level: 'C1' },
-  ]},
   { key: 'science', icon: '🔬', type: 'academic', books: [
     { title: 'Introduction to Psychology', author: 'Research', level: 'B1' },
     { title: 'Artificial Intelligence', author: 'MIT Press', level: 'B2' },

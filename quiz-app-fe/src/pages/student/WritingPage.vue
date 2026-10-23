@@ -193,7 +193,7 @@ import { api } from '@/utils/api'
 import { fmtTime, clockTime, errorText } from '@/utils/skills'
 import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
 
-type WritingType = 'ielts_task2' | 'ielts_task1' | 'toeic' | 'general'
+type WritingType = 'ielts_task2' | 'ielts_task1' | 'general'
 type CEFRLevel = 'A2' | 'B1' | 'B2'
 type Phase = 'select'|'loading'|'writing'|'evaluating'|'results'|'error'|'submit-error'
 
@@ -201,7 +201,6 @@ type Phase = 'select'|'loading'|'writing'|'evaluating'|'results'|'error'|'submit
 const examTypes: { value: WritingType; emoji: string; time: number; level: string; cefrLevel: CEFRLevel; levelBg: string; cardClass: string }[] = [
   { value:'ielts_task2', emoji:'🎓', time:40, level:'B2–C2', cefrLevel:'B2', levelBg:'cbadge-indigo', cardClass:'card-tint-indigo' },
   { value:'ielts_task1', emoji:'📊', time:20, level:'B1–C1', cefrLevel:'B1', levelBg:'cbadge-blue', cardClass:'card-tint-blue' },
-  { value:'toeic',       emoji:'💼', time:30, level:'B1–B2', cefrLevel:'B1', levelBg:'cbadge-teal', cardClass:'card-tint-teal' },
   { value:'general',     emoji:'📝', time:25, level:'A2–B2', cefrLevel:'B1', levelBg:'cbadge-rose', cardClass:'card-tint-rose' },
 ]
 

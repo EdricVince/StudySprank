@@ -134,7 +134,7 @@ import {
   Search, Clock, ArrowRight, SearchX,
   BookOpen, Layers, Gamepad2, Target, Trophy, BarChart3,
   GraduationCap, Headphones, Languages, PenTool, MessageCircle,
-  FileText, Calendar, Video, Radio, LayoutDashboard, Settings, User,
+  FileText, Calendar, LayoutDashboard, Settings, User,
 } from '@/components/icons'
 
 interface SearchResult {
@@ -195,9 +195,7 @@ const rawItems = [
   { id: 'n5',  title: 'Goals',             description: 'Set and track learning objectives',            category: 'Pages',    icon: Target,          path: '/goals',                    bgClass: 'bg-red-500/10',    iconClass: 'text-red-500' },
   { id: 'n6',  title: 'Achievements',      description: 'Your earned badges and milestones',            category: 'Pages',    icon: Trophy,          path: '/achievements',             bgClass: 'bg-amber-500/10',  iconClass: 'text-amber-500' },
   { id: 'n7',  title: 'Statistics',        description: 'Detailed learning progress charts',            category: 'Pages',    icon: BarChart3,       path: '/statistics',               bgClass: 'bg-cyan-500/10',   iconClass: 'text-cyan-500' },
-  { id: 'n8',  title: 'Classroom',         description: 'Online classes with your teacher',             category: 'Pages',    icon: Video,           path: '/classroom',                bgClass: 'bg-pink-500/10',   iconClass: 'text-pink-500' },
-  { id: 'n9',  title: 'Live Lesson',       description: 'Join or host real-time teacher-led lessons',   category: 'Pages',    icon: Radio,           path: '/live-quiz',                bgClass: 'bg-rose-500/10',   iconClass: 'text-rose-500' },
-  { id: 'n10', title: 'Entrance Exam',     description: 'IELTS & TOEIC proficiency assessment',         category: 'Pages',    icon: FileText,        path: '/entrance-exam',            bgClass: 'bg-indigo-500/10', iconClass: 'text-indigo-500' },
+  { id: 'n10', title: 'Entrance Exam',     description: 'IELTS proficiency assessment',         category: 'Pages',    icon: FileText,        path: '/entrance-exam',            bgClass: 'bg-indigo-500/10', iconClass: 'text-indigo-500' },
   { id: 'n11', title: 'AI Study Plan',     description: 'Personalized AI-generated study schedule',    category: 'Pages',    icon: Calendar,        path: '/schedule',                 bgClass: 'bg-green-500/10',  iconClass: 'text-green-500' },
   { id: 'n12', title: 'Settings',          description: 'Account and app preferences',                  category: 'Pages',    icon: Settings,        path: '/settings',                 bgClass: 'bg-muted',         iconClass: 'text-muted-foreground' },
   { id: 'n13', title: 'Profile',           description: 'View and edit your profile',                   category: 'Pages',    icon: User,            path: '/profile',                  bgClass: 'bg-muted',         iconClass: 'text-muted-foreground' },
@@ -219,7 +217,6 @@ const rawItems = [
   { id: 'q5',  title: 'True or False',         description: 'Decide if statements are correct',        category: 'Quizzes',  icon: Gamepad2,        path: '/quizzes/true-false',       bgClass: 'bg-orange-500/10', iconClass: 'text-orange-500' },
   // Exams
   { id: 'e1',  title: 'IELTS Academic Exam',   description: 'Cambridge standard assessment',           category: 'Exam & Schedule', icon: FileText, path: '/entrance-exam',           bgClass: 'bg-indigo-500/10', iconClass: 'text-indigo-500' },
-  { id: 'e2',  title: 'TOEIC Exam',            description: 'ETS standard business English',           category: 'Exam & Schedule', icon: FileText, path: '/entrance-exam',           bgClass: 'bg-indigo-500/10', iconClass: 'text-indigo-500' },
   { id: 'e3',  title: 'AI Study Schedule',     description: 'Generate a personalized study plan',      category: 'Exam & Schedule', icon: Calendar, path: '/schedule',               bgClass: 'bg-green-500/10',  iconClass: 'text-green-500' },
 ]
 

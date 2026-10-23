@@ -283,8 +283,6 @@ import {
   Gamepad2,
   Target,
   GraduationCap,
-  Video,
-  Radio,
   FileText,
   Calendar,
 } from '@/components/icons'
@@ -310,7 +308,7 @@ const toggleSidebar = () => { isCollapsed.value = !isCollapsed.value }
 // Back button: show on any route that's not a top-level nav page
 const topLevelPaths = new Set([
   '/dashboard', '/courses', '/flashcards', '/quizzes', '/goals', '/achievements',
-  '/statistics', '/settings', '/profile', '/classroom', '/live-quiz',
+  '/statistics', '/settings', '/profile',
   '/entrance-exam', '/schedule', '/skills',
 ])
 const isSubPage = computed(() => !topLevelPaths.has(route.path))
@@ -385,13 +383,6 @@ const menuSections = computed(() => [
       { path: '/courses', label: t('nav.items.myCourses'), icon: BookOpen },
       { path: '/flashcards', label: t('nav.items.flashcards'), icon: Layers },
       { path: '/quizzes', label: t('nav.items.quizzes'), icon: Gamepad2 },
-    ],
-  },
-  {
-    title: t('nav.sections.onlineLearning'),
-    items: [
-      { path: '/classroom', label: t('nav.items.classroom'), icon: Video },
-      { path: '/live-quiz', label: t('nav.items.liveQuiz'), icon: Radio },
     ],
   },
   {

@@ -221,7 +221,6 @@ import {
   BookOpen,
   Users,
   FileText,
-  Video,
   Languages,
   GraduationCap,
   Menu,
@@ -229,7 +228,6 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  Radio,
   BarChart2,
 } from '@/components/icons'
 import { useAuthStore } from '@/stores/auth.store'
@@ -254,8 +252,6 @@ const contentNavItems = computed(() => [
   { path: '/teacher/lessons', label: t('teacher.nav.lessons'), icon: GraduationCap },
   { path: '/teacher/vocabulary', label: t('teacher.nav.vocabulary'), icon: Languages },
   { path: '/teacher/tests', label: t('teacher.nav.tests'), icon: FileText },
-  { path: '/teacher/live', label: t('teacher.nav.liveQuiz'), icon: Radio },
-  { path: '/teacher/videos', label: t('teacher.nav.videos'), icon: Video },
 ])
 
 const pageTitleKeys: Record<string, string> = {
@@ -266,8 +262,6 @@ const pageTitleKeys: Record<string, string> = {
   '/teacher/lessons': 'teacher.nav.lessons',
   '/teacher/vocabulary': 'teacher.nav.vocabulary',
   '/teacher/tests': 'teacher.nav.tests',
-  '/teacher/live': 'teacher.nav.liveQuiz',
-  '/teacher/videos': 'teacher.nav.videos',
 }
 
 const currentPageTitle = computed(() => {

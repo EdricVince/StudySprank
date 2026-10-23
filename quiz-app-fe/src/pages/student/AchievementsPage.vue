@@ -9,6 +9,7 @@
         </div>
         <div class="flex items-center gap-3">
           <button
+            type="button"
             class="bg-secondary text-foreground flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all hover:bg-secondary/80"
             @click="handleShareAchievements"
           >
@@ -68,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Share2 } from '@/components/icons'
 
@@ -106,27 +107,63 @@ const {
 
 const showShareToast = ref(false)
 const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | undefined
 
-const copyToClipboard = async (text: string) => {
+function showToast(message: string) {
+  toastMessage.value = message
+  showShareToast.value = true
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { showShareToast.value = false }, 3000)
+}
+
+/** Clipboard API needs a secure context; fall back to a hidden textarea + execCommand. */
+async function copyText(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(text)
-    showShareToast.value = true
-    setTimeout(() => { showShareToast.value = false }, 3000)
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* permission denied / insecure origin — try the fallback */ }
+  try {
+    const area = document.createElement('textarea')
+    area.value = text
+    area.setAttribute('readonly', '')
+    area.style.position = 'fixed'
+    area.style.opacity = '0'
+    document.body.appendChild(area)
+    area.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(area)
+    return ok
   } catch {
-    console.error('Failed to copy')
+    return false
   }
 }
 
-const handleShareAchievements = async () => {
-  const text = `I've earned ${earnedCount.value} achievements (${totalPoints.value} pts) on StudySpark!`
-  toastMessage.value = t('achievements.linkCopied')
-  await copyToClipboard(text)
+/** Native share sheet when available (mobile), otherwise copy the text. */
+async function share(text: string, successMessage: string) {
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ text })
+      showToast(successMessage)
+      return
+    } catch (e) {
+      if ((e as DOMException)?.name === 'AbortError') return // user closed the share sheet
+    }
+  }
+  showToast((await copyText(text)) ? successMessage : t('achievements.shareFailed'))
 }
 
+const handleShareAchievements = () =>
+  share(
+    t('achievements.shareText', { count: earnedCount.value, points: totalPoints.value }),
+    t('achievements.linkCopied'),
+  )
+
 const handleShareAchievement = async (achievement: EnhancedAchievement) => {
-  const text = `I just earned "${achievement.name}" on StudySpark!`
-  toastMessage.value = t('achievements.achievementShared')
-  await copyToClipboard(text)
   closeModal()
+  await share(t('achievements.shareOneText', { name: achievement.name }), t('achievements.achievementShared'))
 }
+
+onUnmounted(() => clearTimeout(toastTimer))
 </script>

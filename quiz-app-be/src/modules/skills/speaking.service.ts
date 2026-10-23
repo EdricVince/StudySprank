@@ -10,25 +10,47 @@ import {
 } from '../../core/ai/anthropic';
 import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type { EvaluateSpeakingDto, CefrLevel } from './dto/skills.dto';
+import { SkillMaterialsService, stringField } from './skill-materials.service';
 
 @Injectable()
 export class SpeakingService {
   private readonly logger = new Logger(SpeakingService.name);
 
-  constructor() {}
+  constructor(private readonly materials: SkillMaterialsService) {}
 
   private get client() {
     return getAnthropicClient();
   }
 
-  async getExercise(level: CefrLevel = 'B1') {
+  async getExercise(level: CefrLevel = 'B1', userId?: number) {
     if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
-    return this.generateExercise(level);
+    const exercise = await this.generateExercise(level);
+    // Keep the generated shadowing text in the database.
+    await this.materials.save({
+      skill: 'speaking',
+      kind: 'shadowing',
+      level,
+      topic: stringField(exercise, 'topic'),
+      content: exercise,
+      userId,
+    });
+    return exercise;
   }
 
-  async getSpeakingPrompt(level: CefrLevel = 'B1') {
+  async getSpeakingPrompt(level: CefrLevel = 'B1', userId?: number) {
     if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
-    return this.generateSpeakingPrompt(level);
+    const prompt = await this.generateSpeakingPrompt(level);
+    // Keep the generated IELTS Speaking prompt, tagged with its part (1/2/3).
+    const part = typeof prompt.part === 'number' ? prompt.part : null;
+    await this.materials.save({
+      skill: 'speaking',
+      kind: part ? `ielts_part${part}` : 'ielts_speaking',
+      level,
+      topic: stringField(prompt, 'topic'),
+      content: prompt,
+      userId,
+    });
+    return prompt;
   }
 
   async evaluate(dto: EvaluateSpeakingDto) {

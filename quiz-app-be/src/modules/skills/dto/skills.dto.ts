@@ -11,21 +11,16 @@ import {
 import { Type } from 'class-transformer';
 
 export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-export type ReadingType = 'story' | 'ielts' | 'toeic' | 'academic' | 'news';
-export type ListeningType =
-  | 'conversation'
-  | 'monologue'
-  | 'ielts'
-  | 'toeic'
-  | 'lecture';
-export type WritingType = 'ielts_task1' | 'ielts_task2' | 'toeic' | 'general';
+export type ReadingType = 'story' | 'ielts' | 'academic' | 'news';
+export type ListeningType = 'conversation' | 'monologue' | 'ielts' | 'lecture';
+export type WritingType = 'ielts_task1' | 'ielts_task2' | 'general';
 
 export class GetReadingDto {
   @IsEnum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
   @IsOptional()
   level?: CefrLevel;
 
-  @IsEnum(['story', 'ielts', 'toeic', 'academic', 'news'])
+  @IsEnum(['story', 'ielts', 'academic', 'news'])
   @IsOptional()
   type?: ReadingType;
 
@@ -59,7 +54,7 @@ export class GetListeningDto {
   @IsOptional()
   level?: CefrLevel;
 
-  @IsEnum(['conversation', 'monologue', 'ielts', 'toeic', 'lecture'])
+  @IsEnum(['conversation', 'monologue', 'ielts', 'lecture'])
   @IsOptional()
   type?: ListeningType;
 
@@ -69,7 +64,7 @@ export class GetListeningDto {
 }
 
 export class GetWritingPromptDto {
-  @IsEnum(['ielts_task1', 'ielts_task2', 'toeic', 'general'])
+  @IsEnum(['ielts_task1', 'ielts_task2', 'general'])
   @IsOptional()
   type?: WritingType;
 
@@ -85,7 +80,7 @@ export class SubmitWritingDto {
   @IsString()
   essay: string;
 
-  @IsEnum(['ielts_task1', 'ielts_task2', 'toeic', 'general'])
+  @IsEnum(['ielts_task1', 'ielts_task2', 'general'])
   type: WritingType;
 
   @IsEnum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'])

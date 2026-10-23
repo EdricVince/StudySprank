@@ -10,13 +10,13 @@ import {
 } from 'class-validator';
 
 export type CefrLevel = 'beginner' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-export type TargetExam = 'IELTS' | 'TOEIC' | 'TOEFL' | 'General';
+export type TargetExam = 'IELTS' | 'General';
 
 export class GenerateScheduleDto {
   @IsEnum(['beginner', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
   current_level: CefrLevel;
 
-  @IsEnum(['IELTS', 'TOEIC', 'TOEFL', 'General'])
+  @IsEnum(['IELTS', 'General'])
   target_exam: TargetExam;
 
   @IsString()

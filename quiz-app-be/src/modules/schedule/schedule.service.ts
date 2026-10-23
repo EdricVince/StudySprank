@@ -16,13 +16,13 @@ import type {
 } from './dto/schedule.dto';
 
 const MONTHS_BY_LEVEL: Record<string, Record<string, number>> = {
-  beginner: { IELTS: 12, TOEIC: 10, TOEFL: 12, General: 8 },
-  A1: { IELTS: 10, TOEIC: 8, TOEFL: 10, General: 6 },
-  A2: { IELTS: 8, TOEIC: 6, TOEFL: 8, General: 5 },
-  B1: { IELTS: 5, TOEIC: 4, TOEFL: 5, General: 3 },
-  B2: { IELTS: 3, TOEIC: 2, TOEFL: 4, General: 2 },
-  C1: { IELTS: 2, TOEIC: 1, TOEFL: 2, General: 1 },
-  C2: { IELTS: 1, TOEIC: 1, TOEFL: 1, General: 1 },
+  beginner: { IELTS: 12, General: 8 },
+  A1: { IELTS: 10, General: 6 },
+  A2: { IELTS: 8, General: 5 },
+  B1: { IELTS: 5, General: 3 },
+  B2: { IELTS: 3, General: 2 },
+  C1: { IELTS: 2, General: 1 },
+  C2: { IELTS: 1, General: 1 },
 };
 
 function getMonthsNeeded(
@@ -39,10 +39,6 @@ function getMonthsNeeded(
       if (n >= 8.0) months = Math.ceil(months * 1.4);
       else if (n >= 7.0) months = Math.ceil(months * 1.2);
       else if (n <= 5.0) months = Math.ceil(months * 0.85);
-    } else if (exam === 'TOEIC') {
-      if (n >= 900) months = Math.ceil(months * 1.3);
-      else if (n >= 800) months = Math.ceil(months * 1.1);
-      else if (n <= 500) months = Math.ceil(months * 0.8);
     }
   }
   const hoursMultiplier = 10 / Math.max(weeklyHours, 2);
@@ -53,10 +49,8 @@ function getMonthsNeeded(
 function getTier(level: string, exam: string, targetBand?: string): 1 | 2 | 3 {
   if (level === 'C1' || level === 'C2') return 3;
   if (exam === 'IELTS' && targetBand && parseFloat(targetBand) >= 7.0) return 3;
-  if (exam === 'TOEIC' && targetBand && parseFloat(targetBand) >= 800) return 3;
   if (level === 'B1' || level === 'B2') return 2;
   if (exam === 'IELTS' && targetBand && parseFloat(targetBand) >= 5.0) return 2;
-  if (exam === 'TOEIC' && targetBand && parseFloat(targetBand) >= 500) return 2;
   return 1;
 }
 

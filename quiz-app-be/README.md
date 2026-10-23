@@ -1,6 +1,6 @@
 # StudySpark API (quiz-app-be)
 
-NestJS 11 + TypeORM + PostgreSQL. REST under `/api/v1`, Socket.IO for live quizzes and battles.
+NestJS 11 + TypeORM + PostgreSQL. REST under `/api/v1`, Socket.IO for battles.
 Swagger UI at `/api/docs` when `NODE_ENV=development`.
 
 ## Run
@@ -58,8 +58,8 @@ Helper scripts: `pnpm seed` (roles), `pnpm create-teacher`, `pnpm sync:fks` (leg
 
 ```
 src/core/       security (JWT, guards, rate limit, SSRF guard, CORS, Helmet), ai/anthropic.ts, database/
-src/modules/    auth, users, roles, admin, classes, lessons, tests, assignments, videos, vocab-sets,
-                flashcard-decks (SM-2), progress, goals, live-quiz, battle, skills, entrance-exam, schedule, ai
+src/modules/    auth, users, roles, admin, classes, lessons, tests, assignments, vocab-sets,
+                flashcard-decks (SM-2), progress, goals, battle, skills (AI exercises saved to skill_materials), entrance-exam (IELTS papers/questions/attempts), schedule, ai
 src/migrations/ TypeORM migrations
 test/           e2e tests (Supertest)
 ```

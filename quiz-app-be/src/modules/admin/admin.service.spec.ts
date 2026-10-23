@@ -33,10 +33,9 @@ describe('AdminService.deleteUser — transactional cascade', () => {
       expect.arrayContaining([
         'ClassEnrollment',
         'Class',
-        'Video',
         'Lesson',
-        'LiveSession',
         'UserProgress',
+        'ExamAttempt',
         'DailyActivity',
         'UserGoalSettings',
         'UserCustomGoal',

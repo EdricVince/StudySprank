@@ -86,90 +86,110 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
         </div>
       </div>
 
-      <!-- Exam Cards -->
-      <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <div
-          v-for="exam in exams"
-          :key="exam.type"
-          class="group relative flex flex-col overflow-hidden rounded-2xl border transition-all duration-300"
-          :class="[exam.cardClass, aiReady ? 'cursor-pointer hover:-translate-y-1 hover:shadow-2xl' : 'opacity-60 cursor-not-allowed']"
-          @click="aiReady && startExam(exam.type)"
-        >
-          <!-- Gradient overlay -->
-          <div class="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" :class="exam.hoverGradient" />
-
-          <!-- Card content -->
-          <div class="relative flex flex-1 flex-col p-6">
-            <!-- Header row -->
+      <!-- IELTS test card -->
+      <div class="card-tint-indigo relative overflow-hidden rounded-2xl border">
+        <div class="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
+        <div class="relative grid gap-6 p-6 lg:grid-cols-5 lg:p-8">
+          <!-- Left: what the test is -->
+          <div class="flex flex-col lg:col-span-2">
             <div class="mb-4 flex items-start justify-between">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl" :class="exam.iconBg">
-                {{ exam.icon }}
-              </div>
-              <div class="flex flex-col items-end gap-1">
-                <span class="rounded-full px-3 py-1 text-xs font-bold" :class="exam.badgeClass">{{ exam.standard }}</span>
-                <span class="text-muted-foreground text-xs">{{ $t('exam.format') }}</span>
-              </div>
+              <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/15 text-3xl">🎓</div>
+              <span class="cbadge-indigo rounded-full px-3 py-1 text-xs font-bold">Cambridge</span>
             </div>
+            <h2 class="text-foreground text-2xl font-extrabold">{{ $t('exam.ielts.name') }}</h2>
+            <p class="text-muted-foreground mt-2 text-sm leading-relaxed">{{ $t('exam.ielts.desc') }}</p>
 
-            <!-- Title & desc -->
-            <h2 class="text-foreground text-xl font-extrabold">{{ exam.name }}</h2>
-            <p class="text-muted-foreground mt-1 text-xs leading-relaxed">{{ exam.desc }}</p>
-
-            <!-- Stats row -->
-            <div class="mt-4 grid grid-cols-3 gap-2">
-              <div v-for="s in exam.stats" :key="s.label" class="rounded-xl p-2.5 text-center" :class="exam.statBg">
-                <div class="text-base font-extrabold" :class="exam.accentColor">{{ s.value }}</div>
+            <div class="mt-5 grid grid-cols-3 gap-2">
+              <div v-for="s in cardStats" :key="s.label" class="cstat-indigo rounded-xl p-2.5 text-center">
+                <div class="ct-indigo text-lg font-extrabold">{{ s.value }}</div>
                 <div class="text-muted-foreground text-[11px]">{{ s.label }}</div>
               </div>
             </div>
 
-            <!-- Sections — 2-col grid, max 4 visible + overflow badge -->
-            <div class="mt-3 grid grid-cols-2 gap-1.5">
-              <span
-                v-for="sk in exam.sections.slice(0, 4)"
-                :key="sk"
-                class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium truncate"
-                :class="exam.sectionClass"
-              >
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="exam.dotColor"></span>
-                <span class="truncate">{{ sk }}</span>
-              </span>
-              <span
-                v-if="exam.sections.length > 4"
-                class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
-                :class="exam.sectionClass"
-              >
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="exam.dotColor"></span>
-                {{ $t('exam.more', { n: exam.sections.length - 4 }) }}
-              </span>
-            </div>
-
-            <!-- Spacer pushes footer to bottom -->
-            <div class="flex-1" />
-
-            <!-- Band range -->
-            <div class="mt-4 flex items-center justify-between rounded-xl border p-3" :class="exam.rangeBg">
+            <div class="crange-indigo mt-4 flex items-center justify-between rounded-xl border p-3">
               <div>
                 <div class="text-muted-foreground text-[11px]">{{ $t('exam.scoreRange') }}</div>
-                <div class="text-foreground text-sm font-bold">{{ exam.scoreRange }}</div>
+                <div class="text-foreground text-sm font-bold">{{ $t('exam.ranges.ielts') }}</div>
               </div>
               <div class="text-right">
                 <div class="text-muted-foreground text-[11px]">{{ $t('exam.duration') }}</div>
-                <div class="text-foreground text-sm font-bold">{{ $t('exam.minutesN', { n: exam.time }) }}</div>
+                <div class="text-foreground text-sm font-bold">{{ $t('exam.minutesN', { n: 30 }) }}</div>
               </div>
             </div>
 
-            <!-- Start button -->
+            <div class="flex-1" />
             <button
-              class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold transition-all duration-200"
-              :class="aiReady ? [exam.btnClass, 'hover:scale-[1.02] active:scale-[0.98]'] : 'bg-muted text-muted-foreground cursor-not-allowed'"
+              type="button"
+              class="mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold transition-all duration-200"
+              :class="aiReady
+                ? 'bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20 hover:scale-[1.02] hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98]'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'"
               :disabled="!aiReady"
-              @click.stop="aiReady && startExam(exam.type)"
+              @click="startExam"
             >
               {{ aiReady === false ? $t('exam.aiKeyRequired') : $t('exam.startExam') }}
             </button>
           </div>
+
+          <!-- Right: test format -->
+          <div class="lg:col-span-3">
+            <h3 class="text-muted-foreground mb-3 text-xs font-bold uppercase tracking-wider">{{ $t('exam.format') }}</h3>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div v-for="p in parts" :key="p.key" class="rounded-xl border p-4" :class="p.cls">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="flex items-center gap-2 text-sm font-bold"><span class="text-lg">{{ p.icon }}</span>{{ p.title }}</span>
+                  <span class="text-xs font-semibold opacity-80">{{ p.count }}</span>
+                </div>
+                <p class="mt-2 text-xs leading-relaxed opacity-80">{{ p.desc }}</p>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- Your recent tests (stored in the database) -->
+      <div class="bg-card border-border rounded-2xl border p-6">
+        <div class="mb-4 flex items-center gap-3">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10">
+            <History class="h-4 w-4 text-indigo-400" />
+          </div>
+          <div>
+            <h3 class="text-foreground text-base font-bold">{{ $t('exam.history.title') }}</h3>
+            <p class="text-muted-foreground text-xs">{{ $t('exam.history.subtitle') }}</p>
+          </div>
+        </div>
+
+        <div v-if="historyLoading" class="space-y-2">
+          <div v-for="i in 2" :key="i" class="bg-muted/40 h-14 animate-pulse rounded-xl" />
+        </div>
+        <p v-else-if="historyError" class="text-sm text-red-400">{{ $t('exam.history.loadFailed') }}</p>
+        <p v-else-if="!history.length" class="text-muted-foreground py-6 text-center text-sm">{{ $t('exam.history.empty') }}</p>
+        <ul v-else class="divide-border divide-y">
+          <li v-for="h in history" :key="h.attempt_id" class="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+            <div class="min-w-0 flex-1">
+              <div class="text-foreground truncate text-sm font-semibold">{{ themeName(h.theme) }}</div>
+              <div class="text-muted-foreground text-xs">{{ formatDate(h.submitted_at) }}</div>
+            </div>
+            <div class="text-right">
+              <div class="ct-indigo text-sm font-extrabold">{{ h.estimated_band ?? '—' }}</div>
+              <div class="text-muted-foreground text-xs">
+                {{ h.score_percent ?? 0 }}% · {{ h.correct ?? 0 }}/{{ h.total ?? 0 }}
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="border-border text-foreground hover:bg-accent rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors"
+                @click="viewResult(h.attempt_id)"
+              >{{ $t('exam.history.view') }}</button>
+              <button
+                type="button"
+                class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-500"
+                @click="retakePaper(h.paper_id)"
+              >{{ $t('exam.history.retake') }}</button>
+            </div>
+          </li>
+        </ul>
       </div>
 
       <!-- How it works -->
@@ -206,13 +226,17 @@ class="h-full rounded-full bg-linear-to-r from-indigo-500 to-violet-500 transiti
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { CheckCircle, Clock, FileText, BarChart3, Shuffle } from '@/components/icons'
-import { apiRequest } from '@/utils/api'
+import { CheckCircle, Clock, FileText, BarChart3, Shuffle, History } from '@/components/icons'
+import { api, apiRequest } from '@/utils/api'
+import type { ExamHistoryItem } from '@/types/content'
 
 const router = useRouter()
-const { t } = useI18n({ useScope: 'global' })
+const { t, locale } = useI18n({ useScope: 'global' })
 
 const aiReady = ref<boolean | null>(null)
+const history = ref<ExamHistoryItem[]>([])
+const historyLoading = ref(true)
+const historyError = ref(false)
 
 onMounted(async () => {
   try {
@@ -220,6 +244,14 @@ onMounted(async () => {
     aiReady.value = status.ai_enabled
   } catch {
     aiReady.value = false
+  }
+  // Past sittings are stored in the database, so they show even while the AI is off.
+  try {
+    history.value = await api.getExamHistory()
+  } catch {
+    historyError.value = true
+  } finally {
+    historyLoading.value = false
   }
 })
 
@@ -241,89 +273,25 @@ const bandLabel = computed(() => t(`exam.bands.${pick(BAND_LABELS, targetBand.va
 const cefrForBand = computed(() => t(`exam.cefr.${pick(BAND_CEFR, targetBand.value)}`))
 
 const heroStats = computed(() => [
-  { label: t('exam.stats.questions'),  value: '20',                           icon: FileText,    bg: 'bg-indigo-500/10', color: 'text-indigo-400' },
-  { label: t('exam.stats.aiGrading'),  value: t('exam.stats.instant'),        icon: CheckCircle, bg: 'bg-green-500/10',  color: 'text-green-400' },
-  { label: t('exam.stats.examSets'),   value: t('exam.stats.unique', { n: 6 }), icon: Shuffle,   bg: 'bg-violet-500/10', color: 'text-violet-400' },
-  { label: t('exam.stats.standards'),  value: 'Cambridge+ETS',                icon: BarChart3,   bg: 'bg-amber-500/10',  color: 'text-amber-400' },
-  { label: t('exam.stats.timeLimit'),  value: t('exam.minutesN', { n: '25–35' }), icon: Clock,   bg: 'bg-blue-500/10',   color: 'text-blue-400' },
+  { label: t('exam.stats.questions'),  value: '20',                            icon: FileText,    bg: 'bg-indigo-500/10', color: 'text-indigo-400' },
+  { label: t('exam.stats.aiGrading'),  value: t('exam.stats.instant'),         icon: CheckCircle, bg: 'bg-green-500/10',  color: 'text-green-400' },
+  { label: t('exam.stats.examSets'),   value: t('exam.stats.unique', { n: 18 }), icon: Shuffle,   bg: 'bg-violet-500/10', color: 'text-violet-400' },
+  { label: t('exam.stats.standards'),  value: 'Cambridge',                     icon: BarChart3,   bg: 'bg-amber-500/10',  color: 'text-amber-400' },
+  { label: t('exam.stats.timeLimit'),  value: t('exam.minutesN', { n: 30 }),   icon: Clock,       bg: 'bg-blue-500/10',   color: 'text-blue-400' },
 ])
 
-const exams = computed(() => [
-  {
-    type: 'ielts',
-    icon: '🎓',
-    name: 'IELTS Academic',
-    desc: t('exam.ielts.desc'),
-    standard: 'Cambridge',
-    questions: 20, time: 30,
-    sections: ['Listening Part 1', 'Listening Part 2', 'Reading (11q)', 'Writing (2 tasks)'],
-    scoreRange: t('exam.ranges.ielts'),
-    stats: [
-      { value: '20', label: t('exam.stats.questions') },
-      { value: '30', label: t('exam.stats.minutes') },
-      { value: '9.0', label: t('exam.stats.maxBand') },
-    ],
-    cardClass: 'card-tint-indigo',
-    hoverGradient: 'bg-linear-to-br from-indigo-500/5 to-violet-500/5',
-    iconBg: 'bg-indigo-500/15',
-    badgeClass: 'cbadge-indigo',
-    statBg: 'cstat-indigo',
-    accentColor: 'ct-indigo',
-    sectionClass: 'cpill-indigo',
-    dotColor: 'bg-indigo-400',
-    rangeBg: 'crange-indigo',
-    btnClass: 'bg-linear-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-500/20',
-  },
-  {
-    type: 'toeic',
-    icon: '💼',
-    name: 'TOEIC',
-    desc: t('exam.toeic.desc'),
-    standard: 'ETS',
-    questions: 20, time: 25,
-    sections: ['Listening', 'Reading Part 5', 'Reading Part 6', 'Reading Part 7'],
-    scoreRange: t('exam.ranges.toeic'),
-    stats: [
-      { value: '20', label: t('exam.stats.questions') },
-      { value: '25', label: t('exam.stats.minutes') },
-      { value: '990', label: t('exam.stats.maxScore') },
-    ],
-    cardClass: 'card-tint-amber',
-    hoverGradient: 'bg-linear-to-br from-amber-500/5 to-orange-500/5',
-    iconBg: 'bg-amber-500/15',
-    badgeClass: 'cbadge-amber',
-    statBg: 'cstat-amber',
-    accentColor: 'ct-amber',
-    sectionClass: 'cpill-amber',
-    dotColor: 'bg-amber-400',
-    rangeBg: 'crange-amber',
-    btnClass: 'bg-linear-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 shadow-lg shadow-amber-500/20',
-  },
-  {
-    type: 'toefl',
-    icon: '🌐',
-    name: 'TOEFL iBT',
-    desc: t('exam.toefl.desc'),
-    standard: 'ETS',
-    questions: 20, time: 35,
-    sections: ['Reading Passage 1', 'Reading Passage 2', 'Listening — Lecture', 'Listening — Discussion', 'Writing (2 tasks)'],
-    scoreRange: t('exam.ranges.toefl'),
-    stats: [
-      { value: '20', label: t('exam.stats.questions') },
-      { value: '35', label: t('exam.stats.minutes') },
-      { value: '120', label: t('exam.stats.maxScore') },
-    ],
-    cardClass: 'card-tint-teal',
-    hoverGradient: 'bg-linear-to-br from-teal-500/5 to-cyan-500/5',
-    iconBg: 'bg-teal-500/15',
-    badgeClass: 'cbadge-teal',
-    statBg: 'cstat-teal',
-    accentColor: 'ct-teal',
-    sectionClass: 'cpill-teal',
-    dotColor: 'bg-teal-400',
-    rangeBg: 'crange-teal',
-    btnClass: 'bg-linear-to-r from-teal-600 to-cyan-600 text-white hover:from-teal-500 hover:to-cyan-500 shadow-lg shadow-teal-500/20',
-  },
+const cardStats = computed(() => [
+  { value: '20', label: t('exam.stats.questions') },
+  { value: '30', label: t('exam.stats.minutes') },
+  { value: '9.0', label: t('exam.stats.maxBand') },
+])
+
+// The four parts of the paper (2 Listening parts, Reading, Writing).
+const parts = computed(() => [
+  { key: 'listening1', title: 'Listening Part 1', icon: '🎧', count: t('exam.questionsN', 4), desc: t('exam.sections.listening1'), cls: 'sec-blue' },
+  { key: 'listening2', title: 'Listening Part 2', icon: '🎧', count: t('exam.questionsN', 3), desc: t('exam.sections.listening2'), cls: 'sec-cyan' },
+  { key: 'reading', title: 'Reading', icon: '📖', count: t('exam.questionsN', 11), desc: t('exam.sections.reading'), cls: 'sec-green' },
+  { key: 'writing', title: 'Writing', icon: '✍️', count: t('exam.writingTasks'), desc: t('exam.sections.writing'), cls: 'sec-violet' },
 ])
 
 const steps = computed(() => [
@@ -334,7 +302,21 @@ const steps = computed(() => [
 
 const notes = computed(() => [t('exam.note1'), t('exam.note2'), t('exam.note3')])
 
-function startExam(type: string) {
-  router.push({ name: 'ExamSession', query: { type, target: targetBand.value.toString() } })
+/** "Healthcare & Medical Science — hospitals, …" → "Healthcare & Medical Science" */
+const themeName = (theme: string) => theme.split(' — ')[0] || theme
+
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(locale.value, { year: 'numeric', month: 'short', day: 'numeric' }) : ''
+
+function startExam() {
+  router.push({ name: 'ExamSession', query: { target: targetBand.value.toString() } })
+}
+
+function viewResult(attemptId: number) {
+  router.push({ name: 'ExamSession', query: { attempt: String(attemptId) } })
+}
+
+function retakePaper(paperId: number) {
+  router.push({ name: 'ExamSession', query: { paper: String(paperId), target: targetBand.value.toString() } })
 }
 </script>

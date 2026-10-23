@@ -13,7 +13,9 @@
         <div class="bg-card border-border relative w-full max-w-sm rounded-2xl border p-6 shadow-xl">
           <!-- Close button -->
           <button
+            type="button"
             class="text-muted-foreground hover:text-foreground absolute right-4 top-4 transition-colors"
+            :aria-label="$t('common.close')"
             @click="$emit('close')"
           >
             <X class="h-5 w-5" />
@@ -55,17 +57,25 @@
             <div v-if="achievement.earned" class="w-full">
               <div class="bg-primary/10 flex items-center justify-center gap-2 rounded-lg py-3">
                 <Check class="text-primary h-5 w-5" />
-                <span class="text-primary text-sm font-medium">Earned</span>
+                <span class="text-primary text-sm font-medium">{{ $t('achievements.earned') }}</span>
               </div>
               <p v-if="achievement.earnedAt" class="text-muted-foreground mt-2 text-xs">
                 {{ formatDate(achievement.earnedAt) }}
               </p>
+              <button
+                type="button"
+                class="bg-secondary text-foreground hover:bg-secondary/80 mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                @click="$emit('share', achievement)"
+              >
+                <Share2 class="h-4 w-4" />
+                {{ $t('achievements.share') }}
+              </button>
             </div>
 
             <!-- Progress for unearned -->
             <div v-else class="w-full">
               <div class="mb-2 flex items-center justify-between">
-                <span class="text-muted-foreground text-sm">Progress</span>
+                <span class="text-muted-foreground text-sm">{{ $t('achievements.progress') }}</span>
                 <span class="text-foreground text-sm font-medium">
                   {{ achievement.progress || 0 }} / {{ achievement.target || 0 }}
                 </span>
@@ -78,7 +88,7 @@
                 />
               </div>
               <p class="text-muted-foreground mt-2 text-xs">
-                {{ Math.round(getProgressPercent()) }}% complete
+                {{ $t('achievements.percentComplete', { n: Math.round(getProgressPercent()) }) }}
               </p>
             </div>
           </div>
@@ -89,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { X, Check } from '@/components/icons'
+import { X, Check, Share2 } from '@/components/icons'
 import type { EnhancedAchievement } from '@/types/profile'
 
 interface Props {
@@ -101,6 +111,7 @@ const props = defineProps<Props>()
 
 defineEmits<{
   close: []
+  share: [achievement: EnhancedAchievement]
 }>()
 
 const getBadgeClasses = (): string => {

@@ -3,8 +3,13 @@
     <!-- Loading -->
     <div v-if="loading" class="flex min-h-64 flex-col items-center justify-center gap-4">
       <div class="border-primary h-10 w-10 animate-spin rounded-full border-4 border-t-transparent" />
-      <p class="text-muted-foreground text-sm">{{ $t('exam.loading', { type: examType.toUpperCase() }) }}</p>
-      <p class="text-muted-foreground text-xs">{{ $t('exam.generatingHint') }}</p>
+      <template v-if="attemptParam">
+        <p class="text-muted-foreground text-sm">{{ $t('exam.viewLoading') }}</p>
+      </template>
+      <template v-else>
+        <p class="text-muted-foreground text-sm">{{ $t('exam.loading', { type: examType.toUpperCase() }) }}</p>
+        <p class="text-muted-foreground text-xs">{{ $t('exam.generatingHint') }}</p>
+      </template>
     </div>
 
     <!-- Load error -->
@@ -16,7 +21,7 @@
       </div>
       <button
         class="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 transition-colors"
-        @click="loadExam"
+        @click="retryLoad"
       >{{ $t('exam.tryAgain') }}</button>
     </div>
 
@@ -153,7 +158,11 @@ import { errorText } from '@/utils/skills'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const examType = ref((route.query.type as string) || 'ielts')
+// The Entrance Exam is IELTS only.
+const examType = ref('ielts')
+// ?paper=<id> re-sits a stored paper; ?attempt=<id> opens the saved result of a past sitting.
+const paperParam = Number(route.query.paper) || undefined
+const attemptParam = Number(route.query.attempt) || undefined
 const targetBand = computed(() => (route.query.target as string) || localStorage.getItem('studyspark_target_band') || '')
 
 const loading = ref(true)
@@ -171,20 +180,10 @@ const submitError = ref('')
 
 // Section names come from the backend; `desc` is a key under exam.sections.*
 const sectionStyleMap: Record<string, { icon: string; banner: string; desc: string }> = {
-  'Listening Part 1':  { icon: '🎧', banner: 'sec-blue',   desc: 'listening1' },
-  'Listening Part 2':  { icon: '🎧', banner: 'sec-cyan',   desc: 'listening2' },
-  Reading:             { icon: '📖', banner: 'sec-green',  desc: 'reading' },
-  Writing:             { icon: '✍️', banner: 'sec-violet', desc: 'writing' },
-  'Listening Part 3':  { icon: '🗣️', banner: 'sec-cyan',   desc: 'listening3' },
-  'Listening Part 4':  { icon: '📢', banner: 'sec-teal',   desc: 'listening4' },
-  'Reading Part 5':    { icon: '📝', banner: 'sec-amber',  desc: 'reading5' },
-  'Reading Part 6':    { icon: '📄', banner: 'sec-orange', desc: 'reading6' },
-  'Reading Part 7':    { icon: '📰', banner: 'sec-green',  desc: 'reading7' },
-  Listening:               { icon: '🎧', banner: 'sec-blue', desc: 'listening' },
-  'Reading Passage 1':     { icon: '📖', banner: 'sec-teal', desc: 'passage1' },
-  'Reading Passage 2':     { icon: '📖', banner: 'sec-cyan', desc: 'passage2' },
-  'Listening — Lecture':   { icon: '🎓', banner: 'sec-teal', desc: 'lecture' },
-  'Listening — Discussion':{ icon: '🗣️', banner: 'sec-cyan', desc: 'discussion' },
+  'Listening Part 1': { icon: '🎧', banner: 'sec-blue',   desc: 'listening1' },
+  'Listening Part 2': { icon: '🎧', banner: 'sec-cyan',   desc: 'listening2' },
+  Reading:            { icon: '📖', banner: 'sec-green',  desc: 'reading' },
+  Writing:            { icon: '✍️', banner: 'sec-violet', desc: 'writing' },
 }
 
 // Build section passage map: first passage per section for TTS replay
@@ -238,15 +237,32 @@ function isAnswered(i: number): boolean {
   return answers.value[i] !== undefined
 }
 
-onMounted(loadExam)
+onMounted(() => (attemptParam ? loadSavedResult(attemptParam) : loadExam(paperParam)))
 
-async function loadExam() {
+/** Open the stored result of a past sitting (history → "View result"). */
+async function loadSavedResult(attemptId: number) {
+  loading.value = true
+  loadError.value = ''
+  try {
+    result.value = await api.getExamAttempt(attemptId)
+    finished.value = true
+  } catch (e) {
+    loadError.value = errorText(e, t('exam.viewFailed'))
+  } finally {
+    loading.value = false
+  }
+}
+
+// `paperId` re-sits a stored paper (no AI call); without it a brand-new paper is generated and saved.
+async function loadExam(paperId?: number) {
   loading.value = true
   loadError.value = ''
   questions.value = []
   try {
     const variant = Math.floor(Math.random() * 18)
-    const data = await api.generateExam({ exam_type: examType.value as any, question_count: 20, variant })
+    const data = await api.generateExam(
+      paperId ? { paper_id: paperId } : { question_count: 20, variant },
+    )
     questions.value = data.questions
     sessionId.value = data.session_id
     timeLimitSecs.value = Math.round((data.time_limit ?? 30) * 60)
@@ -287,17 +303,8 @@ async function submitExam() {
   ].filter(a => a.question_id !== -1)
 
   try {
-    const res = await api.submitExam({ exam_type: examType.value as any, answers: answerList, session_id: sessionId.value })
-    result.value = {
-      ...res,
-      writing_responses: Object.entries(writingAnswers.value)
-        .filter(([, text]) => text.trim())
-        .map(([qi, text]) => ({
-          task: questions.value[Number(qi)]?.type ?? 'writing',
-          question: questions.value[Number(qi)]?.question ?? '',
-          text,
-        })),
-    }
+    // The server grades the attempt, saves it and returns the result (with the written answers).
+    result.value = await api.submitExam({ answers: answerList, session_id: sessionId.value })
     finished.value = true
   } catch (e) {
     // Keep the answers so the student can retry instead of seeing a fake 0-point result.
@@ -305,6 +312,10 @@ async function submitExam() {
   } finally {
     submitting.value = false
   }
+}
+
+function retryLoad() {
+  return attemptParam ? loadSavedResult(attemptParam) : loadExam(paperParam)
 }
 
 function resetExam() {

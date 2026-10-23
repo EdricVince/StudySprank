@@ -23,7 +23,6 @@ import { UserCustomGoal } from '../modules/goals/entities/user-custom-goal.entit
 import { LessonCompletion } from '../modules/progress/entities/lesson-completion.entity';
 import { Class } from '../modules/classes/entities/class.entity';
 import { ClassEnrollment } from '../modules/classes/entities/class-enrollment.entity';
-import { Video } from '../modules/videos/entities/video.entity';
 import { Lesson } from '../modules/lessons/entities/lesson.entity';
 import { VocabSet } from '../modules/vocab-sets/entities/vocab-set.entity';
 import { FlashcardDeck } from '../modules/flashcard-decks/entities/flashcard-deck.entity';
@@ -32,7 +31,6 @@ import { RefreshToken } from '../modules/auth/entities/refresh-token.entity';
 import { Test } from '../modules/tests/entities/test.entity';
 import { TestSubmission } from '../modules/tests/entities/test-submission.entity';
 import { Assignment } from '../modules/assignments/entities/assignment.entity';
-import { LiveSession } from '../modules/live-quiz/entities/live-session.entity';
 
 dotenv.config();
 
@@ -53,12 +51,10 @@ const dataSource = new DataSource({
     UserCustomGoal,
     Class,
     ClassEnrollment,
-    Video,
     Lesson,
     VocabSet,
     FlashcardDeck,
     CardReview,
-    LiveSession,
     LessonCompletion,
     Test,
     TestSubmission,
@@ -80,8 +76,6 @@ const CLEANUP: string[] = [
   `DELETE FROM classes WHERE teacher_id NOT IN (SELECT id FROM users)`,
   `DELETE FROM class_enrollments WHERE student_id NOT IN (SELECT id FROM users)`,
   `DELETE FROM class_enrollments WHERE class_id NOT IN (SELECT id FROM classes)`,
-  `DELETE FROM videos WHERE teacher_id NOT IN (SELECT id FROM users)`,
-  `UPDATE videos SET class_id = NULL WHERE class_id IS NOT NULL AND class_id NOT IN (SELECT id FROM classes)`,
   `DELETE FROM lessons WHERE teacher_id NOT IN (SELECT id FROM users)`,
   `UPDATE lessons SET class_id = NULL WHERE class_id IS NOT NULL AND class_id NOT IN (SELECT id FROM classes)`,
   `DELETE FROM vocab_sets WHERE teacher_id NOT IN (SELECT id FROM users)`,
@@ -95,8 +89,6 @@ const CLEANUP: string[] = [
   `UPDATE tests SET class_id = NULL WHERE class_id IS NOT NULL AND class_id NOT IN (SELECT id FROM classes)`,
   `DELETE FROM test_submissions WHERE student_id NOT IN (SELECT id FROM users)`,
   `DELETE FROM test_submissions WHERE test_id NOT IN (SELECT id FROM tests)`,
-  `DELETE FROM live_sessions WHERE teacher_id NOT IN (SELECT id FROM users)`,
-  `UPDATE live_sessions SET class_id = NULL WHERE class_id IS NOT NULL AND class_id NOT IN (SELECT id FROM classes)`,
   `DELETE FROM assignments WHERE teacher_id NOT IN (SELECT id FROM users)`,
   `UPDATE assignments SET class_id = NULL WHERE class_id IS NOT NULL AND class_id NOT IN (SELECT id FROM classes)`,
   `DELETE FROM user_progress WHERE user_id NOT IN (SELECT id FROM users)`,
@@ -152,8 +144,6 @@ const FKS: Array<{
     ref: 'classes',
     onDelete: 'CASCADE',
   },
-  { table: 'videos', column: 'teacher_id', ref: 'users', onDelete: 'CASCADE' },
-  { table: 'videos', column: 'class_id', ref: 'classes', onDelete: 'SET NULL' },
   { table: 'lessons', column: 'teacher_id', ref: 'users', onDelete: 'CASCADE' },
   {
     table: 'lessons',
@@ -216,18 +206,6 @@ const FKS: Array<{
     column: 'test_id',
     ref: 'tests',
     onDelete: 'CASCADE',
-  },
-  {
-    table: 'live_sessions',
-    column: 'teacher_id',
-    ref: 'users',
-    onDelete: 'CASCADE',
-  },
-  {
-    table: 'live_sessions',
-    column: 'class_id',
-    ref: 'classes',
-    onDelete: 'SET NULL',
   },
   {
     table: 'assignments',

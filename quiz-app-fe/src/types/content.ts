@@ -161,3 +161,16 @@ export interface GeneratedVocabSetData {
   name: string
   words: VocabWordData[]
 }
+
+/** One past IELTS mock-test sitting, as stored by the backend. */
+export interface ExamHistoryItem {
+  attempt_id: number
+  paper_id: number
+  theme: string
+  score_percent: number | null
+  estimated_band: string | null
+  level: string | null
+  correct: number | null
+  total: number | null
+  submitted_at: string | null
+}

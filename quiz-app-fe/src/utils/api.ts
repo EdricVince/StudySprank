@@ -26,6 +26,7 @@ import type {
   TestSubmissionData,
   GeneratedTestData,
   AssignmentData,
+  ExamHistoryItem,
 } from '@/types/content'
 
 import { API_BASE_URL } from '@/lib/apiBase'
@@ -214,39 +215,6 @@ export const api = {
 
   getTeacherAnalytics: (): Promise<any> => apiRequest<any>('/classes/analytics'),
 
-  // ── Videos ───────────────────────────────────────────────────
-  getVideos: (classId?: number): Promise<unknown[]> => {
-    const q = classId ? `?class_id=${classId}` : ''
-    return apiRequest<unknown[]>(`/videos${q}`)
-  },
-
-  getVideo: (id: number): Promise<unknown> => apiRequest<unknown>(`/videos/${id}`),
-
-  createVideo: (data: unknown): Promise<unknown> =>
-    apiRequest<unknown>('/videos', { method: 'POST', body: JSON.stringify(data) }),
-
-  updateVideo: (id: number, data: unknown): Promise<unknown> =>
-    apiRequest<unknown>(`/videos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-  deleteVideo: (id: number): Promise<void> =>
-    apiRequest<void>(`/videos/${id}`, { method: 'DELETE' }),
-
-  // ── Live Lesson (real-time teacher-led meeting) ───────────────
-  createLiveSession: (data: { title: string; class_id?: number; steps?: { title: string; body: string }[] }): Promise<unknown> =>
-    apiRequest<unknown>('/live-quiz', { method: 'POST', body: JSON.stringify(data) }),
-
-  getMyLiveSessions: (): Promise<unknown[]> => apiRequest<unknown[]>('/live-quiz/my'),
-
-  joinLiveSession: (pin: string): Promise<unknown> => apiRequest<unknown>(`/live-quiz/join/${pin}`),
-
-  getLiveSession: (id: number): Promise<unknown> => apiRequest<unknown>(`/live-quiz/${id}`),
-
-  updateLiveStatus: (id: number, status: string): Promise<unknown> =>
-    apiRequest<unknown>(`/live-quiz/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-
-  deleteLiveSession: (id: number): Promise<void> =>
-    apiRequest<void>(`/live-quiz/${id}`, { method: 'DELETE' }),
-
   // ── Progress ──────────────────────────────────────────────────
   getMyProgress: (): Promise<unknown> => apiRequest<unknown>('/progress/me'),
 
@@ -279,12 +247,16 @@ export const api = {
   deleteCustomGoal: (id: number): Promise<unknown> =>
     apiRequest<unknown>(`/goals/custom/${id}`, { method: 'DELETE' }),
 
-  // ── Entrance Exam ─────────────────────────────────────────────
-  generateExam: (data: { exam_type: 'ielts' | 'toeic' | 'toefl'; question_count?: number; variant?: number }): Promise<{ questions: any[]; time_limit: number; exam_type: string; variant: number; session_id: string }> =>
+  // ── Entrance Exam (IELTS) ─────────────────────────────────────
+  generateExam: (data: { question_count?: number; variant?: number; paper_id?: number }): Promise<{ questions: any[]; time_limit: number; exam_type: string; variant: number; session_id: string; paper_id: number; theme: string }> =>
     apiRequest('/entrance-exam/generate', { method: 'POST', body: JSON.stringify(data) }),
 
-  submitExam: (data: { exam_type: string; answers: { question_id: number; selected?: number; written?: string }[]; session_id: string }): Promise<any> =>
+  submitExam: (data: { answers: { question_id: number; selected?: number; written?: string }[]; session_id: string }): Promise<any> =>
     apiRequest('/entrance-exam/submit', { method: 'POST', body: JSON.stringify(data) }),
+
+  getExamHistory: (): Promise<ExamHistoryItem[]> => apiRequest('/entrance-exam/history'),
+
+  getExamAttempt: (id: number): Promise<any> => apiRequest(`/entrance-exam/attempts/${id}`),
 
   // ── Schedule ──────────────────────────────────────────────────
   generateSchedule: (data: { current_level: string; target_exam: string; target_band?: string; weekly_hours: number; focus_areas?: string[] }): Promise<any> =>
@@ -337,6 +309,7 @@ export const api = {
     synonyms: string[]
     difficulty: 'beginner' | 'intermediate' | 'advanced'
     tip: string
+    translations?: { vi?: { meaning: string; definition: string; example: string }; zh?: { meaning: string; definition: string; example: string } }
   }> => apiRequest(`/ai/word-of-the-day${fresh ? '?fresh=1' : ''}`),
 
   importScan: (body: { url?: string; text?: string; language?: string }): Promise<unknown> =>

@@ -25,6 +25,12 @@ export interface ImportedContent {
   comprehension: { question: string; answer: string }[];
 }
 
+export interface WordTranslation {
+  meaning: string;
+  definition: string;
+  example: string;
+}
+
 export interface WordOfTheDay {
   word: string;
   phonetic: string;
@@ -34,6 +40,8 @@ export interface WordOfTheDay {
   synonyms: string[];
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   tip: string;
+  /** Vietnamese and Chinese renderings so learners can grasp the meaning. */
+  translations?: { vi?: WordTranslation; zh?: WordTranslation };
 }
 
 export interface VocabularyItem {
@@ -522,7 +530,7 @@ Return ONLY a valid JSON object (no markdown, no code fences):
     try {
       const response = await this.client.messages.create({
         model: AI_MODEL,
-        max_tokens: 400,
+        max_tokens: 900,
         messages: [
           {
             role: 'user',
@@ -536,7 +544,11 @@ Return ONLY valid JSON (no markdown) with this exact structure:
   "example": "natural example sentence",
   "synonyms": ["word1", "word2", "word3"],
   "difficulty": "beginner|intermediate|advanced",
-  "tip": "fun memory trick or etymology tip"
+  "tip": "fun memory trick or etymology tip",
+  "translations": {
+    "vi": {"meaning": "short Vietnamese meaning of the word", "definition": "Vietnamese translation of the definition", "example": "Vietnamese translation of the example sentence"},
+    "zh": {"meaning": "short Simplified Chinese meaning of the word", "definition": "Chinese translation of the definition", "example": "Chinese translation of the example sentence"}
+  }
 }
 Pick an interesting, useful English word related to "${theme}", ideally starting with "${letter}". Not too common, not too obscure. Surprise me with a different word each time.`,
           },

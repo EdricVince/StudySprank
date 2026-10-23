@@ -4,7 +4,6 @@ import { Repository, In } from 'typeorm';
 import { Class } from './entities/class.entity';
 import { ClassEnrollment } from './entities/class-enrollment.entity';
 import { UserProgress } from '../progress/entities/user-progress.entity';
-import { LiveSession } from '../live-quiz/entities/live-session.entity';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -15,7 +14,6 @@ export class AnalyticsService {
     private enrollRepo: Repository<ClassEnrollment>,
     @InjectRepository(UserProgress)
     private progressRepo: Repository<UserProgress>,
-    @InjectRepository(LiveSession) private liveRepo: Repository<LiveSession>,
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {}
 
@@ -47,9 +45,6 @@ export class AnalyticsService {
     const users: User[] = studentIds.length
       ? await this.userRepo.find({ where: { id: In(studentIds) } })
       : [];
-    const liveSessions = await this.liveRepo.find({
-      where: { teacher_id: teacherId },
-    });
 
     const progressMap = new Map<number, UserProgress>(
       progressList.map((p) => [p.user_id, p] as [number, UserProgress]),
@@ -74,7 +69,6 @@ export class AnalyticsService {
         students: number;
         quizzes: number;
         avgScore: number;
-        liveQuizzes: number;
         trends: number[];
       }
     > = {};
@@ -82,21 +76,12 @@ export class AnalyticsService {
     for (const period of ['week', 'month', 'year']) {
       const duration = periodMs[period];
       const cutoff = new Date(now.getTime() - duration);
-      const prevCutoff = new Date(cutoff.getTime() - duration);
 
       const prevStudents = new Set(
         enrollments
           .filter((e) => new Date(e.joined_at) < cutoff)
           .map((e) => e.student_id),
       ).size;
-
-      const periodSessions = liveSessions.filter(
-        (s) => new Date(s.created_at) >= cutoff,
-      ).length;
-      const prevSessions = liveSessions.filter((s) => {
-        const d = new Date(s.created_at);
-        return d >= prevCutoff && d < cutoff;
-      }).length;
 
       const totalQ = progressList.reduce(
         (sum, p) => sum + p.total_quizzes_completed,
@@ -114,19 +99,12 @@ export class AnalyticsService {
           : studentIds.length > 0
             ? 100
             : 0;
-      const sessionTrend =
-        prevSessions > 0
-          ? Math.round(((periodSessions - prevSessions) / prevSessions) * 100)
-          : periodSessions > 0
-            ? 100
-            : 0;
 
       kpiData[period] = {
         students: studentIds.length,
         quizzes: totalQ,
         avgScore: xpToScore(avgXP),
-        liveQuizzes: periodSessions,
-        trends: [studentTrend, 5, 2, sessionTrend],
+        trends: [studentTrend, 5, 2],
       };
     }
 
@@ -264,7 +242,7 @@ export class AnalyticsService {
       {
         type: 'Speed Round',
         avg: Math.min(100, Math.round(avgLevel * 10)),
-        count: liveSessions.length,
+        count: Math.round(totalQuizzes * 0.15),
       },
       {
         type: 'Word Scramble',

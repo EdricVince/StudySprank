@@ -71,6 +71,45 @@
       </ul>
     </div>
 
+    <!-- Answer review (answer key is revealed only after submission) -->
+    <div v-if="result.review?.length" class="bg-card border-border rounded-2xl border p-5 space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="text-muted-foreground text-xs font-bold uppercase tracking-wider">{{ $t('exam.review.title') }}</h3>
+        <button
+          type="button"
+          class="border-border text-foreground hover:bg-accent rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors"
+          :aria-expanded="showReview"
+          @click="showReview = !showReview"
+        >{{ showReview ? $t('exam.review.hide') : $t('exam.review.show') }}</button>
+      </div>
+      <div v-if="showReview" class="space-y-4">
+        <div
+          v-for="(item, i) in result.review"
+          :key="item.question_id"
+          class="border-border space-y-2 rounded-xl border p-4"
+        >
+          <div class="flex items-start gap-2">
+            <span
+              class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+              :class="isRight(item) ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-400'"
+            >{{ isRight(item) ? '✓' : '✗' }}</span>
+            <p class="text-foreground text-sm font-medium leading-relaxed">{{ i + 1 }}. {{ item.question }}</p>
+          </div>
+          <p class="text-sm">
+            <span class="text-muted-foreground">{{ $t('exam.review.yourAnswer') }}: </span>
+            <span :class="isRight(item) ? 'text-green-500' : 'text-red-400'">{{ optionText(item, item.selected) ?? $t('exam.review.notAnswered') }}</span>
+          </p>
+          <p v-if="!isRight(item)" class="text-sm">
+            <span class="text-muted-foreground">{{ $t('exam.review.correctAnswer') }}: </span>
+            <span class="text-green-500">{{ optionText(item, item.correct_answer) }}</span>
+          </p>
+          <p v-if="item.explanation" class="text-muted-foreground text-xs leading-relaxed">
+            <span class="font-semibold">{{ $t('exam.review.explanation') }}:</span> {{ item.explanation }}
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- Writing Responses -->
     <div v-if="result.writing_responses?.length" class="bg-card border-border rounded-2xl border p-5 space-y-4">
       <h3 class="text-muted-foreground text-xs font-bold uppercase tracking-wider">✍️ Writing Responses</h3>
@@ -101,8 +140,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AiGeneratedBadge from '@/components/common/AiGeneratedBadge.vue'
+
+interface ReviewItem {
+  question_id: number
+  section: string
+  question: string
+  options: string[]
+  selected: number | null
+  correct_answer: number
+  explanation: string
+}
 
 const props = defineProps<{
   result: {
@@ -115,6 +164,7 @@ const props = defineProps<{
     recommendations: string[]
     weak_areas: string[]
     writing_responses?: { task: string; question: string; text: string }[]
+    review?: ReviewItem[]
   }
   examType: string
 }>()
@@ -135,18 +185,16 @@ function barColor(ratio: number): string {
 const sectionIconMap: Record<string, string> = {
   'Listening Part 1': '🎧 Listening Part 1',
   'Listening Part 2': '🎧 Listening Part 2',
-  'Listening Part 3': '🗣️ Listening Part 3',
-  'Listening Part 4': '📢 Listening Part 4',
-  'Reading Part 5':   '📝 Reading Part 5',
-  'Reading Part 6':   '📄 Reading Part 6',
-  'Reading Part 7':   '📰 Reading Part 7',
-  Listening:          '🎧 Listening',
   Reading:            '📖 Reading',
   Writing:            '✍️ Writing',
-  Speaking:           '🎤 Speaking',
-  Grammar:            '📝 Grammar',
-  'Text Completion':  '📄 Text Completion',
 }
+
+const showReview = ref(false)
+
+interface ReviewRow { options: string[]; selected: number | null; correct_answer: number }
+const isRight = (item: ReviewRow) => item.selected !== null && item.selected === item.correct_answer
+const optionText = (item: ReviewRow, index: number | null) =>
+  index !== null && index >= 0 ? item.options[index] ?? null : null
 
 function sectionLabel(s: string): string {
   return sectionIconMap[s] ?? s

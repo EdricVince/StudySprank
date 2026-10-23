@@ -755,15 +755,11 @@ const levels = [
 
 const examTargets = [
   { id: 'IELTS',   icon: '🎓' },
-  { id: 'TOEIC',   icon: '💼' },
-  { id: 'TOEFL',   icon: '🌐' },
   { id: 'General', icon: '📖' },
 ]
 
 const bandMap: Record<string, string[]> = {
   IELTS: ['4.0','4.5','5.0','5.5','6.0','6.5','7.0','7.5','8.0','8.5','9.0'],
-  TOEIC: ['400','500','600','700','800','900'],
-  TOEFL: ['60','70','80','90','100','110'],
 }
 const currentBandOptions = computed(() => bandMap[form.value.target_exam] ?? [])
 
@@ -805,10 +801,8 @@ const previewTier = computed(() => {
   const band = form.value.target_band
   if (lv === 'C1' || lv === 'C2') return 3
   if (ex === 'IELTS' && band && parseFloat(band) >= 7.0) return 3
-  if (ex === 'TOEIC' && band && parseFloat(band) >= 800) return 3
   if (lv === 'B1' || lv === 'B2') return 2
   if (ex === 'IELTS' && band && parseFloat(band) >= 5.0) return 2
-  if (ex === 'TOEIC' && band && parseFloat(band) >= 500) return 2
   return 1
 })
 const tierKey = computed(() => (['slow', 'moderate', 'pro'] as const)[previewTier.value - 1])

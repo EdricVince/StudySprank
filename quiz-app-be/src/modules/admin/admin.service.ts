@@ -11,7 +11,6 @@ import { DailyActivity } from '../progress/entities/daily-activity.entity';
 import { LessonCompletion } from '../progress/entities/lesson-completion.entity';
 import { Class } from '../classes/entities/class.entity';
 import { ClassEnrollment } from '../classes/entities/class-enrollment.entity';
-import { Video } from '../videos/entities/video.entity';
 import { Lesson } from '../lessons/entities/lesson.entity';
 import { VocabSet } from '../vocab-sets/entities/vocab-set.entity';
 import { FlashcardDeck } from '../flashcard-decks/entities/flashcard-deck.entity';
@@ -20,7 +19,7 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Test } from '../tests/entities/test.entity';
 import { TestSubmission } from '../tests/entities/test-submission.entity';
 import { Assignment } from '../assignments/entities/assignment.entity';
-import { LiveSession } from '../live-quiz/entities/live-session.entity';
+import { ExamAttempt } from '../entrance-exam/entities/exam-attempt.entity';
 import { UserGoalSettings } from '../goals/entities/user-goal-settings.entity';
 import { UserCustomGoal } from '../goals/entities/user-custom-goal.entity';
 import { ROLE_STUDENT, ROLE_TEACHER } from '../roles/entities/role.entity';
@@ -238,7 +237,6 @@ export class AdminService {
 
     // Content authored by this teacher. Other students' completions of this
     // teacher's lessons go first, so no lesson_completions row is orphaned.
-    await m.delete(Video, { teacher_id: userId });
     const ownedLessons = await m.find(Lesson, {
       where: { teacher_id: userId },
       select: ['id'],
@@ -269,7 +267,6 @@ export class AdminService {
       await m.delete(TestSubmission, { test_id: In(testIds) });
     await m.delete(Test, { teacher_id: userId });
     await m.delete(Assignment, { teacher_id: userId });
-    await m.delete(LiveSession, { teacher_id: userId });
 
     // Personal learning data.
     await m.delete(UserProgress, { user_id: userId });
@@ -278,6 +275,7 @@ export class AdminService {
     await m.delete(UserGoalSettings, { user_id: userId });
     await m.delete(UserCustomGoal, { user_id: userId });
     await m.delete(RefreshToken, { user_id: userId });
+    await m.delete(ExamAttempt, { user_id: userId });
 
     // Finally the account itself.
     await m.delete(User, { id: userId });

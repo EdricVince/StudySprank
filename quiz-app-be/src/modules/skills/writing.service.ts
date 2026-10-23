@@ -17,6 +17,7 @@ import type {
 
 import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type { AiJson } from '../../core/ai/ai-response';
+import { SkillMaterialsService, stringField } from './skill-materials.service';
 
 /**
  * Pull the JSON object out of a model reply. Throws (→ 503 in the callers)
@@ -68,7 +69,7 @@ const TASK1_TOPICS = [
   'student pass rates by subject',
 ];
 
-// Topic pools for Task 2 / TOEIC / General
+// Topic pools for Task 2 / General
 const TASK2_TOPICS = [
   'technology replacing human jobs',
   'social media impact on mental health',
@@ -87,19 +88,6 @@ const TASK2_TOPICS = [
   'shorter working week productivity',
 ];
 
-const TOEIC_SCENARIOS = [
-  'project deadline extension request',
-  'new employee onboarding policy',
-  'customer complaint response',
-  'team meeting agenda',
-  'office relocation announcement',
-  'budget proposal summary',
-  'quarterly performance review',
-  'supplier partnership offer',
-  'remote work policy update',
-  'product launch announcement',
-];
-
 const GENERAL_TASKS = [
   'describe a memorable childhood place',
   'narrate an unexpected event that changed you',
@@ -116,17 +104,27 @@ const GENERAL_TASKS = [
 @Injectable()
 export class WritingService {
   private readonly logger = new Logger(WritingService.name);
-  constructor() {}
+  constructor(private readonly materials: SkillMaterialsService) {}
 
   private get client() {
     return getAnthropicClient();
   }
 
-  async getPrompt(dto: GetWritingPromptDto) {
+  async getPrompt(dto: GetWritingPromptDto, userId?: number) {
     const type = dto.type ?? 'general';
     const level = dto.level ?? this.defaultLevel(type);
     if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
-    return this.generatePrompt(type, level);
+    const task = await this.generatePrompt(type, level);
+    // Keep the generated writing task (and its chart data) in the database.
+    await this.materials.save({
+      skill: 'writing',
+      kind: type,
+      level,
+      topic: stringField(task, 'title'),
+      content: task,
+      userId,
+    });
+    return task;
   }
 
   async submitEssay(dto: SubmitWritingDto) {
@@ -138,7 +136,6 @@ export class WritingService {
     const map: Record<WritingType, CefrLevel> = {
       ielts_task2: 'B2',
       ielts_task1: 'B1',
-      toeic: 'B1',
       general: 'B1',
     };
     return map[type];
@@ -155,9 +152,7 @@ export class WritingService {
     const topicHint =
       type === 'ielts_task2'
         ? this.pick(TASK2_TOPICS)
-        : type === 'toeic'
-          ? this.pick(TOEIC_SCENARIOS)
-          : this.pick(GENERAL_TASKS);
+        : this.pick(GENERAL_TASKS);
 
     const specs = {
       ielts_task2: {
@@ -165,12 +160,6 @@ export class WritingService {
         time: 40,
         words: '250 words minimum',
         instr: `Write about "${topicHint}". Choose ONE type: Opinion, Discussion, Problem-Solution, or Advantages-Disadvantages. Level: ${level}.`,
-      },
-      toeic: {
-        desc: 'TOEIC Writing Task',
-        time: 30,
-        words: '100-200 words',
-        instr: `Scenario: "${topicHint}". Either (1) write an email based on 3 bullet points, or (2) express an opinion on a workplace issue.`,
       },
       general: {
         desc: 'General English Writing',
@@ -434,8 +423,6 @@ Rules: 4-7 data points. Values realistic and clearly varied. Labels max 12 chars
         'IELTS Academic Writing Task 1 examiner. Grade using the official 9-band scale.',
       ielts_task2:
         'IELTS Academic Writing Task 2 examiner. Grade using the official 9-band scale.',
-      toeic:
-        'TOEIC Writing examiner. Convert criterion scores to 9-band equivalent for overall_band.',
       general:
         'English writing teacher. Convert 0-10 grade to 9-band equivalent for overall_band.',
     };
@@ -451,12 +438,6 @@ Rules: 4-7 data points. Values realistic and clearly varied. Labels max 12 chars
         'task_achievement',
         'coherence_cohesion',
         'lexical_resource',
-        'grammatical_accuracy',
-      ],
-      toeic: [
-        'task_achievement',
-        'organization',
-        'vocabulary_usage',
         'grammatical_accuracy',
       ],
       general: [

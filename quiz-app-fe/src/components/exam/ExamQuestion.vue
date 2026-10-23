@@ -91,80 +91,22 @@ v-if="!isListening && !isWriting && question.passage"
 
     <!-- WRITING: task prompt + textarea -->
     <template v-if="isWriting">
-      <!-- Task context: SVG chart (Task 1) or plain text (TOEFL integrated) -->
+      <!-- Task context: SVG chart (Task 1) -->
       <div v-if="question.passage" class="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
         <!-- Chart data detected → render visual chart -->
         <template v-if="chartData">
           <div class="text-violet-400 text-xs font-bold uppercase tracking-wider mb-3">Chart to Analyse</div>
           <IeltsChart :data="chartData" />
         </template>
-        <!-- Plain text passage (TOEFL integrated writing) -->
+        <!-- Plain text passage -->
         <template v-else>
           <div class="text-violet-400 text-xs font-bold uppercase tracking-wider mb-2">Task Context</div>
           <p class="text-foreground/80 text-sm leading-relaxed italic">{{ question.passage }}</p>
         </template>
       </div>
 
-      <!-- Academic Discussion: structured layout -->
-      <template v-if="question.type === 'academic-discussion' && discussionParts">
-        <!-- Header -->
-        <div class="flex items-center gap-2">
-          <span class="text-violet-300 font-bold text-sm">✍️ Academic Discussion Task</span>
-          <span class="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-400 font-semibold">
-            min {{ minWords }} words
-          </span>
-        </div>
-
-        <!-- Professor block -->
-        <div
-          v-for="p in discussionParts.filter(x => x.role === 'professor')"
-          :key="p.name"
-          class="rounded-xl border border-violet-500/25 bg-violet-500/8 p-4"
-        >
-          <div class="mb-2 flex items-center gap-2">
-            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/20 text-sm">🎓</span>
-            <span class="text-xs font-bold text-violet-400 uppercase tracking-wide">{{ p.name }}</span>
-          </div>
-          <p class="text-foreground/90 text-sm leading-relaxed">{{ p.text }}</p>
-        </div>
-
-        <!-- Student blocks -->
-        <div
-          v-for="(p, idx) in discussionParts.filter(x => x.role === 'student')"
-          :key="p.name"
-          class="rounded-xl border p-4"
-          :class="idx === 0
-            ? 'border-blue-500/25 bg-blue-500/6'
-            : 'border-emerald-500/25 bg-emerald-500/6'"
-        >
-          <div class="mb-2 flex items-center gap-2">
-            <span
-              class="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold text-white"
-              :class="idx === 0 ? 'bg-blue-500/70' : 'bg-emerald-500/70'"
-            >{{ p.name?.[0] ?? '?' }}</span>
-            <span
-              class="text-xs font-bold uppercase tracking-wide"
-              :class="idx === 0 ? 'text-blue-400' : 'text-emerald-400'"
-            >{{ p.name }}</span>
-          </div>
-          <p class="text-foreground/85 text-sm leading-relaxed">{{ p.text }}</p>
-        </div>
-
-        <!-- Your task prompt -->
-        <div
-          v-for="p in discussionParts.filter(x => x.role === 'instruction')"
-          :key="p.text"
-          class="rounded-xl border border-amber-500/25 bg-amber-500/6 p-4"
-        >
-          <div class="mb-1.5 flex items-center gap-2">
-            <span class="text-amber-400 text-xs font-bold uppercase tracking-wide">✏️ Your Task</span>
-          </div>
-          <p class="text-foreground/90 text-sm leading-relaxed font-medium">{{ p.text }}</p>
-        </div>
-      </template>
-
-      <!-- Other writing tasks (Task 1, Task 2, Integrated Writing) -->
-      <div v-else class="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
+      <!-- Writing task instruction (Task 1 / Task 2) -->
+      <div class="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
         <div class="flex items-center gap-2 mb-2">
           <span class="text-violet-400 font-bold text-sm">✍️ {{ writingLabel }}</span>
           <span class="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-400 font-semibold">
@@ -181,10 +123,6 @@ v-if="!isListening && !isWriting && question.passage"
           rows="12"
           :placeholder="question.type === 'writing-task1'
             ? 'Start your response here. Describe the main features, trends, and comparisons shown in the data...'
-            : question.type === 'academic-discussion'
-            ? 'Add your own perspective to this discussion. Support your view with reasons and examples...'
-            : question.type === 'integrated-writing'
-            ? 'Summarize the listening points and explain how they relate to the reading passage...'
             : 'Start your essay here. Present your arguments clearly with supporting examples and a conclusion...'"
           :value="writingText ?? ''"
           @input="onWriteInput"
@@ -265,11 +203,11 @@ const emit = defineEmits<{
 }>()
 
 // ── Section detection ──────────────────────────────────────────────────────────
-const LISTENING_SECTIONS = ['Listening Part 1', 'Listening Part 2', 'Listening Part 3', 'Listening Part 4', 'Listening', 'Listening — Lecture', 'Listening — Discussion']
+const LISTENING_SECTIONS = ['Listening Part 1', 'Listening Part 2']
 const isListening = computed(() => LISTENING_SECTIONS.includes(props.question.section))
 const isWriting = computed(() => props.question.section === 'Writing')
 
-// For listening: use question's own passage if present (TOEIC Part 2 each has its own), else fall back to section passage
+// For listening: use the question's own passage if present, else fall back to the section passage
 const activePassage = computed(() => props.question.passage || props.sectionPassage || null)
 
 // ── TTS ────────────────────────────────────────────────────────────────────────
@@ -432,14 +370,11 @@ const writingLabel = computed(() => {
   const t = props.question.type
   if (t === 'writing-task1')       return 'Writing Task 1'
   if (t === 'writing-task2')       return 'Writing Task 2'
-  if (t === 'integrated-writing')  return 'Integrated Writing'
-  if (t === 'academic-discussion') return 'Academic Discussion'
   return 'Writing'
 })
 
 const minWords = computed(() => {
-  if (props.question.type === 'writing-task1' || props.question.type === 'integrated-writing') return 150
-  if (props.question.type === 'academic-discussion') return 100
+  if (props.question.type === 'writing-task1') return 150
   return 250
 })
 
@@ -451,30 +386,7 @@ const wordCount = computed(() => {
 const taskInstruction = computed(() => {
   return props.question.question
     .replace(/^Task \d+\s*[—–-]\s*minimum \d+ words:\s*/i, '')
-    .replace(/^(Integrated Writing Task|Academic Discussion Task)\s*\(minimum \d+ words\):\s*/i, '')
-})
-
-type DiscussionRole = 'professor' | 'student' | 'instruction'
-interface DiscussionPart { role: DiscussionRole; name?: string; text: string }
-
-const discussionParts = computed<DiscussionPart[] | null>(() => {
-  if (props.question.type !== 'academic-discussion') return null
-  const raw = taskInstruction.value
-  const chunks = raw.split(/\n\n+/).map(c => c.trim()).filter(Boolean)
-  const parts: DiscussionPart[] = []
-  for (const chunk of chunks) {
-    // Match "Name: text" pattern — name has no newlines before colon
-    const m = chunk.match(/^([^\n:]{1,40}):\s*([\s\S]+)$/)
-    if (m) {
-      const name = (m[1] ?? '').trim()
-      const text = (m[2] ?? '').trim()
-      const isProf = /professor|prof\.|dr\./i.test(name)
-      parts.push({ role: isProf ? 'professor' : 'student', name, text })
-    } else {
-      parts.push({ role: 'instruction', text: chunk })
-    }
-  }
-  return parts.length ? parts : null
+    .replace(/^Writing Task \d+\s*\(minimum \d+ words\):\s*/i, '')
 })
 
 function onWriteInput(e: Event) {
@@ -487,19 +399,6 @@ const sectionMap: Record<string, { label: string; cls: string }> = {
   'Listening Part 2':  { label: '🎧 Listening — Part 2',      cls: 'sec-cyan' },
   Reading:             { label: '📖 Reading',                  cls: 'sec-green' },
   Writing:             { label: '✍️ Writing',                  cls: 'sec-violet' },
-  'Listening Part 3':  { label: '🗣️ Part 3 — Conversations',  cls: 'sec-cyan' },
-  'Listening Part 4':  { label: '📢 Part 4 — Short Talks',    cls: 'sec-teal' },
-  'Reading Part 5':    { label: '📝 Part 5 — Grammar',        cls: 'sec-amber' },
-  'Reading Part 6':    { label: '📄 Part 6 — Text Completion', cls: 'sec-orange' },
-  'Reading Part 7':    { label: '📰 Part 7 — Reading',        cls: 'sec-emerald' },
-  Listening:               { label: '🎧 Listening',                   cls: 'sec-blue' },
-  'Listening — Lecture':   { label: '🎓 Listening — Lecture',         cls: 'sec-teal' },
-  'Listening — Discussion':{ label: '🗣️ Listening — Discussion',      cls: 'sec-cyan' },
-  'Reading Passage 1':     { label: '📖 Reading — Passage 1',         cls: 'sec-teal' },
-  'Reading Passage 2':     { label: '📖 Reading — Passage 2',         cls: 'sec-cyan' },
-  Speaking:                { label: '🎤 Speaking',                    cls: 'sec-orange' },
-  Grammar:             { label: '📝 Grammar',                 cls: 'sec-amber' },
-  'Text Completion':   { label: '📄 Text Completion',         cls: 'sec-pink' },
 }
 
 const sectionLabel = computed(() => sectionMap[props.question.section]?.label ?? props.question.section)
@@ -515,12 +414,6 @@ const typeLabel = computed(() => {
     'writing-task1':         'Writing Task 1',
     'writing-task2':         'Writing Task 2',
     'vocabulary-range':      'Vocabulary Range',
-    'photograph':            'Photograph Description',
-    'question-response':     'Question-Response',
-    'conversation':          'Conversation',
-    'short-talk':            'Short Talk',
-    'incomplete-sentence':   'Incomplete Sentence',
-    'text-completion':       'Text Completion',
     'main-idea':             'Main Idea',
     'specific-detail':       'Specific Detail',
     'vocabulary-in-context': 'Vocabulary in Context',
@@ -530,10 +423,6 @@ const typeLabel = computed(() => {
     'purpose':               'Author\'s Purpose',
     'implied-meaning':       'Implied Meaning',
     'speaker-attitude':      'Speaker\'s Attitude',
-    'student-opinion':       'Student Opinion',
-    'main-point':            'Main Point',
-    'integrated-writing':    'Integrated Writing Task',
-    'academic-discussion':   'Academic Discussion Task',
   }
   return typeMap[props.question.type] ?? props.question.type
 })

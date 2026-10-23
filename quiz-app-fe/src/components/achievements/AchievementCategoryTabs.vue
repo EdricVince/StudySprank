@@ -3,6 +3,8 @@
     <button
       v-for="tab in tabs"
       :key="tab.value"
+      type="button"
+      :aria-pressed="modelValue === tab.value"
       class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
       :class="
         modelValue === tab.value
@@ -29,8 +31,9 @@
 </template>
 
 <script setup lang="ts">
-import {} from 'vue'
-import { Sparkles, Flame, Users, GraduationCap } from '@/components/icons'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { Sparkles, Flame, Users, GraduationCap, Trophy } from '@/components/icons'
 import type { AchievementCategory, EnhancedAchievement } from '@/types/profile'
 
 interface Props {
@@ -44,13 +47,15 @@ defineEmits<{
   'update:modelValue': [value: AchievementCategory | 'all']
 }>()
 
-const tabs = [
-  { value: 'all' as const, label: 'All', icon: Sparkles },
-  { value: 'learning' as const, label: 'Learning', icon: GraduationCap },
-  { value: 'streak' as const, label: 'Streak', icon: Flame },
-  { value: 'social' as const, label: 'Social', icon: Users },
-  { value: 'mastery' as const, label: 'Mastery', icon: GraduationCap },
-]
+const { t } = useI18n()
+
+const tabs = computed(() => [
+  { value: 'all' as const, label: t('achievements.tabs.all'), icon: Sparkles },
+  { value: 'learning' as const, label: t('achievements.tabs.learning'), icon: GraduationCap },
+  { value: 'streak' as const, label: t('achievements.tabs.streak'), icon: Flame },
+  { value: 'social' as const, label: t('achievements.tabs.social'), icon: Users },
+  { value: 'mastery' as const, label: t('achievements.tabs.mastery'), icon: Trophy },
+])
 
 const getCategoryCount = (category: AchievementCategory | 'all'): number => {
   if (category === 'all') {

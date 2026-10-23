@@ -4,11 +4,16 @@
       <div
         v-for="(achievement, index) in achievements"
         :key="achievement.id"
-        class="bg-card border-border group relative flex flex-col items-center overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:shadow-xl hover:border-primary/50 hover:-translate-y-1"
+        role="button"
+        tabindex="0"
+        class="bg-card border-border group relative flex cursor-pointer flex-col items-center overflow-hidden rounded-xl border p-4 transition-all duration-300 hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary focus:outline-none"
         :class="[
           { 'opacity-60': !achievement.earned },
           `animate-fade-in-up delay-${Math.min(index * 50, 300)}`
         ]"
+        @click="$emit('select', achievement)"
+        @keydown.enter.prevent="$emit('select', achievement)"
+        @keydown.space.prevent="$emit('select', achievement)"
       >
       <div
         v-if="achievement.earned"
@@ -16,10 +21,8 @@
       />
 
         <div class="relative z-10 flex flex-col items-center">
-          <AchievementBadge
-            :achievement="achievement"
-            @click="$emit('select', achievement)"
-          />
+          <!-- Selection is handled by the card itself (a click on the badge bubbles up to it). -->
+          <AchievementBadge :achievement="achievement" tabindex="-1" />
           <p class="text-foreground mt-3 text-center text-sm font-medium">
             {{ achievement.name }}
           </p>
@@ -46,7 +49,7 @@
       class="bg-card border-border rounded-xl border py-12 text-center"
     >
       <Trophy class="text-muted-foreground mx-auto h-12 w-12" />
-      <p class="text-muted-foreground mt-4">No achievements in this category yet</p>
+      <p class="text-muted-foreground mt-4">{{ $t('achievements.noInCategory') }}</p>
     </div>
   </div>
 </template>

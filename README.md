@@ -15,11 +15,12 @@ real-time quizzes and a teacher portal. Graduation project.
 - Flashcard decks with SM-2 spaced repetition (due cards, "why this card" reasons), CSV import/export.
 - Quiz modes: multiple choice, true/false, speed round, matching pairs, word scramble, typing, idioms, 1-vs-1 battle.
 - AI skill practice: reading, listening (browser TTS), writing (band-score feedback), speaking (speech recognition + feedback).
-- AI entrance exam (IELTS / TOEIC / TOEFL format) and AI monthly study planner.
+- AI IELTS mock test (Listening / Reading / Writing) and AI monthly study planner. Every generated paper, its questions
+  and each student's attempts are stored in PostgreSQL, so past results can be reviewed and papers retaken.
 - XP, levels, streaks, goals, achievements, leaderboard.
-- Classes: join by code, see assigned tests, vocabulary sets, lessons, videos and handouts; live quizzes.
+- Classes: join by code (from the Quizzes page), see assigned tests, vocabulary sets, lessons and handouts.
 
-**Teachers** — classes, tests (with results), lessons, vocabulary sets, videos, assignments, live quiz hosting,
+**Teachers** — classes, tests (with results), lessons, vocabulary sets, assignments,
 AI-assisted content generation.
 
 **Admin** — user management, teacher accounts, Anthropic API key (dashboard protected by `ADMIN_SECRET`).

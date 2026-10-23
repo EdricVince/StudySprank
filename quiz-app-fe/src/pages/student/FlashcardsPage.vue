@@ -676,7 +676,7 @@ const categories = [
   'Idioms',
   'Phrasal Verbs',
   'Pronunciation',
-  'IELTS/TOEFL',
+  'IELTS',
   'General',
 ]
 
@@ -773,7 +773,8 @@ const getCategoryIcon = (category: string): Component => {
     Idioms: MessageCircle,
     'Phrasal Verbs': ArrowUpDown,
     Pronunciation: Mic,
-    'IELTS/TOEFL': GraduationCap,
+    IELTS: GraduationCap,
+    'IELTS/TOEFL': GraduationCap, // decks saved before TOEFL was removed
     General: BookOpen,
   }
   return icons[category] || BookOpen

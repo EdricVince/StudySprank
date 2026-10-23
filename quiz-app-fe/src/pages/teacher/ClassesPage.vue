@@ -289,7 +289,7 @@ const editingClass = ref<Class | null>(null)
 const deletingClass = ref<Class | null>(null)
 const copiedCode = ref('')
 
-const subjects = ['English', 'IELTS', 'TOEIC', 'Chinese', 'Vietnamese', 'Other']
+const subjects = ['English', 'IELTS', 'Chinese', 'Vietnamese', 'Other']
 const filters = computed(() => [
   { value: 'all', label: t('teacher.classes.filters.all') },
   { value: 'active', label: t('teacher.classes.filters.active') },

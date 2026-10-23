@@ -14,6 +14,7 @@ import type {
   CefrLevel,
   ListeningType,
 } from './dto/skills.dto';
+import { SkillMaterialsService, stringField } from './skill-materials.service';
 
 // Diverse topic pools per type to prevent repetitive generation
 const TOPICS: Record<ListeningType, string[]> = {
@@ -57,18 +58,6 @@ const TOPICS: Record<ListeningType, string[]> = {
     'a lecture on the psychology of motivation',
     'a panel discussion on climate adaptation strategies',
   ],
-  toeic: [
-    'a company announcement about a new office policy',
-    'a voicemail confirming a business meeting time',
-    'a store announcement about a seasonal sale',
-    'a conference call about quarterly sales targets',
-    'a radio advertisement for a new product launch',
-    'instructions from a manager before a client visit',
-    'an automated message from an airline about a delay',
-    'a presentation on employee benefit changes',
-    'a customer service call about a faulty product',
-    'a training session introduction by an HR manager',
-  ],
   lecture: [
     'the cognitive effects of bilingualism',
     'plate tectonics and volcanic activity',
@@ -110,24 +99,33 @@ const TYPE_DESC: Record<ListeningType, string> = {
   conversation: 'a natural dialogue between 2 people',
   monologue: 'a monologue or short informal talk',
   ielts: 'an IELTS Listening section script (interview, tour, or talk)',
-  toeic: 'a TOEIC Listening script (announcement, conversation, or short talk)',
   lecture: 'an academic lecture excerpt',
 };
 
 @Injectable()
 export class ListeningService {
   private readonly logger = new Logger(ListeningService.name);
-  constructor() {}
+  constructor(private readonly materials: SkillMaterialsService) {}
 
   private get client() {
     return getAnthropicClient();
   }
 
-  async getExercise(dto: GetListeningDto) {
+  async getExercise(dto: GetListeningDto, userId?: number) {
     const level = dto.level ?? 'B1';
     const type = dto.type ?? 'monologue';
     if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
-    return this.generateExercise(level, type);
+    const exercise = await this.generateExercise(level, type);
+    // Keep the generated script + questions in the database.
+    await this.materials.save({
+      skill: 'listening',
+      kind: type,
+      level,
+      topic: stringField(exercise, 'topic'),
+      content: exercise,
+      userId,
+    });
+    return exercise;
   }
 
   private pick<T>(arr: T[]): T {
@@ -140,7 +138,7 @@ export class ListeningService {
     const [spkA, spkB] = this.pick(SPEAKER_PAIRS);
 
     // Dialogue types use named speakers; solo types don't need a second speaker
-    const isDialogue = type === 'conversation' || type === 'toeic';
+    const isDialogue = type === 'conversation';
     const speakerNote = isDialogue
       ? `Label speakers as "${spkA}:" and "${spkB}:". Alternate naturally.`
       : 'Single speaker. Natural, varied pace.';

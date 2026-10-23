@@ -23,8 +23,8 @@
 
     <!-- Loading skeleton -->
     <template v-if="loading">
-      <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div v-for="i in 4" :key="i" class="bg-card border-border animate-pulse rounded-2xl border p-5 h-28" />
+      <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div v-for="i in 3" :key="i" class="bg-card border-border animate-pulse rounded-2xl border p-5 h-28" />
       </div>
       <div class="mb-6 grid gap-6 lg:grid-cols-5">
         <div class="bg-card border-border animate-pulse rounded-2xl border p-6 h-64 lg:col-span-3" />
@@ -43,7 +43,7 @@
 
     <template v-else>
       <!-- KPI Cards -->
-      <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div
           v-for="kpi in kpiCards"
           :key="kpi.label"
@@ -215,10 +215,6 @@
               <p class="text-foreground text-lg font-bold">{{ avgAccuracy }}%</p>
               <p class="text-muted-foreground text-xs">{{ $t('teacher.analytics.avgAccuracy') }}</p>
             </div>
-            <div class="bg-secondary rounded-xl px-3 py-2 text-center">
-              <p class="text-foreground text-lg font-bold">{{ totalLiveQuizzes }}</p>
-              <p class="text-muted-foreground text-xs">{{ $t('teacher.analytics.liveSessions2') }}</p>
-            </div>
           </div>
         </div>
       </div>
@@ -343,10 +339,10 @@ const loading = ref(true)
 const analyticsError = ref('')
 
 // Reactive data populated from API
-const kpiDataMap = ref<Record<string, { students: number; quizzes: number; avgScore: number; liveQuizzes: number; trends: number[] }>>({
-  week:  { students: 0, quizzes: 0, avgScore: 0, liveQuizzes: 0, trends: [0, 0, 0, 0] },
-  month: { students: 0, quizzes: 0, avgScore: 0, liveQuizzes: 0, trends: [0, 0, 0, 0] },
-  year:  { students: 0, quizzes: 0, avgScore: 0, liveQuizzes: 0, trends: [0, 0, 0, 0] },
+const kpiDataMap = ref<Record<string, { students: number; quizzes: number; avgScore: number; trends: number[] }>>({
+  week:  { students: 0, quizzes: 0, avgScore: 0, trends: [0, 0, 0] },
+  month: { students: 0, quizzes: 0, avgScore: 0, trends: [0, 0, 0] },
+  year:  { students: 0, quizzes: 0, avgScore: 0, trends: [0, 0, 0] },
 })
 const activityDataMapRef = ref<Record<string, { label: string; value: number }[]>>({
   week: [
@@ -380,7 +376,7 @@ const skillsDataRef = ref([
   { name: 'Speaking',  desc: 'Pronunciation & fluency',    icon: '🎙️', bgColor: 'bg-primary/10',  borderColor: 'border-primary/20',  barColor: 'bg-primary',  avgScore: 0, change: 0, classes: [] as { name: string; score: number }[] },
 ])
 
-const emptyKpi = { students: 0, quizzes: 0, avgScore: 0, liveQuizzes: 0, trends: [0, 0, 0, 0] }
+const emptyKpi = { students: 0, quizzes: 0, avgScore: 0, trends: [0, 0, 0] }
 
 const kpiCards = computed(() => {
   const d = kpiDataMap.value[selectedPeriod.value] ?? emptyKpi
@@ -388,7 +384,6 @@ const kpiCards = computed(() => {
     { label: t('teacher.analytics.kpi.activeStudents'), value: d.students, trend: d.trends[0], icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
     { label: t('teacher.analytics.kpi.quizzesPlayed'), value: d.quizzes, trend: d.trends[1], icon: FileText, color: 'text-chart-2', bg: 'bg-chart-2/10' },
     { label: t('teacher.analytics.kpi.avgScore'), value: `${d.avgScore}%`, trend: d.trends[2], icon: Trophy, color: 'text-chart-3', bg: 'bg-chart-3/10' },
-    { label: t('teacher.analytics.kpi.liveSessions'), value: d.liveQuizzes, trend: d.trends[3], icon: Users, color: 'text-chart-1', bg: 'bg-chart-1/10' },
   ]
 })
 
@@ -406,7 +401,6 @@ const avgAccuracy = computed(() => {
   const withData = quizTypesData.value.filter(q => q.avg > 0)
   return withData.length ? Math.round(withData.reduce((s, q) => s + q.avg, 0) / withData.length) : 0
 })
-const totalLiveQuizzes = computed(() => (kpiDataMap.value[selectedPeriod.value] ?? emptyKpi).liveQuizzes)
 
 onMounted(async () => {
   try {

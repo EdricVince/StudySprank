@@ -54,10 +54,20 @@
 
     <!-- Section 1: Assigned by Teacher -->
     <div class="animate-fade-in-up delay-150 mb-8">
-      <h2 class="text-foreground mb-5 flex items-center gap-2 text-xl font-semibold">
-        <BookOpen class="text-primary h-6 w-6" />
-        {{ $t('quizzesPage.assignmentsFromTeacher') }}
-      </h2>
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-foreground flex items-center gap-2 text-xl font-semibold">
+          <BookOpen class="text-primary h-6 w-6" />
+          {{ $t('quizzesPage.assignmentsFromTeacher') }}
+        </h2>
+        <button
+          type="button"
+          class="bg-secondary text-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+          @click="showJoinModal = true"
+        >
+          <Plus class="h-4 w-4" />
+          {{ $t('quizzesPage.joinClass') }}
+        </button>
+      </div>
       <!-- Assigned tests + document handouts -->
       <div v-if="assignments.length || docAssignments.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Graded tests -->
@@ -121,6 +131,8 @@
         </p>
       </div>
     </div>
+
+    <JoinClassModal :show="showJoinModal" @close="showJoinModal = false" @joined="loadAssignments" />
 
     <!-- Document viewer modal -->
     <Teleport to="body">
@@ -404,8 +416,10 @@ import {
   Keyboard,
   MessageSquare,
   FileText,
+  Plus,
 } from '@/components/icons'
 import QuizModeCard from '@/components/quiz/QuizModeCard.vue'
+import JoinClassModal from '@/components/quiz/JoinClassModal.vue'
 import type { QuizMode } from '@/types/quiz'
 import { useProgressStore } from '@/stores/progress.store'
 import { useQuizStore } from '@/stores/quiz.store'
@@ -423,10 +437,12 @@ const authStore = useAuthStore()
 const assignments = ref<TestData[]>([])
 const docAssignments = ref<AssignmentData[]>([])
 const viewingDoc = ref<AssignmentData | null>(null)
-onMounted(async () => {
+const showJoinModal = ref(false)
+async function loadAssignments() {
   try { assignments.value = await api.getTests() } catch { /* non-critical */ }
   try { docAssignments.value = await api.getAssignments() } catch { /* non-critical */ }
-})
+}
+onMounted(loadAssignments)
 const openTest = (id: number) => router.push(`/quizzes/test/${id}`)
 const openDoc = (d: AssignmentData) => { viewingDoc.value = d }
 

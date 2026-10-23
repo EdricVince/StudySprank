@@ -43,20 +43,13 @@
       </div>
 
       <!-- Stats -->
-      <div class="animate-fade-in-up delay-100 mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="animate-fade-in-up delay-100 mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div class="bg-card border-border rounded-2xl border p-5">
           <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-1/10">
             <Users class="text-chart-1 h-4 w-4" />
           </div>
           <p class="text-foreground tabular-nums text-2xl font-bold">{{ students.length }}/{{ classData.student_limit }}</p>
           <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.classDetail.stats.students') }}</p>
-        </div>
-        <div class="bg-card border-border rounded-2xl border p-5">
-          <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-2/10">
-            <Video class="text-chart-2 h-4 w-4" />
-          </div>
-          <p class="text-foreground tabular-nums text-2xl font-bold">{{ videos.length }}</p>
-          <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.classDetail.stats.videos') }}</p>
         </div>
         <div class="bg-card border-border rounded-2xl border p-5">
           <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-3/10">
@@ -74,23 +67,8 @@
         </div>
       </div>
 
-      <!-- Tabs -->
-      <div class="animate-fade-in-up delay-150 mb-6">
-        <div class="border-border flex gap-1 border-b">
-          <button
-            v-for="tab in tabs"
-            :key="tab.value"
-            class="border-b-2 px-4 py-3 text-sm font-medium transition-colors"
-            :class="activeTab === tab.value
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'"
-            @click="activeTab = tab.value"
-          >{{ tab.label }}</button>
-        </div>
-      </div>
-
       <!-- Tab: Students -->
-      <div v-if="activeTab === 'students'" class="animate-fade-in-up delay-200 bg-card border-border rounded-2xl border">
+      <div class="animate-fade-in-up delay-200 bg-card border-border rounded-2xl border">
         <div class="border-border border-b p-4">
           <h2 class="text-foreground font-semibold">{{ $t('teacher.classDetail.studentsCount', { count: students.length }) }}</h2>
         </div>
@@ -117,35 +95,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Tab: Videos -->
-      <div v-if="activeTab === 'videos'" class="animate-fade-in-up delay-200 bg-card border-border rounded-2xl border">
-        <div class="border-border flex items-center justify-between border-b p-4">
-          <h2 class="text-foreground font-semibold">{{ $t('teacher.classDetail.videosCount', { count: videos.length }) }}</h2>
-          <button
-            class="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors"
-            @click="router.push('/teacher/videos')"
-          >
-            <Plus class="h-4 w-4" />
-            {{ $t('teacher.classDetail.addVideo') }}
-          </button>
-        </div>
-        <div class="divide-border divide-y">
-          <div v-for="video in videos" :key="video.id" class="flex items-center gap-4 p-4">
-            <div class="bg-primary/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl">
-              <Video class="text-primary h-6 w-6" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-foreground font-medium truncate">{{ video.title }}</p>
-              <p class="text-muted-foreground text-sm">{{ video.lesson_name || $t('teacher.classDetail.noLessonName') }}</p>
-            </div>
-          </div>
-          <div v-if="videos.length === 0" class="p-10 text-center">
-            <Video class="text-muted-foreground mx-auto mb-3 h-10 w-10" />
-            <p class="text-muted-foreground text-sm">{{ $t('teacher.classDetail.noVideos') }}</p>
-          </div>
-        </div>
-      </div>
     </template>
 
     <!-- Class not found -->
@@ -156,15 +105,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Copy, UserMinus, Plus, Video, Users, BookOpen, GraduationCap } from '@/components/icons'
+import { Copy, UserMinus, Users, BookOpen, GraduationCap } from '@/components/icons'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/utils/api'
 import type { Class, ClassStudent } from '@/types/class'
-
-interface VideoItem { id: number; title: string; lesson_name?: string }
 
 const router = useRouter()
 const route = useRoute()
@@ -173,27 +120,17 @@ const toast = useToast()
 
 const classId = Number(route.params.id)
 const loading = ref(true)
-const activeTab = ref('students')
-
-const tabs = computed(() => [
-  { label: t('teacher.classDetail.tabs.students'), value: 'students' },
-  { label: t('teacher.classDetail.tabs.videos'), value: 'videos' },
-])
-
 const classData = ref<Class | null>(null)
 const students = ref<ClassStudent[]>([])
-const videos = ref<VideoItem[]>([])
 
 onMounted(async () => {
   try {
-    const [cls, studs, vids] = await Promise.all([
+    const [cls, studs] = await Promise.all([
       api.getClass(classId) as Promise<Class>,
       api.getClassStudents(classId) as Promise<ClassStudent[]>,
-      api.getVideos(classId) as Promise<VideoItem[]>,
     ])
     classData.value = cls
     students.value = studs
-    videos.value = vids
   } catch {
     toast.error(t('teacher.classDetail.toast.loadFailed'))
   } finally {

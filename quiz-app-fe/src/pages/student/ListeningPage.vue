@@ -186,12 +186,6 @@ const library = [
     { title: 'Section 3 – Discussion', desc: 'Academic discussion', level: 'B2' },
     { title: 'Section 4 – Lecture', desc: 'University lecture', level: 'C1' },
   ]},
-  { key: 'toeic', icon: '💼', type: 'toeic', exercises: [
-    { title: 'Part 1 – Photographs', desc: 'Picture descriptions', level: 'B1' },
-    { title: 'Part 2 – Q&A', desc: 'Short conversations', level: 'B1' },
-    { title: 'Part 3 – Conversations', desc: 'Workplace dialogues', level: 'B2' },
-    { title: 'Part 4 – Talks', desc: 'Announcements & reports', level: 'B2' },
-  ]},
   { key: 'lecture', icon: '🔬', type: 'lecture', exercises: [
     { title: 'Psychology 101', desc: 'Intro lecture style', level: 'B2' },
     { title: 'AI & Society', desc: 'Tech lecture excerpt', level: 'C1' },

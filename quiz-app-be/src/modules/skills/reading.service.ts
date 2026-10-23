@@ -10,6 +10,7 @@ import {
 } from '../../core/ai/anthropic';
 import { messageText, parseJsonObject } from '../../core/ai/ai-response';
 import type { GetReadingDto, CefrLevel, ReadingType } from './dto/skills.dto';
+import { SkillMaterialsService, stringField } from './skill-materials.service';
 
 // Diverse topic pools — Claude picks from these to prevent repetition
 const TOPICS: Record<ReadingType, string[]> = {
@@ -32,20 +33,6 @@ const TOPICS: Record<ReadingType, string[]> = {
     'The neuroscience of habit formation',
     'Underground cities and subterranean architecture',
     'The ethics of artificial intelligence in hiring',
-  ],
-  toeic: [
-    'Flexible working policies post-pandemic',
-    'Supply chain disruptions and global business',
-    'Corporate sustainability reporting trends',
-    'The growth of e-commerce logistics',
-    'Employee wellness programmes ROI',
-    'Remote team management best practices',
-    'Digital transformation in manufacturing',
-    'Customer experience in the subscription economy',
-    'Cross-cultural communication in multinational teams',
-    'Data privacy regulations and business compliance',
-    'The rise of B2B software-as-a-service',
-    'Workplace automation and reskilling workers',
   ],
   story: [
     'A lighthouse keeper who discovers a message in a bottle',
@@ -103,7 +90,6 @@ const WORD_COUNTS: Record<CefrLevel, number> = {
 const TYPE_DESC: Record<ReadingType, string> = {
   story: 'an engaging English short story',
   ielts: 'an IELTS Academic reading passage',
-  toeic: 'a TOEIC business reading passage (article, memo, or report)',
   academic: 'an academic research-style article',
   news: 'a news article',
 };
@@ -111,17 +97,27 @@ const TYPE_DESC: Record<ReadingType, string> = {
 @Injectable()
 export class ReadingService {
   private readonly logger = new Logger(ReadingService.name);
-  constructor() {}
+  constructor(private readonly materials: SkillMaterialsService) {}
 
   private get client() {
     return getAnthropicClient();
   }
 
-  async getPassage(dto: GetReadingDto) {
+  async getPassage(dto: GetReadingDto, userId?: number) {
     const level = dto.level ?? 'B1';
     const type = dto.type ?? 'ielts';
     if (!this.client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
-    return this.generatePassage(level, type, dto.topic);
+    const passage = await this.generatePassage(level, type, dto.topic);
+    // Keep the generated passage + questions in the database.
+    await this.materials.save({
+      skill: 'reading',
+      kind: type,
+      level,
+      topic: stringField(passage, 'topic') ?? dto.topic,
+      content: passage,
+      userId,
+    });
+    return passage;
   }
 
   private pick(arr: string[]): string {
