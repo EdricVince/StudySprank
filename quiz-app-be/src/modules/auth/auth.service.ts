@@ -4,6 +4,7 @@ import {
   ConflictException,
   InternalServerErrorException,
   ForbiddenException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -39,6 +40,8 @@ const TEACHER_DOMAIN = '@teacher.sprk';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private configService: ConfigService,
@@ -377,14 +380,23 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
     if (!user) return; // never reveal whether an account exists
 
+    // The link must point at the real web app: APP_URL, or the first allowed
+    // CORS origin. With neither set we skip silently (a 500 here would reveal
+    // that the account exists) and log it for the operator.
+    const configured =
+      this.configService.get<string>('APP_URL') ??
+      this.configService.get<string>('CORS_ORIGINS')?.split(',')[0]?.trim();
+    if (!configured) {
+      this.logger.error('APP_URL is not set; password reset email not sent');
+      return;
+    }
+    const appUrl = configured.replace(/\/$/, '');
+
     const token = crypto.randomBytes(32).toString('hex');
     const hash = this.hashToken(token);
     const expires = Date.now() + 30 * 60 * 1000; // 30 minutes
     await this.usersService.setResetToken(user.id, hash, expires);
 
-    const appUrl = (
-      this.configService.get<string>('APP_URL') ?? 'http://localhost:5173'
-    ).replace(/\/$/, '');
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
     await this.mailService.sendPasswordReset(user.email, resetUrl);
   }

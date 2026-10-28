@@ -77,7 +77,7 @@ export function useProfile() {
     return 'Guest User'
   }
 
-  const getUserEmail = () => authStore.user?.email || 'guest@example.com'
+  const getUserEmail = () => authStore.user?.email || ''
 
   // Profile data - initialized from auth store
   const profile = reactive<ProfileData>({
@@ -99,7 +99,7 @@ export function useProfile() {
       if (newUser) {
         profile.fullName = newUser.name || newUser.email?.split('@')[0] || 'Guest User'
         profile.username = profile.fullName.toLowerCase().replace(/\s+/g, '')
-        profile.email = newUser.email || 'guest@example.com'
+        profile.email = newUser.email || ''
       }
     },
     { immediate: true }

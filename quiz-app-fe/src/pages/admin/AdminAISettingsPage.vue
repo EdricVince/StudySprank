@@ -4,8 +4,8 @@
     <!-- ── Page Header ── -->
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
-        <h1 class="adm-h1 text-2xl">AI Configuration</h1>
-        <p class="adm-text mt-1">Manage the Anthropic API key that powers all AI features on this platform.</p>
+        <h1 class="adm-h1 text-2xl">{{ $t('staff.ai.title') }}</h1>
+        <p class="adm-text mt-1">{{ $t('staff.ai.subtitle') }}</p>
       </div>
       <div class="flex items-center gap-3">
         <div class="hidden sm:block">
@@ -13,7 +13,7 @@
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .29 2.798-1.132 2.798H4.913c-1.423 0-2.133-1.798-1.132-2.798l1.403-1.403" />
             </svg>
-            claude-haiku-4-5
+            {{ status?.model }}
           </div>
         </div>
         <div
@@ -28,7 +28,7 @@ class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
 class="relative inline-flex h-2 w-2 rounded-full"
               :class="status?.enabled ? 'adm-dot-on' : 'adm-dot-off'" />
           </span>
-          {{ status?.enabled ? 'AI Active' : 'AI Inactive' }}
+          {{ status?.enabled ? $t('staff.ai.on') : $t('staff.ai.off') }}
         </div>
       </div>
     </div>
@@ -57,16 +57,16 @@ class="relative inline-flex h-2 w-2 rounded-full"
             </svg>
           </div>
           <div>
-            <div class="adm-hero-sublabel">System Status</div>
+            <div class="adm-hero-sublabel">{{ $t('staff.ai.systemStatus') }}</div>
             <div class="adm-hero-title">
-              {{ status?.enabled ? 'AI Engine Online' : 'AI Engine Offline' }}
+              {{ status?.enabled ? $t('staff.ai.engineOn') : $t('staff.ai.engineOff') }}
             </div>
             <div class="adm-hero-desc">
               <template v-if="status?.enabled">
-                {{ status.provider }} · Key ending in
+                {{ status.provider }} · {{ $t('staff.ai.keyEnding') }}
                 <code class="adm-hero-code">{{ status.key_preview?.slice(-8) }}</code>
               </template>
-              <template v-else>No API key configured — AI-powered features are disabled until a key is added</template>
+              <template v-else>{{ $t('staff.ai.noKey') }}</template>
             </div>
           </div>
         </div>
@@ -75,19 +75,19 @@ class="relative inline-flex h-2 w-2 rounded-full"
         <div class="flex items-stretch gap-3 shrink-0">
           <div class="adm-stat-bubble adm-stat-bubble-off">
             <div class="adm-stat-num">{{ features.length }}</div>
-            <div class="adm-stat-label">Features</div>
+            <div class="adm-stat-label">{{ $t('staff.ai.features') }}</div>
           </div>
           <div class="adm-stat-bubble adm-stat-bubble-off">
             <div class="adm-stat-num">{{ status?.enabled ? '100' : '0' }}<span class="text-lg">%</span></div>
-            <div class="adm-stat-label">Coverage</div>
+            <div class="adm-stat-label">{{ $t('staff.ai.coverage') }}</div>
           </div>
           <div class="adm-stat-bubble adm-stat-bubble-off">
-            <div class="adm-stat-num-sm">Claude<br>Haiku</div>
-            <div class="adm-stat-label">Model</div>
+            <div class="adm-stat-num-sm">{{ modelFamily }}</div>
+            <div class="adm-stat-label">{{ $t('staff.ai.model') }}</div>
           </div>
           <div class="adm-stat-bubble" :class="status?.enabled ? 'adm-stat-bubble-on' : 'adm-stat-bubble-off'">
             <div class="text-2xl">{{ status?.enabled ? '✅' : '⏸️' }}</div>
-            <div class="adm-stat-label">{{ status?.enabled ? 'Active' : 'Paused' }}</div>
+            <div class="adm-stat-label">{{ status?.enabled ? $t('staff.ai.activeShort') : $t('staff.ai.paused') }}</div>
           </div>
         </div>
       </div>
@@ -106,14 +106,14 @@ class="relative inline-flex h-2 w-2 rounded-full"
               </svg>
             </div>
             <div>
-              <div class="adm-h3">Anthropic API Key</div>
-              <div class="adm-meta">Paste your key from console.anthropic.com</div>
+              <div class="adm-h3">{{ $t('staff.ai.keyTitle') }}</div>
+              <div class="adm-meta">{{ $t('staff.ai.keyHint') }}</div>
             </div>
           </div>
           <a
 href="https://console.anthropic.com" target="_blank" rel="noopener"
             class="adm-link text-xs hidden sm:flex items-center gap-1">
-            Get a key
+            {{ $t('staff.ai.getKey') }}
             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
@@ -123,7 +123,7 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
         <div class="p-6 space-y-5">
           <!-- Input area -->
           <div class="space-y-3">
-            <label class="adm-label uppercase tracking-wider">API Key</label>
+            <label class="adm-label uppercase tracking-wider">{{ $t('staff.ai.apiKey') }}</label>
             <div class="relative">
               <input
                 v-model="keyInput"
@@ -145,7 +145,7 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
                 </svg>
               </button>
             </div>
-            <p class="adm-meta">Keys always start with <code class="adm-code">sk-ant-</code></p>
+            <p class="adm-meta">{{ $t('staff.ai.keyStarts') }} <code class="adm-code">sk-ant-</code></p>
           </div>
 
           <!-- Alerts -->
@@ -176,7 +176,7 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
               <svg v-else class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-              {{ saving ? 'Activating...' : 'Save & Activate AI' }}
+              {{ saving ? $t('staff.ai.saving') : $t('staff.ai.save') }}
             </button>
             <button
               v-if="status?.enabled"
@@ -187,7 +187,7 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
-              Deactivate
+              {{ $t('staff.ai.deactivate') }}
             </button>
           </div>
 
@@ -196,7 +196,7 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
             <svg class="adm-alert-icon-info" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
             </svg>
-            <p class="adm-alert-text-info">Your API key is stored securely on the server and never exposed to the browser. It is only used server-side to call the Anthropic API.</p>
+            <p class="adm-alert-text-info">{{ $t('staff.ai.security') }}</p>
           </div>
         </div>
       </div>
@@ -207,22 +207,22 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
         <div class="grid grid-cols-2 gap-3">
           <div class="adm-card-2xl shadow-sm p-4 text-center">
             <div :class="status?.enabled ? 'adm-count-on' : 'adm-count-off'">{{ features.length }}</div>
-            <div class="adm-meta mt-0.5 font-medium">AI Features</div>
+            <div class="adm-meta mt-0.5 font-medium">{{ $t('staff.ai.aiFeatures') }}</div>
           </div>
           <div class="adm-card-2xl shadow-sm p-4 text-center">
             <div :class="status?.enabled ? 'adm-count-ok' : 'adm-count-off'">{{ status?.enabled ? '100%' : '0%' }}</div>
-            <div class="adm-meta mt-0.5 font-medium">Coverage</div>
+            <div class="adm-meta mt-0.5 font-medium">{{ $t('staff.ai.coverage') }}</div>
           </div>
           <div class="adm-card-2xl shadow-sm p-4 text-center col-span-2">
-            <div class="adm-model-name">claude-haiku-4-5-20251001</div>
-            <div class="adm-meta mt-0.5 font-medium">AI Model</div>
+            <div class="adm-model-name">{{ status?.model }}</div>
+            <div class="adm-meta mt-0.5 font-medium">{{ $t('staff.ai.aiModel') }}</div>
           </div>
         </div>
 
         <!-- How it works -->
         <div class="adm-card-2xl shadow-sm overflow-hidden">
           <div class="adm-card-header px-5 py-4">
-            <div class="adm-h3">How it works</div>
+            <div class="adm-h3">{{ $t('staff.ai.how.title') }}</div>
           </div>
           <div class="p-5 space-y-4">
             <div class="flex gap-3">
@@ -232,8 +232,8 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
                 </svg>
               </div>
               <div>
-                <div class="adm-h4">AI Active Mode</div>
-                <div class="adm-meta mt-0.5 leading-relaxed">Uses Claude Haiku for real-time generation, evaluation, and analysis.</div>
+                <div class="adm-h4">{{ $t('staff.ai.how.activeTitle') }}</div>
+                <div class="adm-meta mt-0.5 leading-relaxed">{{ $t('staff.ai.how.activeDesc') }}</div>
               </div>
             </div>
             <div class="flex gap-3">
@@ -243,8 +243,8 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
                 </svg>
               </div>
               <div>
-                <div class="adm-h4">Fallback Mode</div>
-                <div class="adm-meta mt-0.5 leading-relaxed">Static content — app works normally, zero API cost.</div>
+                <div class="adm-h4">{{ $t('staff.ai.how.fallbackTitle') }}</div>
+                <div class="adm-meta mt-0.5 leading-relaxed">{{ $t('staff.ai.how.fallbackDesc') }}</div>
               </div>
             </div>
             <div class="flex gap-3">
@@ -254,8 +254,8 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
                 </svg>
               </div>
               <div>
-                <div class="adm-h4">Instant Activation</div>
-                <div class="adm-meta mt-0.5 leading-relaxed">Key activates immediately — no server restart required.</div>
+                <div class="adm-h4">{{ $t('staff.ai.how.instantTitle') }}</div>
+                <div class="adm-meta mt-0.5 leading-relaxed">{{ $t('staff.ai.how.instantDesc') }}</div>
               </div>
             </div>
           </div>
@@ -273,15 +273,15 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
             </svg>
           </div>
           <div>
-            <div class="adm-h3">AI-Powered Features</div>
-            <div class="adm-meta">{{ features.length }} features managed by this key</div>
+            <div class="adm-h3">{{ $t('staff.ai.featuresTitle') }}</div>
+            <div class="adm-meta">{{ $t('staff.ai.featuresManaged', { n: features.length }) }}</div>
           </div>
         </div>
         <div
           class="rounded-full px-3 py-1 text-xs font-semibold"
           :class="status?.enabled ? 'adm-feat-status-on' : 'adm-feat-status-off'"
         >
-          {{ status?.enabled ? 'All Active' : 'All Fallback' }}
+          {{ status?.enabled ? $t('staff.ai.allActive') : $t('staff.ai.allFallback') }}
         </div>
       </div>
 
@@ -315,11 +315,11 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
               :class="status?.enabled ? 'adm-feat-status-on' : 'adm-feat-status-off'"
             >
               <span class="h-1.5 w-1.5 rounded-full" :class="status?.enabled ? 'adm-dot-on' : 'adm-dot-dim'" />
-              {{ status?.enabled ? 'Active' : 'Fallback' }}
+              {{ status?.enabled ? $t('staff.ai.featActive') : $t('staff.ai.featFallback') }}
             </span>
           </div>
           <div class="adm-h3 truncate">{{ feat.name }}</div>
-          <div class="adm-meta mt-0.5 line-clamp-2 leading-relaxed">{{ feat.desc }}</div>
+          <div class="adm-meta mt-0.5 line-clamp-2 leading-relaxed">{{ $t(`staff.ai.featDesc.${feat.desc}`) }}</div>
         </div>
       </div>
 
@@ -330,13 +330,16 @@ href="https://console.anthropic.com" target="_blank" rel="noopener"
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin.store'
 
+const { t } = useI18n()
 const adminStore = useAdminStore()
 
 const status = ref<{
   enabled: boolean
   provider: string
+  model: string
   key_preview: string | null
   features: { name: string; key: string }[]
 } | null>(null)
@@ -349,23 +352,33 @@ const saveSuccess = ref('')
 
 const features = computed(() => status.value?.features ?? [])
 
+// "claude-haiku-4-5-20251001" -> "Haiku" (the backend owns the real model id).
+const modelFamily = computed(() => {
+  const family = status.value?.model.split('-')[1] ?? ''
+  return family.charAt(0).toUpperCase() + family.slice(1)
+})
+
 // Keyed by the exact feature keys returned by the backend (admin.controller getAiStatus),
-// so every built-in feature shows its own icon, colour tint and description.
-const FEATURE_META: Record<string, { icon: string; bgColor: string; desc: string }> = {
-  entrance_exam:   { icon: '📝', bgColor: 'adm-feat-bg-indigo', desc: 'IELTS mock exams' },
-  writing:         { icon: '✍️',  bgColor: 'adm-feat-bg-purple', desc: 'Score & give feedback on essays' },
-  speaking:        { icon: '🎤', bgColor: 'adm-feat-bg-pink',   desc: 'Analyse and rate spoken answers' },
-  reading:         { icon: '📖', bgColor: 'adm-feat-bg-blue',   desc: 'Generate reading comprehension tasks' },
-  listening:       { icon: '🎧', bgColor: 'adm-feat-bg-teal',   desc: 'Generate listening exercises' },
-  schedule:        { icon: '📅', bgColor: 'adm-feat-bg-cyan',   desc: 'Personalised study schedules' },
-  word_of_the_day: { icon: '💡', bgColor: 'adm-feat-bg-amber',  desc: 'Daily vocabulary selection & explanation' },
-  content_import:  { icon: '🔎', bgColor: 'adm-feat-bg-lime',   desc: 'Scan a URL or text into a lesson' },
+// so every built-in feature shows its own icon, colour tint and (translated) description.
+const FEATURE_META: Record<string, { icon: string; bgColor: string }> = {
+  entrance_exam:   { icon: '📝', bgColor: 'adm-feat-bg-indigo' },
+  writing:         { icon: '✍️',  bgColor: 'adm-feat-bg-purple' },
+  speaking:        { icon: '🎤', bgColor: 'adm-feat-bg-pink' },
+  reading:         { icon: '📖', bgColor: 'adm-feat-bg-blue' },
+  listening:       { icon: '🎧', bgColor: 'adm-feat-bg-teal' },
+  schedule:        { icon: '📅', bgColor: 'adm-feat-bg-cyan' },
+  word_of_the_day: { icon: '💡', bgColor: 'adm-feat-bg-amber' },
+  content_import:  { icon: '🔎', bgColor: 'adm-feat-bg-lime' },
+  battle:          { icon: '⚔️', bgColor: 'adm-feat-bg-pink' },
+  vocabulary:      { icon: '🔤', bgColor: 'adm-feat-bg-blue' },
+  teacher_content: { icon: '🧑‍🏫', bgColor: 'adm-feat-bg-teal' },
 }
 
 const featuresWithMeta = computed(() =>
   features.value.map(f => ({
     ...f,
-    ...(FEATURE_META[f.key] ?? { icon: '🤖', bgColor: 'adm-feat-bg-slate', desc: 'AI-powered feature' }),
+    ...(FEATURE_META[f.key] ?? { icon: '🤖', bgColor: 'adm-feat-bg-slate' }),
+    desc: FEATURE_META[f.key] ? f.key : 'other',
   }))
 )
 
@@ -386,28 +399,28 @@ async function handleSave() {
   saveError.value = ''
   saveSuccess.value = ''
   try {
-    const msg = await adminStore.setAiKey(keyInput.value.trim())
-    saveSuccess.value = msg
+    await adminStore.setAiKey(keyInput.value.trim())
+    saveSuccess.value = t('staff.ai.saved')
     keyInput.value = ''
     await loadStatus()
   } catch (e: any) {
-    saveError.value = e?.message ?? 'Failed to save key'
+    saveError.value = e?.message ?? t('staff.ai.saveFailed')
   } finally {
     saving.value = false
   }
 }
 
 async function handleRemove() {
-  if (!confirm('Deactivate AI? AI-powered features (battle questions, exams, skills, schedule, word of the day) will be disabled until a key is added again.')) return
+  if (!confirm(t('staff.ai.confirmDeactivate'))) return
   saving.value = true
   saveError.value = ''
   saveSuccess.value = ''
   try {
     await adminStore.removeAiKey()
-    saveSuccess.value = 'AI deactivated. Fallback mode is now active.'
+    saveSuccess.value = t('staff.ai.deactivated')
     await loadStatus()
   } catch (e: any) {
-    saveError.value = e?.message ?? 'Failed to remove key'
+    saveError.value = e?.message ?? t('staff.ai.removeFailed')
   } finally {
     saving.value = false
   }

@@ -55,7 +55,7 @@ export function useSettings() {
     return 'Guest User'
   }
 
-  const getUserEmail = () => authStore.user?.email || 'guest@example.com'
+  const getUserEmail = () => authStore.user?.email || ''
 
   // Account - initialized from auth store
   const accountSettings = reactive<AccountSettings>({
@@ -71,7 +71,7 @@ export function useSettings() {
       if (newUser) {
         accountSettings.fullName = newUser.name || newUser.email?.split('@')[0] || 'Guest User'
         accountSettings.username = accountSettings.fullName.toLowerCase().replace(/\s+/g, '')
-        accountSettings.email = newUser.email || 'guest@example.com'
+        accountSettings.email = newUser.email || ''
       }
     },
     { immediate: true }

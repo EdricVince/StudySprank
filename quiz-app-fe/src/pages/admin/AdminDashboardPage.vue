@@ -59,7 +59,7 @@
           >
             <div
               class="adm-avatar"
-              :class="user.role_id === 2 ? 'adm-avatar-teacher' : 'adm-avatar-student'"
+              :class="user.role_id === UserRole.TEACHER ? 'adm-avatar-teacher' : 'adm-avatar-student'"
             >
               {{ initials(user.name ?? user.email) }}
             </div>
@@ -70,7 +70,7 @@
             <div class="flex items-center gap-2 shrink-0">
               <span
                 class="adm-badge"
-                :class="user.role_id === 2 ? 'adm-badge-teacher' : 'adm-badge-student'"
+                :class="user.role_id === UserRole.TEACHER ? 'adm-badge-teacher' : 'adm-badge-student'"
               >{{ roleName(user.role_id) }}</span>
               <span class="adm-meta">{{ formatDate(user.created_at) }}</span>
             </div>
@@ -157,10 +157,11 @@
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin.store'
+import { UserRole } from '@/types/role'
 
 const { t, locale } = useI18n()
 const adminStore = useAdminStore()
-const roleName = (roleId: number) => t(roleId === 3 ? 'staff.roles.admin' : roleId === 2 ? 'staff.roles.teacher' : 'staff.roles.student')
+const roleName = (roleId: number) => t(roleId === UserRole.ADMIN ? 'staff.roles.admin' : roleId === UserRole.TEACHER ? 'staff.roles.teacher' : 'staff.roles.student')
 const refreshing = ref(false)
 
 const recentUsers = computed(() => [...adminStore.users].slice(0, 8))

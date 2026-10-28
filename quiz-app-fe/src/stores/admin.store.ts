@@ -190,16 +190,14 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function fetchAiStatus(): Promise<{
-    enabled: boolean; provider: string; key_preview: string | null;
+    enabled: boolean; provider: string; model: string; key_preview: string | null;
     features: { name: string; key: string }[];
   }> {
     return admin('/ai/status')
   }
 
-  async function setAiKey(key: string): Promise<string> {
-    // apiRequest unwraps `data`; the confirmation text is not needed beyond success.
+  async function setAiKey(key: string): Promise<void> {
     await admin('/ai/key', { method: 'POST', ...json({ key }) })
-    return 'AI key saved. All AI features are now active.'
   }
 
   async function removeAiKey(): Promise<void> {

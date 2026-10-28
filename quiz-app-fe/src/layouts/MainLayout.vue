@@ -365,7 +365,7 @@ const userName = computed(() => {
   if (authStore.user?.email) return authStore.user.email.split('@')[0] ?? 'Guest'
   return 'Guest'
 })
-const userEmail = computed(() => authStore.user?.email || 'guest@example.com')
+const userEmail = computed(() => authStore.user?.email || '')
 const userInitials = computed(() => {
   const name = userName.value
   const names = name.split(' ')

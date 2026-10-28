@@ -31,7 +31,7 @@ import {
   ArrayNotEmpty,
   IsInt,
 } from 'class-validator';
-import { isAnthropicKey } from '../../core/ai/anthropic';
+import { AI_MODEL, isAnthropicKey } from '../../core/ai/anthropic';
 import { AiKeyService } from './ai-key.service';
 
 class CreateTeacherDto {
@@ -242,6 +242,7 @@ export class AdminController {
       data: {
         enabled,
         provider: 'Anthropic Claude',
+        model: AI_MODEL,
         key_preview: enabled ? `sk-ant-...${key.slice(-6)}` : null,
         features: [
           { name: 'Entrance Exam Generation', key: 'entrance_exam' },
