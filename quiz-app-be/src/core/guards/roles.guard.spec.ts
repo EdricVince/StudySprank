@@ -5,13 +5,16 @@ import { RolesGuard } from './roles.guard';
  * Build a fake ExecutionContext whose request carries the given role_id
  * (or no user at all when roleId is undefined).
  */
-function context(roleId?: number) {
+function context(roleId?: number, teacherStatus = 'approved') {
   return {
     getHandler: () => ({}),
     getClass: () => ({}),
     switchToHttp: () => ({
       getRequest: () => ({
-        user: roleId === undefined ? undefined : { role_id: roleId },
+        user:
+          roleId === undefined
+            ? undefined
+            : { role_id: roleId, teacher_status: teacherStatus },
       }),
     }),
   } as any;
@@ -40,6 +43,19 @@ describe('RolesGuard', () => {
     expect(() => guardRequiring([2]).canActivate(context(1))).toThrow(
       ForbiddenException,
     );
+  });
+
+  it.each(['pending', 'rejected', 'none'])(
+    'blocks a teacher whose status is "%s" from teacher routes',
+    (status) => {
+      expect(() => guardRequiring([2]).canActivate(context(2, status))).toThrow(
+        'awaiting approval',
+      );
+    },
+  );
+
+  it('does not apply the approval check to admins', () => {
+    expect(guardRequiring([3]).canActivate(context(3, 'none'))).toBe(true);
   });
 
   it('blocks a request with no role_id', () => {

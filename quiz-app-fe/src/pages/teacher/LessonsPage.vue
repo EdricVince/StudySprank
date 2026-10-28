@@ -410,6 +410,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { api, ApiError } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import { useLocale } from '@/composables/useLocale'
@@ -488,13 +489,19 @@ const load = async () => {
     loading.value = false
   }
 }
-onMounted(load)
+// Opened from a class page: ?class_id=5&new=1 pre-selects the class and opens the form.
+const route = useRoute()
+const presetClass = () => Number(route.query.class_id) || null
+onMounted(async () => {
+  await load()
+  if (route.query.new) openCreate()
+})
 
 const openCreate = () => {
   mode.value = 'ai'
   generated.value = null
-  manualForm.value = { title: '', class_id: null, category: 'vocabulary', difficulty: 'Intermediate (B1)', description: '', vocabulary: [] }
-  aiForm.value = { skill: 'vocabulary', level: 'Intermediate (B1)', language: 'en', topic: '', class_id: null }
+  manualForm.value = { title: '', class_id: presetClass(), category: 'vocabulary', difficulty: 'Intermediate (B1)', description: '', vocabulary: [] }
+  aiForm.value = { skill: 'vocabulary', level: 'Intermediate (B1)', language: 'en', topic: '', class_id: presetClass() }
   showModal.value = true
 }
 

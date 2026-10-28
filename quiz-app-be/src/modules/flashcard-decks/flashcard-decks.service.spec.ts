@@ -61,3 +61,91 @@ describe('FlashcardDecksService — sharing + ownership', () => {
     expect(repo.save).toHaveBeenCalled();
   });
 });
+
+describe('FlashcardDecksService — decks assigned to a class', () => {
+  const teacher = { role_id: 2, teacher_status: 'approved' };
+  let service: FlashcardDecksService;
+  let repo: any;
+
+  beforeEach(() => {
+    repo = {
+      findOne: jest.fn(),
+      create: jest.fn((x: any) => x),
+      save: jest.fn((x: any) => ({ id: 1, ...x })),
+      delete: jest.fn(),
+      manager: { findOne: jest.fn() },
+    };
+    service = new FlashcardDecksService(repo);
+  });
+
+  it('an approved teacher can assign a deck to their own class — never public', async () => {
+    repo.manager.findOne.mockResolvedValue({ id: 5 }); // the class belongs to them
+    const deck = await service.create(
+      10,
+      { title: 'Unit 1', class_id: 5, is_public: true },
+      teacher,
+    );
+    expect(deck.class_id).toBe(5);
+    expect(deck.is_public).toBe(false);
+  });
+
+  it("refuses a class that is not the teacher's own (403)", async () => {
+    repo.manager.findOne.mockResolvedValue(null);
+    await expect(
+      service.create(10, { title: 'x', class_id: 99 }, teacher),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('refuses students and teachers who are not approved yet (403)', async () => {
+    await expect(
+      service.create(3, { title: 'x', class_id: 5 }, { role_id: 1 }),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.create(
+        10,
+        { title: 'x', class_id: 5 },
+        { role_id: 2, teacher_status: 'pending' },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('a class deck is readable by enrolled students only', async () => {
+    const classDeck = { id: 7, owner_id: 10, class_id: 5, is_public: false };
+    repo.findOne.mockResolvedValue(classDeck);
+
+    repo.manager.findOne.mockResolvedValue({ id: 1 }); // enrolled
+    expect((await service.findOne(7, 42)).id).toBe(7);
+
+    repo.manager.findOne.mockResolvedValue(null); // not enrolled
+    await expect(service.findOne(7, 43)).rejects.toThrow(ForbiddenException);
+
+    // the owner needs no enrollment lookup at all
+    repo.manager.findOne.mockClear();
+    expect((await service.findOne(7, 10)).id).toBe(7);
+    expect(repo.manager.findOne).not.toHaveBeenCalled();
+  });
+
+  it('a class deck is never readable just because it is flagged public', async () => {
+    repo.findOne.mockResolvedValue({
+      id: 8,
+      owner_id: 10,
+      class_id: 5,
+      is_public: true,
+    });
+    repo.manager.findOne.mockResolvedValue(null);
+    await expect(service.findOne(8, 43)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('moving a deck out of its class (class_id null) needs no class check', async () => {
+    repo.findOne.mockResolvedValue({
+      id: 7,
+      owner_id: 10,
+      class_id: 5,
+      is_public: false,
+    });
+    const deck = await service.update(7, 10, { class_id: null }, teacher);
+    expect(deck.class_id).toBeNull();
+    expect(repo.manager.findOne).not.toHaveBeenCalled();
+  });
+});

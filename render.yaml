@@ -35,8 +35,12 @@ services:
       # Auth secrets — auto-generated on first deploy.
       - key: JWT_SECRET
         generateValue: true
-      - key: ADMIN_SECRET
-        generateValue: true
+      # First administrator — created on start-up if no account has this email.
+      # Set both in the Render dashboard; change the password after the first login.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
       - key: JWT_ACCESS_EXPIRES_IN
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN

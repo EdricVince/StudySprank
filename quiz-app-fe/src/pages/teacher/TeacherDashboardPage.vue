@@ -103,7 +103,7 @@
             </div>
             <div class="min-w-0 flex-1">
               <p class="text-foreground font-medium">{{ cls.name }}</p>
-              <p class="text-muted-foreground text-xs">{{ cls.studentCount }} {{ $t('teacher.dashboard.stats.students').toLowerCase() }} · {{ cls.lessonCount }} lessons</p>
+              <p class="text-muted-foreground text-xs">{{ cls.studentCount }} {{ $t('teacher.dashboard.stats.students').toLowerCase() }}</p>
             </div>
             <div class="bg-primary/5 border-primary/20 rounded-lg border px-3 py-1.5">
               <p class="text-primary font-mono text-sm font-bold tracking-wider">{{ cls.joinCode }}</p>
@@ -253,11 +253,11 @@ import {
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/utils/api'
 import type { Class } from '@/types/class'
-import type { AssignmentData } from '@/types/content'
+import type { AssignmentData, TestData } from '@/types/content'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const userName = computed(() => {
   if (authStore.user?.name) return authStore.user.name
@@ -308,12 +308,14 @@ const classNameFor = (classId: number | null) => {
 
 onMounted(async () => {
   try {
-    const [classes, assigns] = await Promise.all([
+    const [classes, assigns, tests] = await Promise.all([
       api.getClasses() as Promise<(Class & { student_count: number })[]>,
       api.getAssignments().catch(() => [] as AssignmentData[]),
+      api.getTests().catch(() => [] as TestData[]),
     ])
     statsValues.value.classes = classes.length
     statsValues.value.students = classes.reduce((sum, c) => sum + (c.student_count ?? 0), 0)
+    statsValues.value.tests = tests.length
     recentClasses.value = classes.slice(0, 5).map((c, i) => ({
       id: c.id,
       name: c.name,
@@ -324,8 +326,32 @@ onMounted(async () => {
       bgColor: CLASS_COLORS[i % CLASS_COLORS.length] ?? 'bg-chart-1/10',
     }))
     assignments.value = assigns
+    // The latest tests, newest first, with the class each belongs to.
+    upcomingTests.value = tests.slice(0, 4).map((x) => ({
+      id: x.id,
+      title: x.title,
+      class: x.class_id == null ? t('teacher.dashboard.allClasses') : (classes.find((c) => c.id === x.class_id)?.name ?? t('teacher.dashboard.allClasses')),
+      questions: x.question_count ?? x.questions?.length ?? 0,
+      duration: x.time_limit ?? 0,
+      status: x.is_published ? t('classHub.published') : t('classHub.draft'),
+    }))
   } catch (e: any) {
     dashboardError.value = e?.errorMessage || e?.message || 'Failed to load dashboard data.'
+  }
+
+  // Recent activity comes from the activity trail stored in the database.
+  try {
+    const feed = await api.getMyActivity()
+    recentActivity.value = feed.slice(0, 6).map((a) => ({
+      id: a.id,
+      text: a.class_name ? `${a.summary} · ${a.class_name}` : a.summary,
+      time: new Date(a.created_at).toLocaleString(locale.value, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      icon: a.action.startsWith('class') ? BookOpen : a.action.startsWith('test') ? FileText : Activity,
+      color: 'text-primary',
+      bg: 'bg-primary/10',
+    }))
+  } catch {
+    /* the feed is optional */
   }
 })
 </script>

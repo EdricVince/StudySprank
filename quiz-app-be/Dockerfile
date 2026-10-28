@@ -23,6 +23,6 @@ RUN pnpm install --frozen-lockfile --prod --filter quiz-app-be...
 COPY --from=build /app/quiz-app-be/dist ./quiz-app-be/dist
 WORKDIR /app/quiz-app-be
 EXPOSE 3000
-# Runtime config via env (DB_*, JWT_SECRET, ANTHROPIC_API_KEY, ADMIN_SECRET, SMTP_*, APP_URL…).
+# Runtime config via env (DB_*, JWT_SECRET, ANTHROPIC_API_KEY, ADMIN_EMAIL/ADMIN_PASSWORD, SMTP_*, APP_URL…).
 # tsc has no rootDir, so sources under src/ compile to dist/src/* — entry is dist/src/main.js.
 CMD ["node", "dist/src/main"]

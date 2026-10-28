@@ -58,7 +58,7 @@ export class FlashcardDecksController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateFlashcardDeckDto,
   ) {
-    const deck = await this.service.create(req.user.id, dto);
+    const deck = await this.service.create(req.user.id, dto, req.user);
     return { code: 201, message: 'Flashcard deck created', data: deck };
   }
 
@@ -83,7 +83,7 @@ export class FlashcardDecksController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateFlashcardDeckDto,
   ) {
-    const deck = await this.service.update(id, req.user.id, dto);
+    const deck = await this.service.update(id, req.user.id, dto, req.user);
     return { code: 200, message: 'Updated', data: deck };
   }
 

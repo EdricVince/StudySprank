@@ -20,6 +20,7 @@ import { FlashcardDecksModule } from './modules/flashcard-decks/flashcard-decks.
 import { TestsModule } from './modules/tests/tests.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { BattleModule } from './modules/battle/battle.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { BattleModule } from './modules/battle/battle.module';
     TestsModule,
     AssignmentsModule,
     BattleModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RateLimitGuard }],

@@ -81,7 +81,7 @@
                 v-bind="componentField"
                 type="email"
                 autocomplete="email"
-                :placeholder="selectedRole === 'teacher' ? 'yourname@teacher.sprk' : 'name@example.com'"
+                :placeholder="selectedRole === 'teacher' ? 'name@school.edu' : 'name@example.com'"
                 class="border-input bg-background focus:border-primary focus:ring-primary/20 h-12 rounded-xl pl-12 text-base transition-all focus:ring-2"
               />
             </div>
@@ -180,8 +180,8 @@
       </div>
     </template>
 
-    <!-- Sign up link (hidden for teacher tab) -->
-    <p v-if="selectedRole === 'student'" class="animate-fade-in-up delay-400 text-muted-foreground text-center text-sm">
+    <!-- Sign up link (teachers apply for an account that an admin must approve) -->
+    <p class="animate-fade-in-up delay-400 text-muted-foreground text-center text-sm">
       {{ $t('auth.login.noAccount') }}
       <Button
         type="button"
@@ -189,7 +189,7 @@
         class="text-primary hover:text-primary/80 h-auto p-0 font-semibold"
         @click="goToRegister"
       >
-        {{ $t('auth.login.createAccount') }}
+        {{ selectedRole === 'teacher' ? $t('auth.login.applyTeacher') : $t('auth.login.createAccount') }}
       </Button>
     </p>
   </div>
@@ -252,7 +252,7 @@ const handleSignIn = handleSubmit(async (formValues) => {
     if (result.success) {
       // Route by the role the server returned — not by the email domain or the
       // selected tab — so a teacher with any email address lands in the teacher portal.
-      router.push(authStore.isTeacher ? { name: 'TeacherDashboard' } : { name: 'Dashboard' })
+      router.push(authStore.homePath)
     } else {
       errorMessage.value = result.message || t('auth.login.failed')
     }
@@ -263,7 +263,8 @@ const handleSignIn = handleSubmit(async (formValues) => {
   }
 })
 
-const goToRegister = () => router.push({ name: 'Register' })
+const goToRegister = () =>
+  router.push({ name: selectedRole.value === 'teacher' ? 'TeacherRegister' : 'Register' })
 const goToForgotPassword = () => router.push({ name: 'ForgotPassword' })
 
 const handleGoogleSignIn = async () => {

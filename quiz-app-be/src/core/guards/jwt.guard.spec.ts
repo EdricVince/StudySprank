@@ -7,7 +7,9 @@ const config = {
   get: (k: string) => (k === 'JWT_SECRET' ? SECRET : undefined),
 } as any;
 
-function build(dbUser: { id: number; is_active: boolean } | null) {
+function build(
+  dbUser: { id: number; is_active: boolean; teacher_status?: string } | null,
+) {
   const repo = { findOne: jest.fn().mockResolvedValue(dbUser) };
   const dataSource = { getRepository: () => repo } as any;
   return { guard: new JwtGuard(config, dataSource), repo };
@@ -30,6 +32,17 @@ describe('JwtGuard', () => {
     const { req, context } = ctx(`Bearer ${tokenFor(5)}`);
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(req.user).toEqual({ id: 5, email: 'u@x.y', role_id: 1 });
+  });
+
+  it("attaches the teacher's current approval status read from the database", async () => {
+    const { guard } = build({
+      id: 5,
+      is_active: true,
+      teacher_status: 'pending',
+    });
+    const { req, context } = ctx(`Bearer ${tokenFor(5)}`);
+    await guard.canActivate(context);
+    expect(req.user.teacher_status).toBe('pending');
   });
 
   it('returns 401 for a deactivated user even with an unexpired token', async () => {

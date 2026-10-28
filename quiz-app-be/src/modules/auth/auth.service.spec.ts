@@ -1,10 +1,15 @@
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, RegisterTeacherDto } from './dto/register.dto';
 import { parseDurationSeconds } from './token-ttl';
 import { signHs256 } from '../../core/security/jwt.util';
 
@@ -198,5 +203,137 @@ describe('parseDurationSeconds', () => {
     expect(parseDurationSeconds('45', 1)).toBe(45);
     expect(parseDurationSeconds('soon', 123)).toBe(123);
     expect(parseDurationSeconds(undefined, 123)).toBe(123);
+  });
+});
+
+describe('AuthService — teacher applications', () => {
+  const CARD = 'data:image/png;base64,iVBORw0KGgo=';
+  const dto = {
+    email: 'teacher@school.edu',
+    password: PW,
+    name: ' Jane Roe ',
+    organization: ' Hanoi English Centre ',
+    teacher_card_image: CARD,
+  };
+
+  const build = (existing: any = null) => {
+    const teacher = {
+      id: 11,
+      email: dto.email,
+      role_id: 2,
+      is_active: true,
+      teacher_status: 'pending',
+    };
+    const users = {
+      findByEmail: jest.fn().mockResolvedValue(existing),
+      findById: jest.fn().mockResolvedValue(existing),
+      createTeacherApplicant: jest.fn().mockResolvedValue(teacher),
+      submitTeacherApplication: jest.fn().mockResolvedValue(undefined),
+    } as any;
+    const refreshRepo = {
+      create: (x: any) => x,
+      save: jest.fn().mockResolvedValue({}),
+    } as any;
+    const config = { get: () => SECRET } as any;
+    return {
+      users,
+      service: new AuthService(users, config, {} as any, refreshRepo),
+    };
+  };
+
+  it('creates a pending teacher with the trimmed profile and signs them in', async () => {
+    const { users, service } = build();
+    const res = await service.registerTeacher(dto);
+
+    expect(users.createTeacherApplicant).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: dto.email,
+        name: 'Jane Roe',
+        organization: 'Hanoi English Centre',
+        cardImage: CARD,
+      }),
+    );
+    // the password is stored hashed, never as typed
+    const stored = users.createTeacherApplicant.mock.calls[0][0];
+    expect(await bcrypt.compare(PW, stored.hashedPassword)).toBe(true);
+    expect(res).toMatchObject({ role_id: 2, teacher_status: 'pending' });
+    expect(res.access_token).toBeTruthy();
+  });
+
+  it('refuses an email that is already registered (409)', async () => {
+    const { service } = build({ id: 1, email: dto.email });
+    await expect(service.registerTeacher(dto)).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('a rejected teacher can re-submit a document and returns to the queue', async () => {
+    const existing = {
+      id: 11,
+      role_id: 2,
+      teacher_status: 'rejected',
+      created_at: new Date(),
+    };
+    const { users, service } = build(existing);
+    await service.submitTeacherApplication(11, {
+      teacher_card_image: CARD,
+      organization: ' New School ',
+    });
+    expect(users.submitTeacherApplication).toHaveBeenCalledWith(
+      11,
+      CARD,
+      'New School',
+    );
+  });
+
+  it('only non-approved teacher accounts can apply', async () => {
+    const student = build({ id: 2, role_id: 1, teacher_status: 'none' });
+    await expect(
+      student.service.submitTeacherApplication(2, {
+        teacher_card_image: CARD,
+      }),
+    ).rejects.toThrow(ForbiddenException);
+
+    const approved = build({ id: 3, role_id: 2, teacher_status: 'approved' });
+    await expect(
+      approved.service.submitTeacherApplication(3, {
+        teacher_card_image: CARD,
+      }),
+    ).rejects.toThrow(ConflictException);
+  });
+});
+
+describe('RegisterTeacherDto', () => {
+  const base = {
+    email: 'teacher@school.edu',
+    password: PW,
+    name: 'Jane Roe',
+    organization: 'Hanoi English Centre',
+    teacher_card_image: 'data:image/jpeg;base64,/9j/4AAQ',
+  };
+  const invalid = async (patch: object) => {
+    const errors = await validate(
+      plainToInstance(RegisterTeacherDto, { ...base, ...patch }),
+    );
+    return errors.map((e) => e.property);
+  };
+
+  it('accepts a complete application', async () => {
+    expect(await invalid({})).toEqual([]);
+  });
+
+  it('requires the document to be a base64 image data URL', async () => {
+    const urlProps = await invalid({ teacher_card_image: 'http://evil/x.png' });
+    expect(urlProps).toContain('teacher_card_image');
+    const htmlProps = await invalid({
+      teacher_card_image: 'data:text/html;base64,AAAA',
+    });
+    expect(htmlProps).toContain('teacher_card_image');
+  });
+
+  it('requires a name, an organization and an 8+ character password', async () => {
+    expect(await invalid({ name: 'J' })).toContain('name');
+    expect(await invalid({ organization: '' })).toContain('organization');
+    expect(await invalid({ password: 'short' })).toContain('password');
   });
 });

@@ -53,7 +53,7 @@ onMounted(async () => {
 
     message.value = t('authPages.oauth.success')
     // Route by role — an existing teacher account signing in with Google lands in the teacher portal.
-    setTimeout(() => router.push(authStore.isTeacher ? '/teacher/dashboard' : '/dashboard'), 500)
+    setTimeout(() => router.push(authStore.homePath), 500)
   } catch (err) {
     fail('loginFailed', err)
   }

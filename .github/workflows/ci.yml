@@ -95,7 +95,9 @@ jobs:
       JWT_SECRET: ci-e2e-jwt-secret-not-for-production
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 7d
-      ADMIN_SECRET: ci-e2e-admin-secret-not-for-production
+      # The first administrator is created from these on start-up.
+      ADMIN_EMAIL: e2e-admin@example.com
+      ADMIN_PASSWORD: ci-e2e-admin-password-not-for-production
       CORS_ORIGINS: http://localhost:5173
       # The e2e suite logs in several times from one IP — relax the auth throttle.
       THROTTLE_AUTH_LIMIT: '1000'

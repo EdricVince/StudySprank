@@ -7,6 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { ClassesService } from './classes.service';
 import { ClassesController } from './classes.controller';
 import { AnalyticsService } from './analytics.service';
+import { ClassHubService } from './class-hub.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -20,7 +21,7 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule,
   ],
   controllers: [ClassesController],
-  providers: [ClassesService, AnalyticsService],
+  providers: [ClassesService, AnalyticsService, ClassHubService],
   exports: [ClassesService],
 })
 export class ClassesModule {}

@@ -21,7 +21,7 @@ pnpm start:dev              # http://localhost:3000
 | `DB_SYNCHRONIZE` | | keep `false`; `true` is a local-only shortcut |
 | `JWT_SECRET` | yes | HS256 signing key (long random string) |
 | `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN` | | default `15m` / `7d`; refresh tokens rotate and are stored hashed |
-| `ADMIN_SECRET` | yes | key for the admin dashboard — use a long random value |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | first run | creates the first administrator (role 3) if no account has that email; sign in at `/login` |
 | `CORS_ORIGINS` | yes | comma-separated web origins |
 | `APP_URL` | | web base URL for password-reset links |
 | `ANTHROPIC_API_KEY` | | enables AI features (otherwise AI endpoints return 503) |

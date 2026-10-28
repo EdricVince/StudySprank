@@ -1,4 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 describe('AdminService.deleteUser — transactional cascade', () => {
@@ -135,6 +139,86 @@ describe('AdminService.deleteUsers — bulk delete', () => {
     expect(await new AdminService(userRepo, {} as any).deleteUsers([42])).toBe(
       0,
     );
+    expect(userRepo.manager.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminService — teacher verification', () => {
+  const build = (user: any) => {
+    const userRepo = {
+      findOne: jest.fn().mockResolvedValue(user),
+      update: jest.fn().mockResolvedValue({}),
+      create: jest.fn((x: any) => x),
+      save: jest.fn((x: any) => Promise.resolve({ id: 9, ...x })),
+      manager: { update: jest.fn() },
+    } as any;
+    return { userRepo, service: new AdminService(userRepo, {} as any) };
+  };
+
+  it('approving a teacher marks the account verified', async () => {
+    const { userRepo, service } = build({ id: 4, role_id: 2 });
+    await service.reviewTeacher(4, 'approved');
+    expect(userRepo.update).toHaveBeenCalledWith(
+      4,
+      expect.objectContaining({
+        teacher_status: 'approved',
+        is_verified: true,
+        teacher_reject_reason: null,
+      }),
+    );
+  });
+
+  it('rejecting needs a reason and stores it for the teacher to read', async () => {
+    const { userRepo, service } = build({ id: 4, role_id: 2 });
+    await expect(service.reviewTeacher(4, 'rejected', '  ')).rejects.toThrow(
+      BadRequestException,
+    );
+    await service.reviewTeacher(4, 'rejected', ' Blurry photo ');
+    expect(userRepo.update).toHaveBeenCalledWith(
+      4,
+      expect.objectContaining({
+        teacher_status: 'rejected',
+        is_verified: false,
+        teacher_reject_reason: 'Blurry photo',
+      }),
+    );
+  });
+
+  it('only teacher accounts can be reviewed', async () => {
+    const { service } = build({ id: 4, role_id: 1 });
+    await expect(service.reviewTeacher(4, 'approved')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('an admin-created teacher is approved straight away', async () => {
+    const { userRepo, service } = build(null);
+    await service.createTeacher('Jane Roe', 'password123');
+    expect(userRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role_id: 2,
+        teacher_status: 'approved',
+        is_verified: true,
+      }),
+    );
+  });
+
+  it('refuses to delete or deactivate an administrator', async () => {
+    const { service } = build({ id: 1, role_id: 3, is_active: true });
+    await expect(service.deleteUser(1)).rejects.toThrow(ForbiddenException);
+    await expect(service.setUserActive(1, false)).rejects.toThrow(
+      ForbiddenException,
+    );
+    const userRepo = {
+      find: jest.fn().mockResolvedValue([
+        { id: 2, role_id: 1 },
+        { id: 1, role_id: 3 },
+      ]),
+      manager: { transaction: jest.fn() },
+    } as any;
+    await expect(
+      new AdminService(userRepo, {} as any).deleteUsers([1, 2]),
+    ).rejects.toThrow(ForbiddenException);
     expect(userRepo.manager.transaction).not.toHaveBeenCalled();
   });
 });

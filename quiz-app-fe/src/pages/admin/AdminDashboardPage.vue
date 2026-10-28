@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="adm-h1">Welcome back, Admin</h2>
-        <p class="adm-text mt-0.5">Here's what's happening on your platform today.</p>
+        <h2 class="adm-h1">{{ $t('staff.dashboard.welcome') }}</h2>
+        <p class="adm-text mt-0.5">{{ $t('staff.dashboard.subtitle') }}</p>
       </div>
       <button
         :disabled="refreshing"
@@ -14,17 +14,17 @@
         <svg class="w-4 h-4" :class="{ 'animate-spin': refreshing }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        Refresh
+        {{ $t('staff.refresh') }}
       </button>
     </div>
 
     <!-- Stats Grid -->
     <div v-if="adminStore.stats" class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-      <StatCard label="Total Users"      :value="adminStore.stats.total"      color="indigo"  icon="users" />
-      <StatCard label="Students"         :value="adminStore.stats.students"    color="blue"    icon="student" />
-      <StatCard label="Teachers"         :value="adminStore.stats.teachers"    color="violet"  icon="teacher" />
-      <StatCard label="Active Accounts"  :value="adminStore.stats.active"      color="emerald" icon="check" />
-      <StatCard label="New This Week"    :value="adminStore.stats.newThisWeek" color="amber"   icon="sparkle" />
+      <StatCard :label="$t('staff.dashboard.totalUsers')"      :value="adminStore.stats.total"      color="indigo"  icon="users" />
+      <StatCard :label="$t('staff.dashboard.students')"       :value="adminStore.stats.students"    color="blue"    icon="student" />
+      <StatCard :label="$t('staff.dashboard.teachers')"       :value="adminStore.stats.teachers"    color="violet"  icon="teacher" />
+      <StatCard :label="$t('staff.dashboard.active')"  :value="adminStore.stats.active"      color="emerald" icon="check" />
+      <StatCard :label="$t('staff.dashboard.newThisWeek')"    :value="adminStore.stats.newThisWeek" color="amber"   icon="sparkle" />
     </div>
 
     <!-- Skeleton stats -->
@@ -37,8 +37,8 @@
       <!-- Recent Users -->
       <div class="lg:col-span-2 adm-card">
         <div class="adm-card-header">
-          <h3 class="adm-h3">Recent Registrations</h3>
-          <RouterLink to="/admin/users" class="adm-link text-xs">View all</RouterLink>
+          <h3 class="adm-h3">{{ $t('staff.dashboard.recent') }}</h3>
+          <RouterLink to="/teacher/admin/users" class="adm-link text-xs">{{ $t('staff.dashboard.viewAll') }}</RouterLink>
         </div>
         <!-- Skeleton -->
         <div v-if="adminStore.loading" class="p-5 space-y-3">
@@ -71,48 +71,48 @@
               <span
                 class="adm-badge"
                 :class="user.role_id === 2 ? 'adm-badge-teacher' : 'adm-badge-student'"
-              >{{ user.role_id === 2 ? 'Teacher' : 'Student' }}</span>
+              >{{ roleName(user.role_id) }}</span>
               <span class="adm-meta">{{ formatDate(user.created_at) }}</span>
             </div>
           </div>
         </div>
-        <div v-else class="px-5 py-10 text-center adm-meta">No users yet</div>
+        <div v-else class="px-5 py-10 text-center adm-meta">{{ $t('staff.dashboard.noUsers') }}</div>
       </div>
 
       <!-- Right column -->
       <div class="space-y-4">
         <!-- Quick Actions -->
         <div class="adm-card p-5">
-          <h3 class="adm-h3 mb-4">Quick Actions</h3>
+          <h3 class="adm-h3 mb-4">{{ $t('staff.dashboard.quickActions') }}</h3>
           <div class="space-y-2.5">
-            <RouterLink to="/admin/teachers" class="adm-btn-soft-primary rounded-lg">
+            <RouterLink to="/teacher/admin/approvals" class="adm-btn-soft-primary rounded-lg">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
               </svg>
-              Create Teacher Account
+              {{ $t('staff.dashboard.reviewApplications') }}<span v-if="adminStore.pendingTeachers" class="bg-primary text-primary-foreground ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold">{{ adminStore.pendingTeachers }}</span>
             </RouterLink>
-            <RouterLink to="/admin/users" class="adm-btn-soft-neutral rounded-lg">
+            <RouterLink to="/teacher/admin/users" class="adm-btn-soft-neutral rounded-lg">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
-              Manage All Users
+              {{ $t('staff.dashboard.manageUsers') }}
             </RouterLink>
-            <RouterLink to="/admin/students" class="adm-btn-soft-neutral rounded-lg">
+            <RouterLink to="/teacher/admin/activity" class="adm-btn-soft-neutral rounded-lg">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
               </svg>
-              View Students
+              {{ $t('staff.nav.activity') }}
             </RouterLink>
           </div>
         </div>
 
         <!-- Role Distribution -->
         <div v-if="adminStore.stats" class="adm-card p-5">
-          <h3 class="adm-h3 mb-4">User Distribution</h3>
+          <h3 class="adm-h3 mb-4">{{ $t('staff.dashboard.distribution') }}</h3>
           <div class="space-y-3">
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="adm-text">Students</span>
+                <span class="adm-text">{{ $t('staff.dashboard.students') }}</span>
                 <span class="font-semibold text-foreground">{{ adminStore.stats.students }}</span>
               </div>
               <div class="adm-bar-track">
@@ -124,7 +124,7 @@
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="adm-text">Teachers</span>
+                <span class="adm-text">{{ $t('staff.dashboard.teachers') }}</span>
                 <span class="font-semibold text-foreground">{{ adminStore.stats.teachers }}</span>
               </div>
               <div class="adm-bar-track">
@@ -136,7 +136,7 @@
             </div>
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="adm-text">Active Rate</span>
+                <span class="adm-text">{{ $t('staff.dashboard.activeRate') }}</span>
                 <span class="font-semibold text-foreground">{{ adminStore.stats.total ? Math.round(adminStore.stats.active / adminStore.stats.total * 100) : 0 }}%</span>
               </div>
               <div class="adm-bar-track">
@@ -155,9 +155,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin.store'
 
+const { t, locale } = useI18n()
 const adminStore = useAdminStore()
+const roleName = (roleId: number) => t(roleId === 3 ? 'staff.roles.admin' : roleId === 2 ? 'staff.roles.teacher' : 'staff.roles.student')
 const refreshing = ref(false)
 
 const recentUsers = computed(() => [...adminStore.users].slice(0, 8))
@@ -167,7 +170,7 @@ function initials(str: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString(locale.value, { day: 'numeric', month: 'short' })
 }
 
 async function refresh() {

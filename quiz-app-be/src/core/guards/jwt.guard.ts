@@ -48,7 +48,7 @@ export class JwtGuard implements CanActivate {
     // A deactivated (or deleted) account loses access immediately, even with an unexpired token.
     const user = await this.dataSource.getRepository(User).findOne({
       where: { id: payload.sub },
-      select: ['id', 'is_active'],
+      select: ['id', 'is_active', 'teacher_status'],
     });
     if (!user || !user.is_active) {
       throw new UnauthorizedException('Account is not active');
@@ -58,6 +58,7 @@ export class JwtGuard implements CanActivate {
       id: payload.sub,
       email: payload.email,
       role_id: payload.role_id,
+      teacher_status: user.teacher_status,
     };
 
     return true;

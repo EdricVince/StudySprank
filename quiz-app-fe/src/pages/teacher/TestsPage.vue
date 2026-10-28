@@ -239,6 +239,7 @@ v-model="newAssign.description" rows="4" :placeholder="$t('teacher.dashboard.ass
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { Plus, FileText, BarChart, Pencil, Trash2, HelpCircle, Users, BarChart2, BookOpen, List, X } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
 import { useToast } from '@/composables/useToast'
@@ -267,8 +268,12 @@ const classNameFor = (classId: number | null) => {
   return classes.value.find(c => c.id === classId)?.name ?? t('teacher.dashboard.allClasses')
 }
 
+// Opened from a class page: ?class_id=5&new=assignment pre-selects the class and opens the form.
+const route = useRoute()
+const presetClass = () => (Number(route.query.class_id) || '') as number | ''
+
 const openAssignModal = () => {
-  newAssign.value = { title: '', description: '', attachment: '', attachment_name: '', classId: '', isPublished: true }
+  newAssign.value = { title: '', description: '', attachment: '', attachment_name: '', classId: presetClass(), isPublished: true }
   assignError.value = ''
   showAssignModal.value = true
 }
@@ -362,7 +367,10 @@ const load = async () => {
     loading.value = false
   }
 }
-onMounted(load)
+onMounted(async () => {
+  await load()
+  if (route.query.new === 'assignment') openAssignModal()
+})
 
 const togglePublish = async (test: TestData) => {
   try {

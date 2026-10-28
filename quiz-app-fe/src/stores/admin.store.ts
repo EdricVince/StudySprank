@@ -1,9 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-import { API_BASE_URL } from '@/lib/apiBase'
+import { apiRequest } from '@/utils/api'
+import type { ActivityItem } from '@/types/content'
+import type { TeacherStatus } from '@/types/role'
 
-const ADMIN_API = `${API_BASE_URL}/admin`
+// Admin endpoints use the same login as everyone else: the admin is a normal
+// account (role 3), so requests carry the JWT via apiRequest (refresh included).
+const admin = <T>(path: string, init: RequestInit = {}) => apiRequest<T>(`/admin${path}`, init)
+const json = (body: unknown): RequestInit => ({ body: JSON.stringify(body) })
 
 export interface AdminUser {
   id: number
@@ -15,6 +20,8 @@ export interface AdminUser {
   xp: number
   is_verified: boolean
   has_teacher_card: boolean
+  teacher_status: TeacherStatus
+  teacher_organization: string | null
 }
 
 export interface AdminStats {
@@ -34,6 +41,9 @@ export interface AdminUserProfile {
   is_active: boolean
   is_verified: boolean
   has_teacher_card: boolean
+  teacher_status: TeacherStatus
+  teacher_organization: string | null
+  teacher_reject_reason: string | null
   created_at: string
   xp: number
   level: number
@@ -43,78 +53,55 @@ export interface AdminUserProfile {
   total_quizzes_completed: number
 }
 
+/** One teacher with their activity counts (same data as the teacher_overview DB view). */
+export interface TeacherOverviewRow {
+  id: number
+  email: string
+  name: string | null
+  is_active: boolean
+  teacher_status: TeacherStatus
+  teacher_organization: string | null
+  teacher_reviewed_at: string | null
+  created_at: string
+  classes: number
+  students: number
+  tests: number
+  assignments: number
+  lessons: number
+  vocab_sets: number
+  last_activity: string | null
+}
+
+export interface ActivityFilter {
+  actor_id?: number
+  class_id?: number
+  action?: string
+  before_id?: number
+  limit?: number
+}
+
 export const ROLE_STUDENT = 1
 export const ROLE_TEACHER = 2
 
 export const useAdminStore = defineStore('admin', () => {
-  const adminKey = ref<string>(sessionStorage.getItem('admin_key') ?? '')
-  const isAuthenticated = ref(false)
   const users = ref<AdminUser[]>([])
   const stats = ref<AdminStats | null>(null)
+  const teacherOverview = ref<TeacherOverviewRow[]>([])
+  const pendingTeachers = ref(0)
   const loading = ref(false)
   const error = ref<string | null>(null)
-
-  const headers = computed((): Record<string, string> => ({
-    'Content-Type': 'application/json',
-    'x-admin-key': adminKey.value,
-  }))
 
   const students = computed(() => users.value.filter(u => u.role_id === ROLE_STUDENT))
   const teachers = computed(() => users.value.filter(u => u.role_id === ROLE_TEACHER))
 
-  async function login(key: string): Promise<boolean> {
-    try {
-      const res = await fetch(`${ADMIN_API}/stats`, {
-        headers: { 'x-admin-key': key },
-      })
-      if (res.ok) {
-        adminKey.value = key
-        isAuthenticated.value = true
-        // sessionStorage: the admin secret is forgotten when the tab closes
-        // (it used to persist in localStorage indefinitely).
-        sessionStorage.setItem('admin_key', key)
-        localStorage.removeItem('admin_key') // clean up keys stored by older builds
-        const data = await res.json()
-        stats.value = data.data
-        return true
-      }
-      return false
-    } catch {
-      return false
-    }
-  }
-
-  async function tryRestoreSession(): Promise<boolean> {
-    const stored = sessionStorage.getItem('admin_key')
-    if (!stored) return false
-    const ok = await login(stored)
-    if (!ok) sessionStorage.removeItem('admin_key')
-    return ok
-  }
-
-  function logout() {
-    adminKey.value = ''
-    isAuthenticated.value = false
-    sessionStorage.removeItem('admin_key')
-    localStorage.removeItem('admin_key')
-    users.value = []
-    stats.value = null
-  }
-
   async function fetchStats() {
-    const res = await fetch(`${ADMIN_API}/stats`, { headers: headers.value })
-    if (!res.ok) { isAuthenticated.value = false; throw new Error('Unauthorized') }
-    const data = await res.json()
-    stats.value = data.data
+    stats.value = await admin<AdminStats>('/stats')
   }
 
   async function fetchUsers() {
     loading.value = true
     try {
-      const res = await fetch(`${ADMIN_API}/users`, { headers: headers.value })
-      if (!res.ok) throw new Error('Failed to fetch users')
-      const data = await res.json()
-      users.value = data.data
+      users.value = await admin<AdminUser[]>('/users')
     } finally {
       loading.value = false
     }
@@ -125,12 +112,7 @@ export const useAdminStore = defineStore('admin', () => {
     const previous = user?.is_active
     if (user) user.is_active = isActive // optimistic
     try {
-      const res = await fetch(`${ADMIN_API}/users/${userId}/active`, {
-        method: 'PATCH',
-        headers: headers.value,
-        body: JSON.stringify({ is_active: isActive }),
-      })
-      if (!res.ok) throw new Error('Failed to update status')
+      await admin(`/users/${userId}/active`, { method: 'PATCH', ...json({ is_active: isActive }) })
       await fetchStats()
     } catch (e) {
       if (user && previous !== undefined) user.is_active = previous // revert
@@ -139,124 +121,98 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function resetPassword(userId: number, newPassword: string) {
-    const res = await fetch(`${ADMIN_API}/users/${userId}/reset-password`, {
-      method: 'PATCH',
-      headers: headers.value,
-      body: JSON.stringify({ new_password: newPassword }),
-    })
-    if (!res.ok) throw new Error('Failed to reset password')
+    await admin(`/users/${userId}/reset-password`, { method: 'PATCH', ...json({ new_password: newPassword }) })
   }
 
   async function deleteUser(userId: number) {
-    const res = await fetch(`${ADMIN_API}/users/${userId}`, {
-      method: 'DELETE',
-      headers: headers.value,
-    })
-    if (!res.ok) throw new Error('Failed to delete user')
+    await admin(`/users/${userId}`, { method: 'DELETE' })
     users.value = users.value.filter(u => u.id !== userId)
     await fetchStats()
   }
 
   async function bulkDeleteUsers(ids: number[]): Promise<number> {
-    const res = await fetch(`${ADMIN_API}/users/bulk-delete`, {
-      method: 'POST',
-      headers: headers.value,
-      body: JSON.stringify({ ids }),
-    })
-    if (!res.ok) throw new Error('Failed to delete selected users')
-    const data = await res.json()
+    const data = await admin<{ deleted: number }>('/users/bulk-delete', { method: 'POST', ...json({ ids }) })
     users.value = users.value.filter(u => !ids.includes(u.id))
     await fetchStats()
-    return data.data.deleted as number
+    return data.deleted
   }
 
   async function getUserProfile(userId: number): Promise<AdminUserProfile> {
-    const res = await fetch(`${ADMIN_API}/users/${userId}/profile`, { headers: headers.value })
-    if (!res.ok) throw new Error('Failed to load user profile')
-    const data = await res.json()
-    return data.data as AdminUserProfile
+    return admin<AdminUserProfile>(`/users/${userId}/profile`)
   }
 
   async function createTeacher(name: string, password: string, email?: string, teacherCardImage?: string): Promise<string> {
-    const res = await fetch(`${ADMIN_API}/create-teacher`, {
+    const data = await admin<{ email: string }>('/create-teacher', {
       method: 'POST',
-      headers: headers.value,
-      body: JSON.stringify({
+      ...json({
         name, password,
         ...(email ? { email } : {}),
         ...(teacherCardImage ? { teacher_card_image: teacherCardImage } : {}),
       }),
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: 'Failed to create teacher' }))
-      throw new Error((Array.isArray(err.message) ? err.message[0] : err.message) ?? 'Failed to create teacher')
-    }
-    const data = await res.json()
-    await fetchUsers()
-    await fetchStats()
-    return data.data.email as string
+    await Promise.all([fetchUsers(), fetchStats()])
+    return data.email
   }
 
   async function getTeacherCard(userId: number): Promise<string | null> {
-    const res = await fetch(`${ADMIN_API}/users/${userId}/teacher-card`, { headers: headers.value })
-    if (!res.ok) throw new Error('Failed to load teacher card')
-    const data = await res.json()
-    return data.data.teacher_card_image as string | null
+    const data = await admin<{ teacher_card_image: string | null }>(`/users/${userId}/teacher-card`)
+    return data.teacher_card_image
   }
 
-  async function setVerified(userId: number, verified: boolean): Promise<void> {
+  /** Approve / reject (reason required) / re-open a teacher application. */
+  async function reviewTeacher(userId: number, status: Exclude<TeacherStatus, 'none'>, reason?: string): Promise<void> {
+    await admin(`/users/${userId}/teacher-status`, {
+      method: 'PATCH',
+      ...json({ status, ...(reason ? { reason } : {}) }),
+    })
+    const row = teacherOverview.value.find(t => t.id === userId)
+    if (row) row.teacher_status = status
     const user = users.value.find(u => u.id === userId)
-    const previous = user?.is_verified
-    if (user) user.is_verified = verified // optimistic
-    try {
-      const res = await fetch(`${ADMIN_API}/users/${userId}/verify`, {
-        method: 'PATCH',
-        headers: headers.value,
-        body: JSON.stringify({ verified }),
-      })
-      if (!res.ok) throw new Error('Failed to update verification')
-    } catch (e) {
-      if (user && previous !== undefined) user.is_verified = previous // revert
-      throw e
-    }
+    if (user) { user.teacher_status = status; user.is_verified = status === 'approved' }
+    pendingTeachers.value = teacherOverview.value.filter(t => t.teacher_status === 'pending').length
+  }
+
+  async function fetchTeacherOverview(): Promise<void> {
+    teacherOverview.value = await admin<TeacherOverviewRow[]>('/teachers/overview')
+    pendingTeachers.value = teacherOverview.value.filter(t => t.teacher_status === 'pending').length
+  }
+
+  /** Cheap badge refresh for the sidebar; a failure just leaves the old count. */
+  async function fetchPendingTeachers(): Promise<void> {
+    try { await fetchTeacherOverview() } catch { /* non-critical */ }
+  }
+
+  async function fetchActivity(filter: ActivityFilter = {}): Promise<ActivityItem[]> {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(filter)) if (v !== undefined && v !== '') qs.set(k, String(v))
+    const query = qs.toString()
+    return admin<ActivityItem[]>(`/activity${query ? `?${query}` : ''}`)
   }
 
   async function fetchAiStatus(): Promise<{
     enabled: boolean; provider: string; key_preview: string | null;
     features: { name: string; key: string }[];
   }> {
-    const res = await fetch(`${ADMIN_API}/ai/status`, { headers: headers.value })
-    if (!res.ok) throw new Error('Failed to fetch AI status')
-    const data = await res.json()
-    return data.data
+    return admin('/ai/status')
   }
 
   async function setAiKey(key: string): Promise<string> {
-    const res = await fetch(`${ADMIN_API}/ai/key`, {
-      method: 'POST',
-      headers: headers.value,
-      body: JSON.stringify({ key }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.message ?? 'Failed to set AI key')
-    return data.message as string
+    // apiRequest unwraps `data`; the confirmation text is not needed beyond success.
+    await admin('/ai/key', { method: 'POST', ...json({ key }) })
+    return 'AI key saved. All AI features are now active.'
   }
 
   async function removeAiKey(): Promise<void> {
-    const res = await fetch(`${ADMIN_API}/ai/key`, {
-      method: 'DELETE',
-      headers: headers.value,
-    })
-    if (!res.ok) throw new Error('Failed to remove AI key')
+    await admin('/ai/key', { method: 'DELETE' })
   }
 
   return {
-    adminKey, isAuthenticated, users, stats, loading, error,
+    users, stats, teacherOverview, pendingTeachers, loading, error,
     students, teachers,
-    login, tryRestoreSession, logout,
     fetchStats, fetchUsers,
     setActive, resetPassword, deleteUser, bulkDeleteUsers, getUserProfile, createTeacher,
-    getTeacherCard, setVerified,
+    getTeacherCard, reviewTeacher, fetchTeacherOverview, fetchPendingTeachers,
+    fetchActivity,
     fetchAiStatus, setAiKey, removeAiKey,
   }
 })

@@ -19,3 +19,6 @@ export const ROLE_NAMES: Record<UserRole, string> = {
 export const isTeacher = (roleId?: number): boolean => roleId === UserRole.TEACHER
 export const isAdmin = (roleId?: number): boolean => roleId === UserRole.ADMIN
 export const isStudent = (roleId?: number): boolean => roleId === UserRole.STUDENT || !roleId
+
+/** Teacher verification state: students/admins are 'none'; teachers go pending → approved/rejected. */
+export type TeacherStatus = 'none' | 'pending' | 'approved' | 'rejected'

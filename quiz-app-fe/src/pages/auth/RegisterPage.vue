@@ -8,6 +8,17 @@
       </p>
     </div>
 
+    <!-- Student / Teacher switch -->
+    <div class="bg-muted grid grid-cols-2 gap-1 rounded-xl p-1">
+      <span class="bg-background text-foreground rounded-lg px-3 py-2 text-center text-sm font-semibold shadow-sm">
+        {{ $t('auth.teacherRegister.studentTab') }}
+      </span>
+      <router-link
+        :to="{ name: 'TeacherRegister' }"
+        class="text-muted-foreground hover:text-foreground rounded-lg px-3 py-2 text-center text-sm font-medium transition-colors"
+      >{{ $t('auth.teacherRegister.teacherTab') }}</router-link>
+    </div>
+
     <!-- Success/Error Messages -->
     <div v-if="successMessage" class="rounded-lg border border-primary/30 bg-primary/10 p-4">
       <p class="text-sm text-primary">{{ successMessage }}</p>

@@ -223,7 +223,7 @@
                   <button
                     v-if="canAccessTeacher"
                     class="text-foreground hover:bg-accent flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
-                    @click="isDropdownOpen = false; router.push('/teacher/dashboard')"
+                    @click="isDropdownOpen = false; router.push(authStore.homePath)"
                   >
                     <GraduationCap class="text-muted-foreground h-4 w-4" />
                     Teacher Portal
@@ -285,6 +285,7 @@ import {
   GraduationCap,
   FileText,
   Calendar,
+  Users,
 } from '@/components/icons'
 import SearchModal from '@/components/ui/SearchModal.vue'
 import NotificationPanel from '@/components/ui/NotificationPanel.vue'
@@ -307,7 +308,7 @@ const toggleSidebar = () => { isCollapsed.value = !isCollapsed.value }
 
 // Back button: show on any route that's not a top-level nav page
 const topLevelPaths = new Set([
-  '/dashboard', '/courses', '/flashcards', '/quizzes', '/goals', '/achievements',
+  '/dashboard', '/courses', '/classes', '/flashcards', '/quizzes', '/goals', '/achievements',
   '/statistics', '/settings', '/profile',
   '/entrance-exam', '/schedule', '/skills',
 ])
@@ -381,6 +382,7 @@ const menuSections = computed(() => [
     items: [
       { path: '/dashboard', label: t('nav.items.dashboard'), icon: LayoutDashboard },
       { path: '/courses', label: t('nav.items.myCourses'), icon: BookOpen },
+      { path: '/classes', label: t('nav.items.myClasses'), icon: Users },
       { path: '/flashcards', label: t('nav.items.flashcards'), icon: Layers },
       { path: '/quizzes', label: t('nav.items.quizzes'), icon: Gamepad2 },
     ],

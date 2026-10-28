@@ -50,7 +50,7 @@ export function setupCors(app: INestApplication) {
     origin: (requestOrigin: string | undefined, callback: OriginCallback) =>
       checkOrigin(requestOrigin, allowedOrigins, callback),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,

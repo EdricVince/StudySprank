@@ -39,8 +39,8 @@ async function createTeacher(name: string, password: string) {
   const hashedPassword = await bcrypt.hash(password, 12);
 
   await AppDataSource.query(
-    `INSERT INTO users (email, password, name, role_id, is_active)
-     VALUES ($1, $2, $3, 2, true)`,
+    `INSERT INTO users (email, password, name, role_id, is_active, is_verified, teacher_status, teacher_reviewed_at)
+     VALUES ($1, $2, $3, 2, true, true, 'approved', now())`,
     [email, hashedPassword, name],
   );
 

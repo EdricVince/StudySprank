@@ -8,7 +8,12 @@ import { setupHelmet } from './core/security/helmet.setup';
 import { setupSwagger } from './core/swagger/swagger.setup';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Default body parser is 100 KB; teacher verification documents (base64 photos) need more.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
+  app.useBodyParser('json', { limit: '4mb' });
+  app.useBodyParser('urlencoded', { limit: '4mb', extended: true });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);

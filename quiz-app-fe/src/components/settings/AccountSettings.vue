@@ -165,7 +165,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const goToTeacherDashboard = () => {
-  router.push('/teacher/dashboard')
+  router.push(authStore.homePath)
 }
 
 const userInitials = computed(() => {

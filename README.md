@@ -18,12 +18,14 @@ real-time quizzes and a teacher portal. Graduation project.
 - AI IELTS mock test (Listening / Reading / Writing) and AI monthly study planner. Every generated paper, its questions
   and each student's attempts are stored in PostgreSQL, so past results can be reviewed and papers retaken.
 - XP, levels, streaks, goals, achievements, leaderboard.
-- Classes: join by code (from the Quizzes page), see assigned tests, vocabulary sets, lessons and handouts.
+- Classes: join by code (Quizzes or My Classes page). Each class has its own page with the tests, handouts, lessons, vocabulary sets and flashcard decks its teacher shared — class flashcard decks are visible to that class only.
 
-**Teachers** — classes, tests (with results), lessons, vocabulary sets, assignments,
+**Teachers** — a class page per class (students with progress, tests, assignments, lessons, vocabulary sets, flashcard decks and an activity feed; content can be created from the class page and is linked to it),
 AI-assisted content generation.
 
-**Admin** — user management, teacher accounts, Anthropic API key (dashboard protected by `ADMIN_SECRET`).
+**Admin** — a normal account with the admin role, working in the same portal as teachers: approves or rejects teacher applications, manages users, sets the Anthropic API key and browses the activity log.
+
+**Teacher onboarding** — teachers apply from the sign-up page with their school and a photo of an ID/certificate; the account stays *pending* (it can sign in but cannot create classes or content) until an admin approves it. Every class, test, assignment, lesson and flashcard deck belongs to exactly one teacher; students join a class with its code. Create/update/delete actions are written to the `activity_logs` table (browse the `activity_feed` and `teacher_overview` views in Supabase).
 
 Every AI result is labelled "AI-generated" in the UI. Without an Anthropic key the AI endpoints answer `503`
 and the rest of the app keeps working.
@@ -34,7 +36,7 @@ Requirements: Node 22, pnpm 10, a PostgreSQL database (local or Supabase).
 
 ```bash
 pnpm install
-cp quiz-app-be/.env.example quiz-app-be/.env   # fill in DB_* and JWT_SECRET, ADMIN_SECRET
+cp quiz-app-be/.env.example quiz-app-be/.env   # fill in DB_* and JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
 cp quiz-app-fe/.env.example quiz-app-fe/.env   # VITE_API_BASE_URL (defaults to localhost:3000)
 pnpm dev                                       # API on :3000, web on :5173
 ```

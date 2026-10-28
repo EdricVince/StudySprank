@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { ROLE_TEACHER } from '../roles/entities/role.entity';
 
 @Injectable()
 export class UsersService {
@@ -36,6 +37,45 @@ export class UsersService {
     data: Partial<Pick<User, 'name' | 'avatar'>>,
   ): Promise<void> {
     await this.usersRepository.update(id, data);
+  }
+
+  // ── Teacher applications ────────────────────────────────────────────────────
+
+  /** A self-registered teacher: role TEACHER, status 'pending' until an admin approves. */
+  async createTeacherApplicant(data: {
+    email: string;
+    hashedPassword: string;
+    name: string;
+    organization: string;
+    cardImage: string;
+  }): Promise<User> {
+    const user = this.usersRepository.create({
+      email: data.email,
+      password: data.hashedPassword,
+      name: data.name,
+      role_id: ROLE_TEACHER,
+      teacher_status: 'pending',
+      teacher_organization: data.organization,
+      teacher_card_image: data.cardImage,
+      is_verified: false,
+    });
+    return this.usersRepository.save(user);
+  }
+
+  /** (Re)submit the verification document: back to 'pending' for the admin to review. */
+  async submitTeacherApplication(
+    id: number,
+    cardImage: string,
+    organization?: string,
+  ): Promise<void> {
+    await this.usersRepository.update(id, {
+      teacher_card_image: cardImage,
+      ...(organization ? { teacher_organization: organization } : {}),
+      teacher_status: 'pending',
+      teacher_reject_reason: null,
+      teacher_reviewed_at: null,
+      is_verified: false,
+    });
   }
 
   // ── Password reset ──────────────────────────────────────────────────────────

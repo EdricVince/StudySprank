@@ -325,6 +325,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { api, ApiError } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import { useLocale } from '@/composables/useLocale'
@@ -381,13 +382,19 @@ const load = async () => {
     loading.value = false
   }
 }
-onMounted(load)
+// Opened from a class page: ?class_id=5&new=1 pre-selects the class and opens the form.
+const route = useRoute()
+const presetClass = () => Number(route.query.class_id) || null
+onMounted(async () => {
+  await load()
+  if (route.query.new) openCreateSet()
+})
 
 const openCreateSet = () => {
   mode.value = 'ai'
   generated.value = null
-  manualForm.value = { name: '', language: 'en', level: 'Intermediate (B1)', class_id: null }
-  aiForm.value = { topic: '', level: 'Intermediate (B1)', language: 'en', count: 15, class_id: null }
+  manualForm.value = { name: '', language: 'en', level: 'Intermediate (B1)', class_id: presetClass() }
+  aiForm.value = { topic: '', level: 'Intermediate (B1)', language: 'en', count: 15, class_id: presetClass() }
   showModal.value = true
 }
 

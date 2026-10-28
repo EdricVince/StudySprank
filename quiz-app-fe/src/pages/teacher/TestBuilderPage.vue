@@ -139,7 +139,8 @@ const isEditing = computed(() => testId.value !== null)
 
 interface Q { question: string; options: string[]; correct: number; points: number }
 const form = ref<{ title: string; description: string; class_id: number | null; time_limit: number | null; is_published: boolean; questions: Q[] }>({
-  title: '', description: '', class_id: null, time_limit: null, is_published: false, questions: [],
+  // ?class_id=5 (from a class page) pre-selects the class for a new test.
+  title: '', description: '', class_id: Number(route.query.class_id) || null, time_limit: null, is_published: false, questions: [],
 })
 const ai = ref({ topic: '', level: 'Beginner (A1)', language: 'en', count: 6 })
 const classes = ref<TeacherClassData[]>([])

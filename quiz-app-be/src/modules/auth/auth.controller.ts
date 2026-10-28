@@ -12,6 +12,8 @@ import {
 import { AuthService } from './auth.service';
 import {
   RegisterDto,
+  RegisterTeacherDto,
+  TeacherApplicationDto,
   LoginDto,
   RegisterResponseDto,
   LoginResponseDto,
@@ -51,6 +53,40 @@ export class AuthController {
       code: HttpStatus.CREATED,
       message: 'User registered successfully',
       data: user,
+    };
+  }
+
+  /** A teacher applies for an account; an admin reviews it (status 'pending' → 'approved'). */
+  @Post('register-teacher')
+  @HttpCode(HttpStatus.CREATED)
+  @RateLimit({ limit: 5, windowMs: 10 * MIN, limitEnv: AUTH_LIMIT_ENV })
+  async registerTeacher(
+    @Body() dto: RegisterTeacherDto,
+  ): Promise<ApiResponse<RegisterResponseDto>> {
+    const user = await this.authService.registerTeacher(dto);
+    return {
+      code: HttpStatus.CREATED,
+      message: 'Application received. An administrator will review it.',
+      data: user,
+    };
+  }
+
+  /** A pending/rejected teacher re-submits the verification document. */
+  @Put('teacher/application')
+  @UseGuards(JwtGuard)
+  @RateLimit({ limit: 10, windowMs: 10 * MIN, limitEnv: AUTH_LIMIT_ENV })
+  async submitTeacherApplication(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: TeacherApplicationDto,
+  ): Promise<ApiResponse<ProfileDto>> {
+    const profile = await this.authService.submitTeacherApplication(
+      user.id,
+      dto,
+    );
+    return {
+      code: HttpStatus.OK,
+      message: 'Application submitted for review',
+      data: profile,
     };
   }
 

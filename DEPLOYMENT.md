@@ -36,7 +36,11 @@ The database is **external Supabase PostgreSQL** — Render does not host it.
      (from Supabase), and `ANTHROPIC_API_KEY` if you want AI features.
    - Leave `SMTP_*`, `SUPABASE_*`, `VITE_SUPABASE_*` blank if you don't need
      password-reset email / OAuth — the app degrades gracefully.
-   - `JWT_SECRET` and `ADMIN_SECRET` are auto-generated — nothing to enter.
+   - **API:** `ADMIN_EMAIL` and `ADMIN_PASSWORD` (min. 8 chars) — the first
+     administrator is created from these on start-up. Sign in at `/login` with
+     them, then change the password. An existing account with that email is
+     never promoted.
+   - `JWT_SECRET` is auto-generated — nothing to enter.
 5. Click **Apply**. First build takes a few minutes (Docker image for the API,
    Vite build for the web).
 
@@ -63,8 +67,9 @@ before applying, and update the three URLs to match.
 
 - **API health:** open `https://<api-url>/` → should return a small JSON/200.
 - **Web:** open `https://<web-url>/` → the login page loads.
-- Register a student, log in, open the dashboard. Create a teacher via the
-  admin dashboard (or `pnpm --filter quiz-app-be create-teacher`); the role,
+- Register a student, log in, open the dashboard. Teachers apply at `/register`
+  (Teacher tab) and an administrator approves them under *Teacher approvals*;
+  an admin can also create an approved teacher directly. The role,
   not the email domain, decides which portal a user lands in after login.
 - If the API log shows a **database SSL** error, confirm your Supabase host is
   correct; the app already connects with `ssl: { rejectUnauthorized: false }`.

@@ -4,38 +4,23 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import DashboardPage from '@/pages/student/DashboardPage.vue'
 import ProfilePage from '@/pages/student/ProfilePage.vue'
 import { useAuthStore } from '@/stores/auth.store'
-import { useAdminStore } from '@/stores/admin.store'
 import { AUTH_ROUTES } from './auth.route'
 import { UserRole } from '@/types/role'
 
-// Admin routes (separate portal, key-based auth)
-const ADMIN_ROUTES = {
-  path: '/admin',
-  children: [
-    { path: '', redirect: '/admin/dashboard' },
-    { path: 'login', name: 'AdminLogin', component: () => import('@/pages/admin/AdminLoginPage.vue'), meta: { isAdminLogin: true } },
-    {
-      path: '',
-      component: () => import('@/layouts/AdminLayout.vue'),
-      meta: { requiresAdminAuth: true },
-      children: [
-        { path: 'dashboard', name: 'AdminDashboard', component: () => import('@/pages/admin/AdminDashboardPage.vue') },
-        { path: 'users',     name: 'AdminUsers',     component: () => import('@/pages/admin/AdminUsersPage.vue') },
-        { path: 'students',  name: 'AdminStudents',  component: () => import('@/pages/admin/AdminUsersPage.vue') },
-        { path: 'teachers',  name: 'AdminTeachers',  component: () => import('@/pages/admin/AdminUsersPage.vue') },
-        { path: 'ai',        name: 'AdminAI',        component: () => import('@/pages/admin/AdminAISettingsPage.vue') },
-      ],
-    },
-  ],
-}
-
-// Teacher routes
+// One shared portal for teachers and admins (/teacher/*). What a user may open is
+// decided by the guard below: admins get /teacher/admin/*, approved teachers get the
+// teaching pages, pending/rejected teachers only see /teacher/pending.
 const TEACHER_ROUTES = {
   path: '/teacher',
   component: () => import('@/layouts/TeacherLayout.vue'),
   meta: { requiresAuth: true },
   children: [
-    { path: '', redirect: '/teacher/dashboard' },
+    { path: '', redirect: () => useAuthStore().homePath },
+
+    // Teacher application status (pending / rejected)
+    { path: 'pending', name: 'TeacherPending', component: () => import('@/pages/teacher/TeacherPendingPage.vue') },
+
+    // Teaching (approved teachers)
     { path: 'dashboard',  name: 'TeacherDashboard',  component: () => import('@/pages/teacher/TeacherDashboardPage.vue') },
     { path: 'classes',    name: 'TeacherClasses',    component: () => import('@/pages/teacher/ClassesPage.vue') },
     { path: 'classes/:id', name: 'TeacherClassDetail', component: () => import('@/pages/teacher/ClassDetailPage.vue') },
@@ -47,13 +32,22 @@ const TEACHER_ROUTES = {
     { path: 'lessons',    name: 'TeacherLessons',    component: () => import('@/pages/teacher/LessonsPage.vue') },
     { path: 'vocabulary', name: 'TeacherVocabulary', component: () => import('@/pages/teacher/VocabularyPage.vue') },
     { path: 'analytics',  name: 'TeacherAnalytics',  component: () => import('@/pages/teacher/AnalyticsPage.vue') },
+
+    // Administration (admins only)
+    { path: 'admin', redirect: '/teacher/admin/overview' },
+    { path: 'admin/overview',  name: 'AdminDashboard', component: () => import('@/pages/admin/AdminDashboardPage.vue') },
+    { path: 'admin/approvals', name: 'AdminApprovals', component: () => import('@/pages/admin/AdminApprovalsPage.vue') },
+    { path: 'admin/users',     name: 'AdminUsers',     component: () => import('@/pages/admin/AdminUsersPage.vue') },
+    { path: 'admin/activity',  name: 'AdminActivity',  component: () => import('@/pages/admin/AdminActivityPage.vue') },
+    { path: 'admin/ai',        name: 'AdminAI',        component: () => import('@/pages/admin/AdminAISettingsPage.vue') },
   ],
 }
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/', redirect: () => useAuthStore().homePath },
+  // The old standalone admin portal now lives inside the shared portal.
+  { path: '/admin/:rest(.*)*', redirect: '/teacher/admin/overview' },
   ...AUTH_ROUTES,
-  ADMIN_ROUTES,
   TEACHER_ROUTES,
   {
     path: '/',
@@ -62,6 +56,10 @@ const routes = [
     children: [
       { path: 'dashboard',  name: 'Dashboard',  component: DashboardPage },
       { path: 'profile',    name: 'Profile',    component: ProfilePage },
+
+      // My classes (joined with the teacher's code)
+      { path: 'classes',     name: 'MyClasses', component: () => import('@/pages/student/MyClassesPage.vue') },
+      { path: 'classes/:id', name: 'ClassPage', component: () => import('@/pages/student/ClassPage.vue') },
 
       // Courses
       { path: 'courses',         name: 'Courses',        component: () => import('@/pages/student/MyCoursesPage.vue') },
@@ -116,41 +114,46 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
-  const adminStore = useAdminStore()
-
-  // Admin portal guard
-  if (to.meta.requiresAdminAuth) {
-    const key = sessionStorage.getItem('admin_key')
-    if (!key) {
-      next('/admin/login')
-      return
-    }
-    // Mark as authenticated (key presence check — full verify done on login)
-    if (!adminStore.isAuthenticated) adminStore.isAuthenticated = true
-    next()
-    return
-  }
-
-  // Redirect away from login if already authenticated
-  if (to.meta.isAdminLogin && sessionStorage.getItem('admin_key')) {
-    next('/admin/dashboard')
-    return
-  }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
     return
   }
 
+  // Signed-in users never see the login/register pages: send them to their own home.
   if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next(authStore.isTeacher ? '/teacher/dashboard' : '/dashboard')
+    next(authStore.homePath)
     return
   }
 
   if (to.path.startsWith('/teacher')) {
-    if (!authStore.isTeacher) {
+    // Students have no business in the teacher/admin portal.
+    if (!authStore.canAccessTeacher) {
       next('/dashboard')
       return
+    }
+    const inAdminArea = to.path.startsWith('/teacher/admin')
+    if (authStore.isAdmin) {
+      // Admins administer; they have no classes of their own to teach.
+      if (!inAdminArea) {
+        next('/teacher/admin/overview')
+        return
+      }
+    } else {
+      if (inAdminArea) {
+        next(authStore.homePath)
+        return
+      }
+      // A teacher works only after an admin has approved the account.
+      const onPending = to.path === '/teacher/pending'
+      if (!authStore.isTeacherApproved && !onPending) {
+        next('/teacher/pending')
+        return
+      }
+      if (authStore.isTeacherApproved && onPending) {
+        next('/teacher/dashboard')
+        return
+      }
     }
   }
 
@@ -158,7 +161,7 @@ router.beforeEach((to, _from, next) => {
     const requiredRole = to.meta.requiredRole as number
     const userRole = authStore.userRole
     if (userRole !== requiredRole) {
-      next(userRole === UserRole.TEACHER ? '/teacher/dashboard' : '/dashboard')
+      next(userRole === UserRole.STUDENT ? '/dashboard' : authStore.homePath)
       return
     }
   }

@@ -13,10 +13,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { AdminGuard } from '../../core/guards/admin.guard';
+import { JwtGuard } from '../../core/guards/jwt.guard';
+import { RolesGuard } from '../../core/guards/roles.guard';
+import { Roles } from '../../core/decorators/roles.decorator';
+import { ROLE_ADMIN } from '../roles/entities/role.entity';
+import { IMAGE_DATA_URL, MAX_CARD_LEN } from '../users/teacher-card';
 import {
   IsString,
   IsBoolean,
+  IsIn,
   IsEmail,
   IsOptional,
   MinLength,
@@ -28,11 +33,6 @@ import {
 } from 'class-validator';
 import { isAnthropicKey } from '../../core/ai/anthropic';
 import { AiKeyService } from './ai-key.service';
-
-// ~3.5M chars of base64 ≈ 2.6 MB image — plenty for an ID-card photo.
-const MAX_CARD_LEN = 3_500_000;
-const IMAGE_DATA_URL =
-  /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 class CreateTeacherDto {
   @IsString()
@@ -69,9 +69,15 @@ class TeacherCardDto {
   teacher_card_image: string;
 }
 
-class VerifyDto {
-  @IsBoolean()
-  verified: boolean;
+class ReviewTeacherDto {
+  @IsIn(['approved', 'rejected', 'pending'])
+  status: 'approved' | 'rejected' | 'pending';
+
+  /** Shown to the teacher when an application is rejected. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 class SetActiveDto {
@@ -93,7 +99,8 @@ class BulkDeleteDto {
 }
 
 @Controller('api/v1/admin')
-@UseGuards(AdminGuard)
+@UseGuards(JwtGuard, RolesGuard)
+@Roles(ROLE_ADMIN)
 export class AdminController {
   constructor(
     private adminService: AdminService,
@@ -168,18 +175,31 @@ export class AdminController {
     };
   }
 
-  @Patch('users/:id/verify')
-  async setVerified(
+  /** Approve, reject (with a reason) or re-open a teacher's application. */
+  @Patch('users/:id/teacher-status')
+  async reviewTeacher(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: VerifyDto,
+    @Body() dto: ReviewTeacherDto,
   ) {
-    await this.adminService.setUserVerified(id, dto.verified);
+    const data = await this.adminService.reviewTeacher(
+      id,
+      dto.status,
+      dto.reason,
+    );
     return {
       code: 200,
-      message: `User ${id} ${dto.verified ? 'verified' : 'unverified'}`,
-      data: null,
+      message: `Teacher ${id} ${dto.status}`,
+      data,
     };
   }
+
+  /** Per-teacher counts (classes, students, tests…) — same data as the teacher_overview DB view. */
+  @Get('teachers/overview')
+  async teacherOverview() {
+    const data = await this.adminService.getTeacherOverview();
+    return { code: 200, message: 'Teacher overview retrieved', data };
+  }
+
 
   @Patch('users/:id/active')
   async setActive(

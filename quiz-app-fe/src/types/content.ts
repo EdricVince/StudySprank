@@ -66,6 +66,7 @@ export interface FlashcardDeckData {
   category: string
   cards: DeckCardData[]
   is_public: boolean
+  class_id?: number | null // set when the deck is assigned to a class
   created_at: string
   updated_at: string
 }
@@ -173,4 +174,18 @@ export interface ExamHistoryItem {
   correct: number | null
   total: number | null
   submitted_at: string | null
+}
+
+/** One entry of the activity trail (who did what, and when). */
+export interface ActivityItem {
+  id: number
+  created_at: string
+  action: string
+  entity_type: string
+  entity_id: number | null
+  class_id: number | null
+  class_name: string | null
+  summary: string
+  metadata: Record<string, unknown>
+  actor: { id: number; name: string | null; email: string; role_id: number | null } | null
 }

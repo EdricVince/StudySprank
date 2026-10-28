@@ -25,6 +25,12 @@ export const AUTH_ROUTES = [
         meta: { requiresGuest: true },
       },
       {
+        path: 'register/teacher',
+        name: 'TeacherRegister',
+        component: () => import('@/pages/auth/TeacherRegisterPage.vue'),
+        meta: { requiresGuest: true },
+      },
+      {
         path: 'forgot-password',
         name: 'ForgotPassword',
         component: () => import('@/pages/auth/ForgotPasswordPage.vue'),

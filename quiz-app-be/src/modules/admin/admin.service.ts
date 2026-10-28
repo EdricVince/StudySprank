@@ -2,10 +2,13 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull, EntityManager } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import type { TeacherStatus } from '../users/entities/user.entity';
 import { UserProgress } from '../progress/entities/user-progress.entity';
 import { DailyActivity } from '../progress/entities/daily-activity.entity';
 import { LessonCompletion } from '../progress/entities/lesson-completion.entity';
@@ -22,7 +25,11 @@ import { Assignment } from '../assignments/entities/assignment.entity';
 import { ExamAttempt } from '../entrance-exam/entities/exam-attempt.entity';
 import { UserGoalSettings } from '../goals/entities/user-goal-settings.entity';
 import { UserCustomGoal } from '../goals/entities/user-custom-goal.entity';
-import { ROLE_STUDENT, ROLE_TEACHER } from '../roles/entities/role.entity';
+import {
+  ROLE_ADMIN,
+  ROLE_STUDENT,
+  ROLE_TEACHER,
+} from '../roles/entities/role.entity';
 import * as bcrypt from 'bcrypt';
 
 const TEACHER_DOMAIN = '@teacher.sprk';
@@ -37,6 +44,8 @@ export interface AdminUserRow {
   xp: number;
   is_verified: boolean;
   has_teacher_card: boolean;
+  teacher_status: TeacherStatus;
+  teacher_organization: string | null;
 }
 
 export interface AdminStats {
@@ -69,10 +78,22 @@ export class AdminService {
     };
   }
 
+  /** Ids of the users (or just `onlyId`) that have a verification document on file. */
+  private async userIdsWithCard(onlyId?: number): Promise<Set<number>> {
+    const params = onlyId === undefined ? [] : [onlyId];
+    const filter = onlyId === undefined ? '' : 'AND id = $1';
+    const rows = (await this.userRepo.query(
+      `SELECT id FROM users WHERE teacher_card_image IS NOT NULL ${filter}`,
+      params,
+    )) as { id: number }[];
+    return new Set(rows.map((r) => r.id));
+  }
+
   async listUsers(): Promise<AdminUserRow[]> {
     const users = await this.userRepo.find({ order: { created_at: 'DESC' } });
     const progressList = await this.progressRepo.find();
     const progressMap = new Map(progressList.map((p) => [p.user_id, p]));
+    const withCard = await this.userIdsWithCard();
 
     return users.map((u) => ({
       id: u.id,
@@ -83,10 +104,13 @@ export class AdminService {
       created_at: u.created_at,
       xp: progressMap.get(u.id)?.xp ?? 0,
       is_verified: u.is_verified,
-      has_teacher_card: !!u.teacher_card_image,
+      has_teacher_card: withCard.has(u.id),
+      teacher_status: u.teacher_status,
+      teacher_organization: u.teacher_organization,
     }));
   }
 
+  /** An admin-created teacher is trusted: approved straight away (the card is optional). */
   async createTeacher(
     teacherName: string,
     password: string,
@@ -109,16 +133,22 @@ export class AdminService {
       name: teacherName,
       role_id: ROLE_TEACHER,
       is_active: true,
-      // Dropping a teacher ID card at creation marks the account as verified.
       teacher_card_image: teacherCardImage ?? null,
-      is_verified: !!teacherCardImage,
+      is_verified: true,
+      teacher_status: 'approved',
+      teacher_reviewed_at: new Date(),
     });
     const saved = await this.userRepo.save(user);
     return { id: saved.id, email: saved.email };
   }
 
   async getTeacherCard(userId: number): Promise<string | null> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    // teacher_card_image is not selected by default (it can be megabytes).
+    const user = await this.userRepo
+      .createQueryBuilder('u')
+      .addSelect('u.teacher_card_image')
+      .where('u.id = :userId', { userId })
+      .getOne();
     if (!user) throw new NotFoundException('User not found');
     return user.teacher_card_image;
   }
@@ -126,22 +156,59 @@ export class AdminService {
   async setTeacherCard(userId: number, image: string): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    // Uploading a card also verifies the teacher.
+    // Uploading a card on the teacher's behalf also approves the account.
     await this.userRepo.update(userId, {
       teacher_card_image: image,
       is_verified: true,
+      teacher_status: 'approved',
+      teacher_reject_reason: null,
+      teacher_reviewed_at: new Date(),
     });
   }
 
-  async setUserVerified(userId: number, verified: boolean): Promise<void> {
+  /**
+   * Approve / reject / re-open a teacher application. `is_verified` always mirrors
+   * "approved". A rejection keeps the reason so the teacher sees why.
+   */
+  async reviewTeacher(
+    userId: number,
+    status: Exclude<TeacherStatus, 'none'>,
+    reason?: string,
+  ): Promise<{ id: number; teacher_status: TeacherStatus }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
-    await this.userRepo.update(userId, { is_verified: verified });
+    if (user.role_id !== ROLE_TEACHER) {
+      throw new BadRequestException('Only teacher accounts can be reviewed.');
+    }
+    const cleanReason = status === 'rejected' ? (reason ?? '').trim() : '';
+    if (status === 'rejected' && !cleanReason) {
+      throw new BadRequestException(
+        'A reason is required to reject a teacher.',
+      );
+    }
+    await this.userRepo.update(userId, {
+      teacher_status: status,
+      is_verified: status === 'approved',
+      teacher_reject_reason: cleanReason || null,
+      teacher_reviewed_at: status === 'pending' ? null : new Date(),
+    });
+    // No token revocation needed: JwtGuard reads teacher_status from the DB on every request.
+    return { id: userId, teacher_status: status };
+  }
+
+  /** One row per teacher with their activity counts (backed by the teacher_overview view). */
+  async getTeacherOverview(): Promise<Record<string, unknown>[]> {
+    return this.userRepo.query(
+      `SELECT * FROM teacher_overview ORDER BY created_at DESC`,
+    ) as Promise<Record<string, unknown>[]>;
   }
 
   async setUserActive(userId: number, isActive: boolean): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
+    if (!isActive && user.role_id === ROLE_ADMIN) {
+      throw new ForbiddenException('Admin accounts cannot be deactivated.');
+    }
     await this.userRepo.update(userId, { is_active: isActive });
     if (!isActive) await this.revokeRefreshTokens(userId);
   }
@@ -177,7 +244,10 @@ export class AdminService {
       role_id: user.role_id,
       is_active: user.is_active,
       is_verified: user.is_verified,
-      has_teacher_card: !!user.teacher_card_image,
+      has_teacher_card: (await this.userIdsWithCard(userId)).has(userId),
+      teacher_status: user.teacher_status,
+      teacher_organization: user.teacher_organization,
+      teacher_reject_reason: user.teacher_reject_reason,
       created_at: user.created_at,
       xp: progress?.xp ?? 0,
       level: progress?.level ?? 1,
@@ -197,9 +267,12 @@ export class AdminService {
     if (!unique.length) return 0;
     const existing = await this.userRepo.find({
       where: { id: In(unique) },
-      select: ['id'],
+      select: ['id', 'role_id'],
     });
     if (!existing.length) return 0;
+    if (existing.some((u) => u.role_id === ROLE_ADMIN)) {
+      throw new ForbiddenException('Admin accounts cannot be deleted.');
+    }
     await this.userRepo.manager.transaction(async (m) => {
       for (const u of existing) await this.purgeUser(m, u.id);
     });
@@ -215,6 +288,9 @@ export class AdminService {
   async deleteUser(userId: number): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
+    if (user.role_id === ROLE_ADMIN) {
+      throw new ForbiddenException('Admin accounts cannot be deleted.');
+    }
 
     await this.userRepo.manager.transaction((m) => this.purgeUser(m, userId));
   }

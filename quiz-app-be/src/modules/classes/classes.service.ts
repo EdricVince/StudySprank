@@ -247,14 +247,28 @@ export class ClassesService {
     await this.enrollRepo.delete({ class_id: classId, student_id: studentId });
   }
 
+  /** A student leaves a class they joined (their progress and test results stay). */
+  async leaveClass(classId: number, studentId: number): Promise<void> {
+    const enrollment = await this.enrollRepo.findOne({
+      where: { class_id: classId, student_id: studentId },
+    });
+    if (!enrollment) throw new NotFoundException('You are not in this class');
+    await this.enrollRepo.delete({ class_id: classId, student_id: studentId });
+  }
+
   async joinClass(
     classCode: string,
     studentId: number,
   ): Promise<Class & { student_count: number }> {
     const cls = await this.classRepo.findOne({
       where: { class_code: classCode, is_active: true },
+      relations: { teacher: true },
     });
     if (!cls) throw new NotFoundException('Class not found or inactive');
+    // A class of a teacher who has not been (or is no longer) approved is closed.
+    if (cls.teacher && cls.teacher.teacher_status !== 'approved') {
+      throw new NotFoundException('Class not found or inactive');
+    }
 
     const existing = await this.enrollRepo.findOne({
       where: { class_id: cls.id, student_id: studentId },

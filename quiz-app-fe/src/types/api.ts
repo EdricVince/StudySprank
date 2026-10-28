@@ -1,3 +1,5 @@
+import type { TeacherStatus } from '@/types/role'
+
 /**
  * Generic API Response wrapper (matches BE ResponseBase)
  */
@@ -58,6 +60,7 @@ export interface UserOut {
   email: string
   is_active: boolean
   role_id: number
+  teacher_status?: TeacherStatus
 }
 
 /**
@@ -87,4 +90,7 @@ export interface UserProfileData {
   role_id?: number
   created_at?: string
   updated_at?: string
+  teacher_status?: TeacherStatus
+  teacher_organization?: string | null
+  teacher_reject_reason?: string | null
 }

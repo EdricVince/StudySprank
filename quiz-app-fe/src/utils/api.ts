@@ -27,9 +27,11 @@ import type {
   GeneratedTestData,
   AssignmentData,
   ExamHistoryItem,
+  ActivityItem,
 } from '@/types/content'
 
 import { API_BASE_URL } from '@/lib/apiBase'
+import type { ClassHub } from '@/types/class'
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean
@@ -149,6 +151,24 @@ export const api = {
     return apiRequest<UserOut>('/auth/register', { method: 'POST', requiresAuth: false, body: JSON.stringify(body) })
   },
 
+  /** A teacher applies for an account (stays pending until an admin approves it). Signs them in. */
+  registerTeacher: (data: {
+    email: string
+    password: string
+    name: string
+    organization: string
+    teacher_card_image: string
+  }): Promise<UserOut & { access_token: string; refresh_token: string }> =>
+    apiRequest('/auth/register-teacher', { method: 'POST', requiresAuth: false, body: JSON.stringify(data) }),
+
+  /** A pending/rejected teacher re-submits the verification document. */
+  submitTeacherApplication: (data: { teacher_card_image: string; organization?: string }): Promise<UserProfileData> =>
+    apiRequest<UserProfileData>('/auth/teacher/application', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // ── Activity trail ────────────────────────────────────────────
+  /** The signed-in user's own recent actions. */
+  getMyActivity: (): Promise<ActivityItem[]> => apiRequest<ActivityItem[]>('/activity/mine'),
+
   oauthLogin: (supabaseToken: string): Promise<LoginResponseData> =>
     apiRequest<LoginResponseData>('/auth/oauth-login', {
       method: 'POST',
@@ -214,6 +234,15 @@ export const api = {
     apiRequest<unknown>('/classes/join', { method: 'POST', body: JSON.stringify({ class_code: classCode }) }),
 
   getTeacherAnalytics: (): Promise<any> => apiRequest<any>('/classes/analytics'),
+
+  /** A class and all its content (teacher: + roster with progress; student: published content only). */
+  getClassHub: (id: number): Promise<ClassHub> => apiRequest<ClassHub>(`/classes/${id}/hub`),
+
+  /** A student leaves a class they joined. */
+  leaveClass: (id: number): Promise<void> => apiRequest<void>(`/classes/${id}/leave`, { method: 'DELETE' }),
+
+  /** Who did what in this class (its teacher only). */
+  getClassActivity: (id: number): Promise<ActivityItem[]> => apiRequest<ActivityItem[]>(`/classes/${id}/activity`),
 
   // ── Progress ──────────────────────────────────────────────────
   getMyProgress: (): Promise<unknown> => apiRequest<unknown>('/progress/me'),
@@ -371,11 +400,11 @@ export const api = {
   getFlashcardDecks: (): Promise<FlashcardDeckData[]> => apiRequest('/flashcard-decks'),
   getFlashcardDeck: (id: number): Promise<FlashcardDeckData> => apiRequest(`/flashcard-decks/${id}`),
   createFlashcardDeck: (body: {
-    title: string; description?: string; category?: string; is_public?: boolean; cards?: DeckCardData[]
+    title: string; description?: string; category?: string; is_public?: boolean; cards?: DeckCardData[]; class_id?: number | null
   }): Promise<FlashcardDeckData> =>
     apiRequest('/flashcard-decks', { method: 'POST', body: JSON.stringify(body) }),
   updateFlashcardDeck: (id: number, body: {
-    title?: string; description?: string; category?: string; is_public?: boolean; cards?: DeckCardData[]
+    title?: string; description?: string; category?: string; is_public?: boolean; cards?: DeckCardData[]; class_id?: number | null
   }): Promise<FlashcardDeckData> =>
     apiRequest(`/flashcard-decks/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteFlashcardDeck: (id: number): Promise<void> =>

@@ -146,6 +146,57 @@ describe('ClassesService', () => {
     });
   });
 
+  describe('joinClass — closed classes', () => {
+    it.each(['pending', 'rejected', 'none'])(
+      'a class of a teacher who is "%s" cannot be joined',
+      async (status) => {
+        classRepo.findOne.mockResolvedValue({
+          id: 5,
+          is_active: true,
+          student_limit: 30,
+          teacher: { teacher_status: status },
+        });
+        await expect(service.joinClass('ABC-1234', 7)).rejects.toThrow(
+          NotFoundException,
+        );
+        expect(enrollRepo.save).not.toHaveBeenCalled();
+      },
+    );
+
+    it('a class of an approved teacher can be joined', async () => {
+      classRepo.findOne.mockResolvedValue({
+        id: 5,
+        is_active: true,
+        student_limit: 30,
+        teacher: { teacher_status: 'approved' },
+      });
+      enrollRepo.findOne.mockResolvedValue(null);
+      enrollRepo.create.mockImplementation((x: any) => x);
+      await service.joinClass('ABC-1234', 7);
+      expect(enrollRepo.save).toHaveBeenCalledWith({
+        class_id: 5,
+        student_id: 7,
+      });
+    });
+  });
+
+  describe('leaveClass', () => {
+    it('removes the enrollment of the student who is in the class', async () => {
+      enrollRepo.findOne.mockResolvedValue({ id: 1 });
+      await service.leaveClass(5, 7);
+      expect(enrollRepo.delete).toHaveBeenCalledWith({
+        class_id: 5,
+        student_id: 7,
+      });
+    });
+
+    it('404 when the student is not in that class', async () => {
+      enrollRepo.findOne.mockResolvedValue(null);
+      await expect(service.leaveClass(5, 7)).rejects.toThrow(NotFoundException);
+      expect(enrollRepo.delete).not.toHaveBeenCalled();
+    });
+  });
+
   describe('create', () => {
     it('generates a unique class code and returns student_count 0', async () => {
       classRepo.findOne.mockResolvedValue(null); // code is unique on first try

@@ -15,6 +15,7 @@ vi.mock('@/utils/api', () => ({
     getProfile: vi.fn(),
     refreshToken: vi.fn(),
     logout: vi.fn(),
+    registerTeacher: vi.fn(),
   },
   ApiError: class ApiError extends Error {},
 }))
@@ -28,7 +29,7 @@ vi.mock('@/stores/progress.store', () => ({
 import { useAuthStore } from './auth.store'
 import { api } from '@/utils/api'
 
-const m = api as unknown as Record<'login' | 'getProfile' | 'refreshToken' | 'logout', ReturnType<typeof vi.fn>>
+const m = api as unknown as Record<'login' | 'getProfile' | 'refreshToken' | 'logout' | 'registerTeacher', ReturnType<typeof vi.fn>>
 
 describe('auth.store — refresh tokens', () => {
   beforeEach(() => {
@@ -89,5 +90,53 @@ describe('auth.store — refresh tokens', () => {
     store.logout()
     expect(m.logout).toHaveBeenCalledWith('R1')
     expect(store.getRefreshToken()).toBeUndefined()
+  })
+})
+
+describe('auth.store — one portal for teachers and admins', () => {
+  beforeEach(() => {
+    jar.clear()
+    localStorage.clear()
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+  })
+
+  const as = (role_id: number, teacher_status?: 'none' | 'pending' | 'approved' | 'rejected') => {
+    const store = useAuthStore()
+    store.setUser({ id: 1, email: 'u@x.y', role_id, teacher_status })
+    return store
+  }
+
+  it('sends every role to its own home', () => {
+    expect(as(1).homePath).toBe('/dashboard')
+    expect(as(2, 'approved').homePath).toBe('/teacher/dashboard')
+    expect(as(2, 'pending').homePath).toBe('/teacher/pending')
+    expect(as(2, 'rejected').homePath).toBe('/teacher/pending')
+    expect(as(3).homePath).toBe('/teacher/admin/overview')
+  })
+
+  it('only an approved teacher counts as approved; teachers and admins share the portal', () => {
+    expect(as(2, 'pending').isTeacherApproved).toBe(false)
+    expect(as(2, 'approved').isTeacherApproved).toBe(true)
+    expect(as(3).isTeacherApproved).toBe(false)
+    expect(as(1).canAccessTeacher).toBe(false)
+    expect(as(2, 'pending').canAccessTeacher).toBe(true)
+    expect(as(3).canAccessTeacher).toBe(true)
+  })
+
+  it('registerTeacher signs the applicant in as pending', async () => {
+    m.registerTeacher.mockResolvedValue({
+      id: 9, email: 't@school.edu', is_active: true, role_id: 2, teacher_status: 'pending',
+      access_token: 'A', refresh_token: 'R',
+    })
+    m.getProfile.mockResolvedValue({ id: 9, email: 't@school.edu', role_id: 2, teacher_status: 'pending', teacher_organization: 'School' })
+    const store = useAuthStore()
+    const res = await store.registerTeacher({
+      email: 't@school.edu', password: 'longenough', name: 'T', organization: 'School', teacher_card_image: 'data:image/png;base64,AA==',
+    })
+    expect(res.success).toBe(true)
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.teacherStatus).toBe('pending')
+    expect(store.homePath).toBe('/teacher/pending')
   })
 })

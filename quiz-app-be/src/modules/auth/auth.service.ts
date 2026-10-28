@@ -3,18 +3,21 @@ import {
   BadRequestException,
   ConflictException,
   InternalServerErrorException,
+  ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { ROLE_STUDENT } from '../roles/entities/role.entity';
+import { ROLE_STUDENT, ROLE_TEACHER } from '../roles/entities/role.entity';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../../core/mail/mail.service';
 import { signHs256 } from '../../core/security/jwt.util';
 import {
   RegisterDto,
+  RegisterTeacherDto,
+  TeacherApplicationDto,
   LoginDto,
   RegisterResponseDto,
   LoginResponseDto,
@@ -156,8 +159,57 @@ export class AuthService {
       email: user.email,
       is_active: user.is_active,
       role_id: user.role_id,
+      teacher_status: user.teacher_status,
       ...(await this.issueTokenPair(user)),
     };
+  }
+
+  /**
+   * A teacher applies for an account. It is created as 'pending': the teacher can sign in
+   * and see the status, but cannot create classes or content until an admin approves it.
+   */
+  async registerTeacher(dto: RegisterTeacherDto): Promise<RegisterResponseDto> {
+    if (await this.usersService.findByEmail(dto.email)) {
+      throw new ConflictException('Email already exists');
+    }
+
+    const user = await this.usersService.createTeacherApplicant({
+      email: dto.email,
+      hashedPassword: await this.hashPassword(dto.password),
+      name: dto.name.trim(),
+      organization: dto.organization.trim(),
+      cardImage: dto.teacher_card_image,
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      is_active: user.is_active,
+      role_id: user.role_id,
+      teacher_status: user.teacher_status,
+      ...(await this.issueTokenPair(user)),
+    };
+  }
+
+  /** A pending or rejected teacher uploads a (new) document and goes back to the review queue. */
+  async submitTeacherApplication(
+    userId: number,
+    dto: TeacherApplicationDto,
+  ): Promise<ProfileDto> {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role_id !== ROLE_TEACHER) {
+      throw new ForbiddenException('Only teacher accounts can apply.');
+    }
+    if (user.teacher_status === 'approved') {
+      throw new ConflictException('This teacher account is already approved.');
+    }
+    await this.usersService.submitTeacherApplication(
+      userId,
+      dto.teacher_card_image,
+      dto.organization?.trim(),
+    );
+    return this.getMe(userId);
   }
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
@@ -184,6 +236,7 @@ export class AuthService {
         email: user.email,
         is_active: user.is_active,
         role_id: user.role_id,
+        teacher_status: user.teacher_status,
       },
     };
   }
@@ -199,6 +252,9 @@ export class AuthService {
       role_id: user.role_id,
       is_active: user.is_active,
       created_at: user.created_at,
+      teacher_status: user.teacher_status,
+      teacher_organization: user.teacher_organization,
+      teacher_reject_reason: user.teacher_reject_reason,
     };
   }
 
@@ -309,6 +365,7 @@ export class AuthService {
         email: user.email,
         is_active: user.is_active,
         role_id: user.role_id,
+        teacher_status: user.teacher_status,
       },
     };
   }

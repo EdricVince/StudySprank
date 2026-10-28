@@ -133,6 +133,7 @@
               <input
                 type="checkbox"
                 :checked="isSelected(user.id)"
+                :disabled="user.role_id === 3"
                 class="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600"
                 @click.stop
                 @change="toggleSelect(user.id)"
@@ -148,13 +149,21 @@
                   <p class="font-medium text-foreground truncate flex items-center gap-1.5 group-hover/user:text-indigo-600 dark:group-hover/user:text-indigo-400 transition-colors">
                     {{ user.name ?? '—' }}
                     <span
-                      v-if="user.is_verified"
+                      v-if="user.teacher_status === 'approved'"
                       class="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-semibold shrink-0"
                       title="Verified teacher"
                     >
                       <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
                       Verified
                     </span>
+                    <span
+                      v-if="user.role_id === 2 && user.teacher_status === 'pending'"
+                      class="inline-flex rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 text-[10px] font-semibold shrink-0"
+                    >Pending</span>
+                    <span
+                      v-if="user.role_id === 2 && user.teacher_status === 'rejected'"
+                      class="inline-flex rounded-full bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-semibold shrink-0"
+                    >Rejected</span>
                   </p>
                   <p class="adm-meta truncate">{{ user.email }}</p>
                 </div>
@@ -162,14 +171,14 @@
             </td>
             <td class="adm-td hidden md:table-cell">
               <span class="adm-badge" :class="user.role_id === 2 ? 'adm-badge-teacher' : 'adm-badge-student'">
-                {{ user.role_id === 2 ? 'Teacher' : 'Student' }}
+                {{ roleName(user.role_id) }}
               </span>
             </td>
             <td class="adm-td adm-text hidden lg:table-cell">{{ user.xp.toLocaleString() }} XP</td>
             <td class="adm-td adm-meta hidden lg:table-cell">{{ formatDate(user.created_at) }}</td>
             <td class="adm-td text-center">
               <button
-                :disabled="togglingId === user.id"
+                :disabled="togglingId === user.id || user.role_id === 3"
                 class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50"
                 :class="user.is_active ? 'adm-toggle-on' : 'adm-toggle-off'"
                 :title="user.is_active ? 'Deactivate' : 'Activate'"
@@ -198,7 +207,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                   </svg>
                 </button>
-                <button class="adm-icon-btn adm-icon-btn-del" title="Delete user" @click="confirmDelete(user)">
+                <button v-if="user.role_id !== 3" class="adm-icon-btn adm-icon-btn-del" title="Delete user" @click="confirmDelete(user)">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
@@ -455,14 +464,14 @@
                   <p class="font-semibold text-foreground truncate flex items-center gap-1.5">
                     {{ profile.name ?? '—' }}
                     <span
-                      v-if="profile.is_verified"
+                      v-if="profile.teacher_status === 'approved'"
                       class="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-semibold"
                     >Verified</span>
                   </p>
                   <p class="adm-meta truncate">{{ profile.email }}</p>
                   <div class="mt-1 flex items-center gap-2">
                     <span class="adm-badge" :class="profile.role_id === 2 ? 'adm-badge-teacher' : 'adm-badge-student'">
-                      {{ profile.role_id === 2 ? 'Teacher' : 'Student' }}
+                      {{ roleName(profile.role_id) }}
                     </span>
                     <span
                       class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -645,6 +654,8 @@ const filteredUsers = computed(() => {
   )
 })
 
+const roleName = (roleId: number) => (roleId === 3 ? 'Admin' : roleId === 2 ? 'Teacher' : 'Student')
+
 function initials(str: string) {
   return str.split(/[\s.@_-]+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('')
 }
@@ -661,11 +672,12 @@ function toggleSelect(id: number) {
     ? selectedIds.value.filter(x => x !== id)
     : [...selectedIds.value, id]
 }
+const selectable = computed(() => filteredUsers.value.filter(u => u.role_id !== 3))
 const allVisibleSelected = computed(() =>
-  filteredUsers.value.length > 0 && filteredUsers.value.every(u => selectedIds.value.includes(u.id)),
+  selectable.value.length > 0 && selectable.value.every(u => selectedIds.value.includes(u.id)),
 )
 function toggleSelectAll() {
-  const visible = new Set(filteredUsers.value.map(u => u.id))
+  const visible = new Set(selectable.value.map(u => u.id))
   if (allVisibleSelected.value) {
     selectedIds.value = selectedIds.value.filter(id => !visible.has(id))
   } else {

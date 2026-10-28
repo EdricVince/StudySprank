@@ -16,6 +16,8 @@ import {
 import { FlashcardDeck, DeckCard } from './entities/flashcard-deck.entity';
 import { CardReview } from './entities/card-review.entity';
 import { applySm2, cardKeyOf } from './sm2';
+import { canReadDeck } from './deck-access';
+import { ClassEnrollment } from '../classes/entities/class-enrollment.entity';
 
 export class ReviewCardDto {
   @IsString() @MinLength(1) @MaxLength(255) card_key: string;
@@ -58,8 +60,14 @@ export class CardReviewsService {
   ): Promise<FlashcardDeck> {
     const deck = await this.deckRepo.findOne({ where: { id: deckId } });
     if (!deck) throw new NotFoundException('Flashcard deck not found');
-    if (!deck.is_public && deck.owner_id !== userId)
+    const isEnrolled = async (classId: number) =>
+      !!(await this.deckRepo.manager.findOne(ClassEnrollment, {
+        where: { class_id: classId, student_id: userId },
+        select: ['id'],
+      }));
+    if (!(await canReadDeck(deck, userId, isEnrolled))) {
       throw new ForbiddenException('This deck is private');
+    }
     return deck;
   }
 
