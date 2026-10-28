@@ -1,32 +1,20 @@
 <template>
   <div class="p-6 lg:p-8">
     <!-- Header -->
-    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-foreground text-2xl font-bold">{{ $t('teacher.lessons.title') }}</h2>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.lessons.subtitle') }}</p>
-      </div>
-      <button
-        class="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium transition-colors"
-        @click="openCreate"
-      >
-        <Plus class="h-4 w-4" />
-        {{ $t('teacher.lessons.createLesson') }}
-      </button>
-    </div>
+    <TeacherPageHeader :title="$t('teacher.lessons.title')" :subtitle="$t('teacher.lessons.subtitle')" :icon="GraduationCap">
+      <template #actions>
+        <button
+          class="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium shadow-sm transition-colors"
+          @click="openCreate"
+        >
+          <Plus class="h-4 w-4" />
+          {{ $t('teacher.lessons.createLesson') }}
+        </button>
+      </template>
+    </TeacherPageHeader>
 
     <!-- Stats -->
-    <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <div v-for="stat in stats" :key="stat.label" class="bg-card border-border rounded-2xl border p-5">
-        <div class="mb-3 flex items-center justify-between">
-          <span class="text-muted-foreground text-sm">{{ stat.label }}</span>
-          <div class="rounded-lg p-2" :class="stat.bg">
-            <component :is="stat.icon" class="h-4 w-4" :class="stat.color" />
-          </div>
-        </div>
-        <p class="text-foreground text-2xl font-bold">{{ stat.value }}</p>
-      </div>
-    </div>
+    <TeacherStatRow :stats="stats" />
 
     <!-- Filter Bar -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row">
@@ -414,6 +402,8 @@ import { useRoute } from 'vue-router'
 import { api, ApiError } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import { useLocale } from '@/composables/useLocale'
+import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
+import TeacherStatRow from '@/components/teacher/TeacherStatRow.vue'
 import { LESSON_SKILLS, LEVEL_GROUPS, CONTENT_LANGUAGES } from '@/data/teachingOptions'
 import type { LessonData, LessonContentData, GeneratedLessonData, TeacherClassData } from '@/types/content'
 import { Plus, Search, BookOpen, GraduationCap, FileText, Pencil, Trash2, X, Sparkles, Loader2Icon as Loader2, Eye } from '@/components/icons'

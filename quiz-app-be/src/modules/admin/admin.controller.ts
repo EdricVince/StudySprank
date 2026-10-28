@@ -200,7 +200,6 @@ export class AdminController {
     return { code: 200, message: 'Teacher overview retrieved', data };
   }
 
-
   @Patch('users/:id/active')
   async setActive(
     @Param('id', ParseIntPipe) id: number,

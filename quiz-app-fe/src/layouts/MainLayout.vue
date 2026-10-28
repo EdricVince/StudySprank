@@ -226,7 +226,7 @@
                     @click="isDropdownOpen = false; router.push(authStore.homePath)"
                   >
                     <GraduationCap class="text-muted-foreground h-4 w-4" />
-                    Teacher Portal
+                    {{ $t('teacher.nav.portal') }}
                   </button>
                 </div>
                 <div class="border-border border-t p-2">

@@ -82,10 +82,10 @@ export class AdminService {
   private async userIdsWithCard(onlyId?: number): Promise<Set<number>> {
     const params = onlyId === undefined ? [] : [onlyId];
     const filter = onlyId === undefined ? '' : 'AND id = $1';
-    const rows = (await this.userRepo.query(
+    const rows = await this.userRepo.query<{ id: number }[]>(
       `SELECT id FROM users WHERE teacher_card_image IS NOT NULL ${filter}`,
       params,
-    )) as { id: number }[];
+    );
     return new Set(rows.map((r) => r.id));
   }
 
@@ -198,9 +198,9 @@ export class AdminService {
 
   /** One row per teacher with their activity counts (backed by the teacher_overview view). */
   async getTeacherOverview(): Promise<Record<string, unknown>[]> {
-    return this.userRepo.query(
+    return this.userRepo.query<Record<string, unknown>[]>(
       `SELECT * FROM teacher_overview ORDER BY created_at DESC`,
-    ) as Promise<Record<string, unknown>[]>;
+    );
   }
 
   async setUserActive(userId: number, isActive: boolean): Promise<void> {

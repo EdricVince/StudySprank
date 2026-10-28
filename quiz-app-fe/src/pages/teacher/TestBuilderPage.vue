@@ -1,17 +1,11 @@
 <template>
   <div class="p-6 lg:p-8">
-    <!-- Back -->
-    <button class="text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1.5 text-sm font-medium" @click="router.push('/teacher/tests')">
-      <ArrowLeft class="h-4 w-4" /> {{ $t('teacher.testBuilder.back') }}
-    </button>
-
-    <div class="mb-6 flex items-center justify-between">
-      <h1 class="text-foreground text-2xl font-bold tracking-tight lg:text-3xl">{{ isEditing ? $t('teacher.testBuilder.editTitle') : $t('teacher.testBuilder.createTitle') }}</h1>
-      <div class="flex gap-3">
+    <TeacherPageHeader :title="isEditing ? $t('teacher.testBuilder.editTitle') : $t('teacher.testBuilder.createTitle')" :icon="FileText">
+      <template #actions>
         <Button variant="outline" @click="router.push('/teacher/tests')">{{ $t('teacher.testBuilder.cancel') }}</Button>
         <Button :disabled="!form.title.trim() || saving" @click="save">{{ saving ? $t('teacher.testBuilder.saving') : (isEditing ? $t('teacher.testBuilder.saveChanges') : $t('teacher.testBuilder.createBtn')) }}</Button>
-      </div>
-    </div>
+      </template>
+    </TeacherPageHeader>
 
     <div v-if="loading" class="flex items-center justify-center py-20"><Loader2 class="text-primary h-8 w-8 animate-spin" /></div>
 
@@ -125,7 +119,8 @@ import { useToast } from '@/composables/useToast'
 import { useLocale } from '@/composables/useLocale'
 import { LEVEL_GROUPS, CONTENT_LANGUAGES } from '@/data/teachingOptions'
 import type { TestQuestionData, TeacherClassData } from '@/types/content'
-import { ArrowLeft, Plus, X, Trash2, Sparkles, HelpCircle, Loader2Icon as Loader2 } from '@/components/icons'
+import { FileText, Plus, X, Trash2, Sparkles, HelpCircle, Loader2Icon as Loader2 } from '@/components/icons'
+import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
 import Button from '@/components/ui/button/Button.vue'
 
 const router = useRouter()

@@ -2,35 +2,20 @@
   <div class="p-6 lg:p-8">
 
     <!-- Header -->
-    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-foreground text-2xl font-bold tracking-tight lg:text-3xl">{{ $t('teacher.students.title') }}</h1>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.students.pageSubtitle') }}</p>
-      </div>
-      <div class="flex gap-2">
+    <TeacherPageHeader :title="$t('teacher.students.title')" :subtitle="$t('teacher.students.pageSubtitle')" :icon="Users">
+      <template #actions>
         <button
-          class="border-border hover:bg-secondary/60 flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors"
+          class="border-border bg-card hover:bg-accent flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors"
           @click="exportCSV"
         >
           <Download class="h-4 w-4" />
           {{ $t('teacher.students.export') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </TeacherPageHeader>
 
     <!-- Stats -->
-    <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div v-for="stat in statsCards" :key="stat.label" class="bg-card border-border rounded-2xl border p-5 transition-all hover:shadow-md">
-        <div class="mb-4 flex items-center justify-between">
-          <span class="text-muted-foreground text-sm">{{ stat.label }}</span>
-          <div class="rounded-xl p-2.5" :class="stat.bg">
-            <component :is="stat.icon" class="h-4 w-4" :class="stat.color" />
-          </div>
-        </div>
-        <p class="text-foreground text-3xl font-bold tabular-nums">{{ stat.value }}</p>
-        <p v-if="stat.sub" class="text-muted-foreground mt-1 text-xs">{{ stat.sub }}</p>
-      </div>
-    </div>
+    <TeacherStatRow :stats="statsCards" />
 
     <!-- Filters -->
     <div class="mb-5 flex flex-col gap-3 sm:flex-row">
@@ -182,6 +167,8 @@ import { useI18n } from 'vue-i18n'
 import { Search, Users, BookOpen, CheckSquare, ChevronRight, Download, X } from '@/components/icons'
 import { api } from '@/utils/api'
 import { usePolling } from '@/composables/usePolling'
+import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
+import TeacherStatRow from '@/components/teacher/TeacherStatRow.vue'
 import type { Class, ClassStudent } from '@/types/class'
 
 const { t } = useI18n()

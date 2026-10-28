@@ -23,9 +23,7 @@ export class ClassFlashcardDecks1792260000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "flashcard_decks" DROP CONSTRAINT IF EXISTS "FK_flashcard_decks_class"`,
     );
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "IDX_flashcard_decks_class"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_flashcard_decks_class"`);
     await queryRunner.query(
       `ALTER TABLE "flashcard_decks" DROP COLUMN IF EXISTS "class_id"`,
     );

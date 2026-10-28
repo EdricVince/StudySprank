@@ -1,13 +1,6 @@
 <template>
   <div class="p-6 lg:p-8">
-    <button class="text-muted-foreground hover:text-foreground mb-4 flex items-center gap-1.5 text-sm font-medium" @click="router.push('/teacher/tests')">
-      <ArrowLeft class="h-4 w-4" /> {{ $t('teacher.testBuilder.back') }}
-    </button>
-
-    <div class="mb-6">
-      <h1 class="text-foreground text-2xl font-bold tracking-tight lg:text-3xl">{{ test?.title ?? $t('teacher.testResults.testResults') }}</h1>
-      <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.testResults.subtitle') }}</p>
-    </div>
+    <TeacherPageHeader :title="test?.title ?? $t('teacher.testResults.testResults')" :subtitle="$t('teacher.testResults.subtitle')" :icon="Users" />
 
     <div v-if="loading" class="flex items-center justify-center py-20"><Loader2 class="text-primary h-8 w-8 animate-spin" /></div>
 
@@ -71,7 +64,8 @@ import { useI18n } from 'vue-i18n'
 import { api, ApiError } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import type { TestData, TestSubmissionData } from '@/types/content'
-import { ArrowLeft, Users, Loader2Icon as Loader2 } from '@/components/icons'
+import { Users, Loader2Icon as Loader2 } from '@/components/icons'
+import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
 
 const router = useRouter()
 const route = useRoute()

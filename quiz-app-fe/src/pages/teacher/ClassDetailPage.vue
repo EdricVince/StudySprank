@@ -1,14 +1,5 @@
 <template>
   <div class="p-6 lg:p-8">
-    <!-- Back -->
-    <button
-      class="group mb-6 flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/8 px-3.5 py-1.5 text-sm font-semibold text-indigo-400 transition-all duration-200 hover:border-indigo-500/40 hover:bg-indigo-500/15 active:scale-95"
-      @click="router.push('/teacher/classes')"
-    >
-      <svg class="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-      {{ $t('teacher.nav.classes') }}
-    </button>
-
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-20">
       <div class="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"></div>

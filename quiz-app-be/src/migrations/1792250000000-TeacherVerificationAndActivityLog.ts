@@ -13,9 +13,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Idempotent (IF NOT EXISTS / OR REPLACE) so it also succeeds where DB_SYNCHRONIZE already
  * created the columns or table.
  */
-export class TeacherVerificationAndActivityLog1792250000000
-  implements MigrationInterface
-{
+export class TeacherVerificationAndActivityLog1792250000000 implements MigrationInterface {
   name = 'TeacherVerificationAndActivityLog1792250000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

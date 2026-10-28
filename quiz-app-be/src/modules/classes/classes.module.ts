@@ -12,12 +12,7 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Class,
-      ClassEnrollment,
-      UserProgress,
-      User,
-    ]),
+    TypeOrmModule.forFeature([Class, ClassEnrollment, UserProgress, User]),
     AuthModule,
   ],
   controllers: [ClassesController],

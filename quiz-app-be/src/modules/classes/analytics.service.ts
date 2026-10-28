@@ -6,6 +6,58 @@ import { ClassEnrollment } from './entities/class-enrollment.entity';
 import { UserProgress } from '../progress/entities/user-progress.entity';
 import { User } from '../users/entities/user.entity';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PERIOD_DAYS = { week: 7, month: 30, year: 365 } as const;
+type Period = keyof typeof PERIOD_DAYS;
+const PERIODS = Object.keys(PERIOD_DAYS) as Period[];
+
+/** A student with no activity for this long, or averaging below the pass mark, needs attention. */
+const INACTIVE_AFTER_DAYS = 14;
+const STRUGGLING_BELOW_PERCENT = 50;
+const MAX_TOP_STUDENTS = 5;
+const MAX_STRUGGLING_STUDENTS = 6;
+const MAX_TESTS_LISTED = 6;
+const MONTH_BUCKETS = 5;
+const YEAR_BUCKETS = 12;
+
+interface SubmissionRow {
+  student_id: number;
+  test_id: number;
+  title: string;
+  class_id: number | null;
+  score: number;
+  total: number;
+  created_at: Date;
+}
+
+interface ExamRow {
+  user_id: number;
+  breakdown: { section: string; correct: number; total: number }[] | null;
+}
+
+export interface Bucket {
+  /** ISO date of the bucket's first day (the client formats it for the user's language). */
+  date: string;
+  value: number;
+}
+
+const percent = (score: number, total: number) =>
+  total > 0 ? (score / total) * 100 : 0;
+
+const mean = (values: number[]) =>
+  values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+
+const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/** Relative change in percent, or null when there is nothing to compare with. */
+const relativeChange = (current: number, previous: number) =>
+  previous > 0 ? Math.round(((current - previous) / previous) * 100) : null;
+
+/**
+ * Teacher analytics, computed only from data that really exists: the submissions of the teacher's
+ * own tests, the students' progress records and their submitted IELTS mock exams. Anything the
+ * database cannot tell us (e.g. a trend with no previous period) is returned as null, never guessed.
+ */
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -18,331 +70,278 @@ export class AnalyticsService {
   ) {}
 
   async getTeacherAnalytics(teacherId: number) {
+    const now = Date.now();
     const classes = await this.classRepo.find({
       where: { teacher_id: teacherId },
     });
     const classIds = classes.map((c) => c.id);
-    const classMap = new Map<number, Class>(
-      classes.map((c) => [c.id, c] as [number, Class]),
-    );
+    const classMap = new Map(classes.map((c) => [c.id, c]));
 
     const enrollments: ClassEnrollment[] = classIds.length
       ? await this.enrollRepo.find({ where: { class_id: In(classIds) } })
       : [];
-
-    const classStudentsMap = new Map<number, number[]>();
+    const classesOfStudent = new Map<number, number[]>();
     for (const e of enrollments) {
-      if (!classStudentsMap.has(e.class_id))
-        classStudentsMap.set(e.class_id, []);
-      classStudentsMap.get(e.class_id)!.push(e.student_id);
+      classesOfStudent.set(e.student_id, [
+        ...(classesOfStudent.get(e.student_id) ?? []),
+        e.class_id,
+      ]);
     }
+    const enrolledIds = [...classesOfStudent.keys()];
 
-    const studentIds = [...new Set(enrollments.map((e) => e.student_id))];
-
-    const progressList: UserProgress[] = studentIds.length
-      ? await this.progressRepo.find({ where: { user_id: In(studentIds) } })
-      : [];
-    const users: User[] = studentIds.length
-      ? await this.userRepo.find({ where: { id: In(studentIds) } })
-      : [];
-
-    const progressMap = new Map<number, UserProgress>(
-      progressList.map((p) => [p.user_id, p] as [number, UserProgress]),
+    const submissions = await this.classRepo.query<SubmissionRow[]>(
+      `SELECT s.student_id, s.test_id, t.title, t.class_id, s.score, s.total, s.created_at
+         FROM test_submissions s
+         JOIN tests t ON t.id = s.test_id
+        WHERE t.teacher_id = $1`,
+      [teacherId],
     );
-    const userMap = new Map<number, User>(
-      users.map((u) => [u.id, u] as [number, User]),
-    );
+    const at = (s: SubmissionRow) => new Date(s.created_at).getTime();
 
-    const xpToScore = (xp: number) => Math.min(100, Math.round(xp / 20));
-    const ms = (days: number) => days * 24 * 60 * 60 * 1000;
-    const now = new Date();
-
-    // ── KPI data per period ──────────────────────────────────────────────────
-    const periodMs: Record<string, number> = {
-      week: ms(7),
-      month: ms(30),
-      year: ms(365),
+    // Everyone this teacher has taught or examined.
+    const poolIds = [
+      ...new Set([...enrolledIds, ...submissions.map((s) => s.student_id)]),
+    ];
+    const progressList: UserProgress[] = poolIds.length
+      ? await this.progressRepo.find({ where: { user_id: In(poolIds) } })
+      : [];
+    const users: User[] = poolIds.length
+      ? await this.userRepo.find({ where: { id: In(poolIds) } })
+      : [];
+    const progressMap = new Map(progressList.map((p) => [p.user_id, p]));
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const nameOf = (id: number) =>
+      userMap.get(id)?.name ?? userMap.get(id)?.email ?? `#${id}`;
+    // A student's latest sign of life: their progress record or their most recent test submission.
+    const lastActivity = (id: number): string | null => {
+      const days = [
+        progressMap.get(id)?.last_activity_date ?? null,
+        ...(submissionsByStudent.get(id) ?? []).map((s) => isoDay(at(s))),
+      ].filter((d): d is string => d !== null);
+      return days.length ? days.reduce((a, b) => (a > b ? a : b)) : null;
     };
-    const kpiData: Record<
-      string,
+
+    // The class a student joined most recently (shown next to their name).
+    const latestClassName = (studentId: number): string | null => {
+      const joined = enrollments
+        .filter((e) => e.student_id === studentId)
+        .sort(
+          (a, b) =>
+            new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime(),
+        )[0];
+      return joined ? (classMap.get(joined.class_id)?.name ?? null) : null;
+    };
+
+    const submissionsByStudent = new Map<number, SubmissionRow[]>();
+    for (const s of submissions) {
+      submissionsByStudent.set(s.student_id, [
+        ...(submissionsByStudent.get(s.student_id) ?? []),
+        s,
+      ]);
+    }
+    const averageOf = (rows: SubmissionRow[]) =>
+      mean(rows.map((s) => percent(s.score, s.total)));
+
+    // ── Activity: distinct students who took a test or were last active in each bucket ──
+    const activeBetween = (fromMs: number, toMs: number) => {
+      const active = new Set<number>();
+      for (const s of submissions) {
+        if (at(s) >= fromMs && at(s) < toMs) active.add(s.student_id);
+      }
+      for (const id of poolIds) {
+        const last = lastActivity(id);
+        const lastMs = last ? Date.parse(`${last}T00:00:00Z`) : NaN;
+        if (lastMs >= fromMs && lastMs < toMs) active.add(id);
+      }
+      return active.size;
+    };
+
+    // ── KPIs per period, with a real comparison against the period before ────
+    const kpiData = {} as Record<
+      Period,
       {
         students: number;
         quizzes: number;
         avgScore: number;
-        trends: number[];
+        trends: (number | null)[];
       }
-    > = {};
-
-    for (const period of ['week', 'month', 'year']) {
-      const duration = periodMs[period];
-      const cutoff = new Date(now.getTime() - duration);
-
-      const prevStudents = new Set(
-        enrollments
-          .filter((e) => new Date(e.joined_at) < cutoff)
-          .map((e) => e.student_id),
-      ).size;
-
-      const totalQ = progressList.reduce(
-        (sum, p) => sum + p.total_quizzes_completed,
-        0,
+    >;
+    for (const period of PERIODS) {
+      const span = PERIOD_DAYS[period] * DAY_MS;
+      const current = submissions.filter((s) => at(s) >= now - span);
+      const previous = submissions.filter(
+        (s) => at(s) >= now - 2 * span && at(s) < now - span,
       );
-      const avgXP = progressList.length
-        ? progressList.reduce((sum, p) => sum + p.xp, 0) / progressList.length
-        : 0;
-
-      const studentTrend =
-        prevStudents > 0
-          ? Math.round(
-              ((studentIds.length - prevStudents) / prevStudents) * 100,
-            )
-          : studentIds.length > 0
-            ? 100
-            : 0;
-
+      const avgNow = averageOf(current);
       kpiData[period] = {
-        students: studentIds.length,
-        quizzes: totalQ,
-        avgScore: xpToScore(avgXP),
-        trends: [studentTrend, 5, 2],
+        // Progress only keeps each student's latest activity day, so there is no history to compare.
+        students: activeBetween(now - span, now + DAY_MS),
+        quizzes: current.length,
+        avgScore: Math.round(avgNow),
+        trends: [
+          null,
+          relativeChange(current.length, previous.length),
+          current.length && previous.length
+            ? Math.round(avgNow - averageOf(previous))
+            : null,
+        ],
       };
     }
 
-    // ── Activity chart: count students active per bucket ─────────────────────
-    const activityDataMap: Record<string, { label: string; value: number }[]> =
-      {
-        week: Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(now);
-          d.setDate(d.getDate() - (6 - i));
-          const dateStr = d.toISOString().slice(0, 10);
-          const dayLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][
-            d.getDay() === 0 ? 6 : d.getDay() - 1
-          ];
-          return {
-            label: dayLabel,
-            value: progressList.filter((p) => p.last_activity_date === dateStr)
-              .length,
-          };
-        }),
-        month: Array.from({ length: 5 }, (_, i) => {
-          const weekEnd = new Date(now.getTime() - (4 - i) * ms(7));
-          const weekStart = new Date(weekEnd.getTime() - ms(7));
-          return {
-            label: `W${i + 1}`,
-            value: progressList.filter((p) => {
-              if (!p.last_activity_date) return false;
-              const d = new Date(p.last_activity_date);
-              return d >= weekStart && d < weekEnd;
-            }).length,
-          };
-        }),
-        year: Array.from({ length: 12 }, (_, i) => ({
-          label: [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Oct',
-            'Nov',
-            'Dec',
-          ][i],
-          value: progressList.filter((p) => {
-            if (!p.last_activity_date) return false;
-            const d = new Date(p.last_activity_date);
-            return d.getMonth() === i && d.getFullYear() === now.getFullYear();
-          }).length,
-        })),
-      };
+    const dayStart = (ms: number) => Date.parse(`${isoDay(ms)}T00:00:00Z`);
+    const activityDataMap: Record<Period, Bucket[]> = {
+      week: Array.from({ length: 7 }, (_, i) => {
+        const from = dayStart(now - (6 - i) * DAY_MS);
+        return {
+          date: isoDay(from),
+          value: activeBetween(from, from + DAY_MS),
+        };
+      }),
+      month: Array.from({ length: MONTH_BUCKETS }, (_, i) => {
+        const from = dayStart(now) - (MONTH_BUCKETS - 1 - i) * 7 * DAY_MS;
+        return {
+          date: isoDay(from),
+          value: activeBetween(from, from + 7 * DAY_MS),
+        };
+      }),
+      year: Array.from({ length: YEAR_BUCKETS }, (_, i) => {
+        const ref = new Date(now);
+        const from = Date.UTC(
+          ref.getUTCFullYear(),
+          ref.getUTCMonth() - (YEAR_BUCKETS - 1 - i),
+          1,
+        );
+        const to = Date.UTC(
+          ref.getUTCFullYear(),
+          ref.getUTCMonth() - (YEAR_BUCKETS - 2 - i),
+          1,
+        );
+        return { date: isoDay(from), value: activeBetween(from, to) };
+      }),
+    };
 
-    // ── Class scores ─────────────────────────────────────────────────────────
-    const barColors = [
-      'bg-primary',
-      'bg-chart-2',
-      'bg-chart-3',
-      'bg-chart-4',
-      'bg-chart-5',
-    ];
-    const dotColors = [
-      'bg-primary',
-      'bg-chart-2',
-      'bg-chart-3',
-      'bg-chart-4',
-      'bg-chart-5',
-    ];
-    const classScores = classes.map((cls, i) => {
-      const sids = classStudentsMap.get(cls.id) ?? [];
-      const progs = sids
-        .map((sid) => progressMap.get(sid))
-        .filter((p): p is UserProgress => !!p);
-      const avgXP = progs.length
-        ? progs.reduce((sum, p) => sum + p.xp, 0) / progs.length
-        : 0;
+    // ── Average test score per class (null while a class has no submissions) ──
+    const classScores = classes.map((cls) => {
+      const rows = submissions.filter((s) => s.class_id === cls.id);
       return {
         name: cls.name,
-        score: xpToScore(avgXP),
-        students: sids.length,
-        barColor: barColors[i % barColors.length],
-        dotColor: dotColors[i % dotColors.length],
+        score: rows.length ? Math.round(averageOf(rows)) : null,
+        students: enrolments(enrollments, cls.id),
       };
     });
 
-    // ── Top 5 students by XP ─────────────────────────────────────────────────
-    const topStudents = studentIds
-      .map((sid) => {
-        const progress = progressMap.get(sid);
-        const user = userMap.get(sid);
-        const enrollment = enrollments
-          .filter((e) => e.student_id === sid)
-          .sort(
-            (a, b) =>
-              new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime(),
-          )[0];
-        const cls = enrollment ? classMap.get(enrollment.class_id) : undefined;
-        return {
-          id: sid,
-          name: user?.name ?? user?.email ?? `Student ${sid}`,
-          class: cls?.name ?? 'Unknown',
-          score: xpToScore(progress?.xp ?? 0),
-          quizzes: progress?.total_quizzes_completed ?? 0,
-          _xp: progress?.xp ?? 0,
-        };
-      })
-      .sort((a, b) => b._xp - a._xp)
-      .slice(0, 5)
-      .map(({ _xp: _ignored, ...s }) => s);
+    // ── Top students by their average test score ──────────────────────────────
+    const topStudents = [...submissionsByStudent.entries()]
+      .map(([id, rows]) => ({
+        id,
+        name: nameOf(id),
+        class: latestClassName(id),
+        score: Math.round(averageOf(rows)),
+        quizzes: rows.length,
+      }))
+      .sort((a, b) => b.score - a.score || b.quizzes - a.quizzes)
+      .slice(0, MAX_TOP_STUDENTS);
 
-    // ── Quiz types (approximated from available data) ─────────────────────────
-    const totalQuizzes = progressList.reduce(
-      (sum, p) => sum + p.total_quizzes_completed,
-      0,
-    );
-    const totalCards = progressList.reduce(
-      (sum, p) => sum + p.total_cards_studied,
-      0,
-    );
-    const avgLevel = progressList.length
-      ? progressList.reduce((sum, p) => sum + p.level, 0) / progressList.length
-      : 1;
-    const quizTypes = [
-      {
-        type: 'Multiple Choice',
-        avg: Math.min(100, Math.round(avgLevel * 12)),
-        count: Math.round(totalQuizzes * 0.45),
-      },
-      {
-        type: 'True or False',
-        avg: Math.min(100, Math.round(avgLevel * 15)),
-        count: Math.round(totalQuizzes * 0.3),
-      },
-      {
-        type: 'Speed Round',
-        avg: Math.min(100, Math.round(avgLevel * 10)),
-        count: Math.round(totalQuizzes * 0.15),
-      },
-      {
-        type: 'Word Scramble',
-        avg: Math.min(100, Math.round(avgLevel * 11)),
-        count: Math.round(totalCards * 0.1),
-      },
-    ];
+    // ── How each test is doing ────────────────────────────────────────────────
+    const byTest = new Map<number, SubmissionRow[]>();
+    for (const s of submissions) {
+      byTest.set(s.test_id, [...(byTest.get(s.test_id) ?? []), s]);
+    }
+    const testScores = [...byTest.entries()]
+      .map(([id, rows]) => ({
+        id,
+        title: rows[0].title,
+        class: rows[0].class_id
+          ? (classMap.get(rows[0].class_id)?.name ?? null)
+          : null,
+        avg: Math.round(averageOf(rows)),
+        count: rows.length,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, MAX_TESTS_LISTED);
 
-    // ── Struggling students: low score OR inactive >14 days ───────────────────
-    const twoWeeksAgo = new Date(now.getTime() - ms(14))
-      .toISOString()
-      .slice(0, 10);
-    const strugglingStudents = studentIds
-      .map((sid) => {
-        const progress = progressMap.get(sid);
-        const user = userMap.get(sid);
-        // Pick the class the student has been most recently active in
-        const enrollment = enrollments
-          .filter((e) => e.student_id === sid)
-          .sort(
-            (a, b) =>
-              new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime(),
-          )[0];
-        const cls = enrollment ? classMap.get(enrollment.class_id) : undefined;
-        const score = xpToScore(progress?.xp ?? 0);
-        const isInactive =
-          !progress?.last_activity_date ||
-          progress.last_activity_date < twoWeeksAgo;
-        const isLowScore = score < 40;
-        if (!isInactive && !isLowScore) return null;
+    // ── Students needing attention: a low test average or gone quiet ──────────
+    const quietSince = isoDay(now - INACTIVE_AFTER_DAYS * DAY_MS);
+    const strugglingStudents = enrolledIds
+      .map((id) => {
+        const rows = submissionsByStudent.get(id) ?? [];
+        const avg = rows.length ? Math.round(averageOf(rows)) : null;
+        const last = lastActivity(id);
+        const isQuiet = !last || last < quietSince;
+        const isLow = avg !== null && avg < STRUGGLING_BELOW_PERCENT;
+        if (!isQuiet && !isLow) return null;
         return {
-          id: sid,
-          name: user?.name ?? user?.email ?? `Student ${sid}`,
-          class: cls?.name ?? 'Unknown',
-          score,
-          quizzes: progress?.total_quizzes_completed ?? 0,
-          lastActive: this.relativeDate(progress?.last_activity_date ?? null),
-          _sortKey:
-            score * 1000 +
-            (progress?.last_activity_date
-              ? new Date(progress.last_activity_date).getTime() / 1e10
-              : 0),
+          id,
+          name: nameOf(id),
+          class: latestClassName(id),
+          score: avg,
+          quizzes: rows.length,
+          lastActiveDate: last,
         };
       })
       .filter((s): s is NonNullable<typeof s> => s !== null)
-      .sort((a, b) => a._sortKey - b._sortKey)
-      .slice(0, 6)
-      .map(({ _sortKey: _ignored, ...s }) => s);
+      .sort((a, b) => (a.score ?? 101) - (b.score ?? 101))
+      .slice(0, MAX_STRUGGLING_STUDENTS);
 
-    // ── Skills data: estimate per-skill from XP with multipliers ─────────────
-    const globalAvgXP = progressList.length
-      ? progressList.reduce((sum, p) => sum + p.xp, 0) / progressList.length
-      : 0;
-    const globalAvgScore = xpToScore(globalAvgXP);
-    const skillConfig = [
-      { name: 'Reading', mult: 1.0 },
-      { name: 'Listening', mult: 0.88 },
-      { name: 'Writing', mult: 0.78 },
-      { name: 'Speaking', mult: 0.84 },
-    ];
-    const skillsData = skillConfig.map(({ name, mult }) => {
-      const avgScore = Math.min(100, Math.round(globalAvgScore * mult));
-      const change = Math.round((mult - 0.87) * 25);
-      const skillClasses = classes.map((cls) => {
-        const sids = classStudentsMap.get(cls.id) ?? [];
-        const progs = sids
-          .map((sid) => progressMap.get(sid))
-          .filter((p): p is UserProgress => !!p);
-        const clsAvgXP = progs.length
-          ? progs.reduce((sum, p) => sum + p.xp, 0) / progs.length
-          : 0;
-        return {
-          name: cls.name,
-          score: Math.min(100, Math.round(xpToScore(clsAvgXP) * mult)),
+    // ── Skills: section results of the students' submitted IELTS mock exams ───
+    const exams: ExamRow[] = enrolledIds.length
+      ? await this.classRepo.query<ExamRow[]>(
+          `SELECT user_id, result->'breakdown' AS breakdown
+             FROM exam_attempts
+            WHERE status = 'submitted' AND result IS NOT NULL AND user_id = ANY($1::int[])`,
+          [enrolledIds],
+        )
+      : [];
+    const skills = new Map<
+      string,
+      {
+        correct: number;
+        total: number;
+        attempts: number;
+        perClass: Map<number, { correct: number; total: number }>;
+      }
+    >();
+    for (const exam of exams) {
+      for (const part of exam.breakdown ?? []) {
+        const skill = skills.get(part.section) ?? {
+          correct: 0,
+          total: 0,
+          attempts: 0,
+          perClass: new Map<number, { correct: number; total: number }>(),
         };
-      });
-      return { name, avgScore, change, classes: skillClasses };
-    });
+        skill.correct += part.correct;
+        skill.total += part.total;
+        skill.attempts += 1;
+        for (const classId of classesOfStudent.get(exam.user_id) ?? []) {
+          const cell = skill.perClass.get(classId) ?? { correct: 0, total: 0 };
+          cell.correct += part.correct;
+          cell.total += part.total;
+          skill.perClass.set(classId, cell);
+        }
+        skills.set(part.section, skill);
+      }
+    }
+    const skillsData = [...skills.entries()].map(([name, skill]) => ({
+      name,
+      avgScore: Math.round(percent(skill.correct, skill.total)),
+      attempts: skill.attempts,
+      classes: [...skill.perClass.entries()].map(([classId, cell]) => ({
+        name: classMap.get(classId)?.name ?? `#${classId}`,
+        score: Math.round(percent(cell.correct, cell.total)),
+      })),
+    }));
 
     return {
       kpiData,
       activityDataMap,
       classScores,
       topStudents,
-      quizTypes,
+      testScores,
       strugglingStudents,
       skillsData,
     };
   }
-
-  private relativeDate(dateStr: string | null): string {
-    if (!dateStr) return 'Never';
-    const diffDays = Math.floor(
-      (Date.now() - new Date(dateStr).getTime()) / (24 * 60 * 60 * 1000),
-    );
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30)
-      return `${Math.floor(diffDays / 7)} week${diffDays >= 14 ? 's' : ''} ago`;
-    return `${Math.floor(diffDays / 30)} month${diffDays >= 60 ? 's' : ''} ago`;
-  }
 }
+
+const enrolments = (all: ClassEnrollment[], classId: number) =>
+  all.filter((e) => e.class_id === classId).length;

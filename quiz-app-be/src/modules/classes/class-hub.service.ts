@@ -85,7 +85,7 @@ export class ClassHubService {
     // Students only see what the teacher has published.
     const published = staff ? '' : ' AND is_published = true';
     const q = (sql: string): Promise<Row[]> =>
-      this.classRepo.query(sql, [classId]) as Promise<Row[]>;
+      this.classRepo.query<Row[]>(sql, [classId]);
     const len = (col: string) =>
       `CASE WHEN jsonb_typeof(${col}) = 'array' THEN jsonb_array_length(${col}) ELSE 0 END`;
 
@@ -111,10 +111,10 @@ export class ClassHubService {
           `SELECT id, title, description, category, created_at, ${len('cards')} AS card_count
            FROM flashcard_decks WHERE class_id = $1 ORDER BY created_at DESC`,
         ),
-        this.classRepo.query(
+        this.classRepo.query<{ name: string }[]>(
           `SELECT COALESCE(name, split_part(email, '@', 1)) AS name FROM users WHERE id = $1`,
           [cls.teacher_id],
-        ) as Promise<{ name: string }[]>,
+        ),
         q(
           `SELECT COUNT(*)::int AS n FROM class_enrollments WHERE class_id = $1`,
         ),
@@ -142,7 +142,7 @@ export class ClassHubService {
   }
 
   private getStudents(classId: number): Promise<ClassHubStudent[]> {
-    return this.classRepo.query(
+    return this.classRepo.query<ClassHubStudent[]>(
       `SELECT u.id,
               COALESCE(u.name, split_part(u.email, '@', 1)) AS name,
               u.email,
@@ -161,6 +161,6 @@ export class ClassHubService {
         WHERE e.class_id = $1
         ORDER BY e.joined_at`,
       [classId],
-    ) as Promise<ClassHubStudent[]>;
+    );
   }
 }

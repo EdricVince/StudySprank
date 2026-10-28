@@ -1,48 +1,17 @@
 <template>
   <div class="p-6 lg:p-8">
     <!-- Header -->
-    <div class="animate-fade-in-down mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-foreground text-2xl font-bold tracking-tight lg:text-3xl">{{ $t('teacher.tests.title') }}</h1>
-        <p class="text-muted-foreground mt-2">{{ $t('teacher.tests.subtitle') }}</p>
-      </div>
-      <Button @click="$router.push('/teacher/tests/new')">
-        <Plus class="mr-2 h-4 w-4" />
-        {{ $t('teacher.tests.createTest') }}
-      </Button>
-    </div>
+    <TeacherPageHeader :title="$t('teacher.tests.title')" :subtitle="$t('teacher.tests.subtitle')" :icon="FileText">
+      <template #actions>
+        <Button @click="$router.push('/teacher/tests/new')">
+          <Plus class="mr-2 h-4 w-4" />
+          {{ $t('teacher.tests.createTest') }}
+        </Button>
+      </template>
+    </TeacherPageHeader>
 
     <!-- Stats -->
-    <div class="animate-fade-in-up delay-100 mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <div class="bg-card border-border rounded-2xl border p-5">
-        <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-4/10">
-          <FileText class="text-chart-4 h-4 w-4" />
-        </div>
-        <p class="text-foreground text-2xl font-bold">{{ tests.length }}</p>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.tests.stats.total') }}</p>
-      </div>
-      <div class="bg-card border-border rounded-2xl border p-5">
-        <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-3/10">
-          <HelpCircle class="text-chart-3 h-4 w-4" />
-        </div>
-        <p class="text-foreground text-2xl font-bold">{{ totalQuestions }}</p>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.tests.stats.questions') }}</p>
-      </div>
-      <div class="bg-card border-border rounded-2xl border p-5">
-        <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-1/10">
-          <Users class="text-chart-1 h-4 w-4" />
-        </div>
-        <p class="text-foreground text-2xl font-bold">{{ totalSubmissions }}</p>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.tests.stats.submissions') }}</p>
-      </div>
-      <div class="bg-card border-border rounded-2xl border p-5">
-        <div class="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-chart-2/10">
-          <BarChart2 class="text-chart-2 h-4 w-4" />
-        </div>
-        <p class="text-foreground text-2xl font-bold">{{ avgScore }}%</p>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.tests.stats.avgScore') }}</p>
-      </div>
-    </div>
+    <TeacherStatRow :stats="stats" />
 
     <!-- Tests List -->
     <div class="animate-fade-in-up delay-150 space-y-4">
@@ -242,6 +211,9 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { Plus, FileText, BarChart, Pencil, Trash2, HelpCircle, Users, BarChart2, BookOpen, List, X } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
+import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
+import TeacherStatRow from '@/components/teacher/TeacherStatRow.vue'
+import type { TeacherStat } from '@/components/teacher/TeacherStatRow.vue'
 import { useToast } from '@/composables/useToast'
 import { api, ApiError } from '@/utils/api'
 import type { TestData, AssignmentData } from '@/types/content'
@@ -347,6 +319,13 @@ const avgScore = computed(() => {
   const withSubs = tests.value.filter(t => (t.submission_count ?? 0) > 0)
   return withSubs.length ? Math.round(withSubs.reduce((s, t) => s + (t.avg_score ?? 0), 0) / withSubs.length) : 0
 })
+
+const stats = computed<TeacherStat[]>(() => [
+  { label: t('teacher.tests.stats.total'), value: tests.value.length, icon: FileText, color: 'text-chart-4', bg: 'bg-chart-4/10' },
+  { label: t('teacher.tests.stats.questions'), value: totalQuestions.value, icon: HelpCircle, color: 'text-chart-3', bg: 'bg-chart-3/10' },
+  { label: t('teacher.tests.stats.submissions'), value: totalSubmissions.value, icon: Users, color: 'text-chart-1', bg: 'bg-chart-1/10' },
+  { label: t('teacher.tests.stats.avgScore'), value: avgScore.value, suffix: '%', icon: BarChart2, color: 'text-chart-2', bg: 'bg-chart-2/10' },
+])
 
 const errMsg = (e: unknown, fb: string) => (e instanceof ApiError ? e.errorMessage : fb)
 

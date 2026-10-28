@@ -1,32 +1,20 @@
 <template>
   <div class="p-6 lg:p-8">
     <!-- Header -->
-    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-foreground text-2xl font-bold">{{ $t('teacher.classes.title') }}</h2>
-        <p class="text-muted-foreground mt-1 text-sm">{{ $t('teacher.classes.manageSubtitle') }}</p>
-      </div>
-      <button
-        class="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium transition-colors"
-        @click="openCreateModal"
-      >
-        <Plus class="h-4 w-4" />
-        {{ $t('teacher.classes.createClass') }}
-      </button>
-    </div>
+    <TeacherPageHeader :title="$t('teacher.classes.title')" :subtitle="$t('teacher.classes.manageSubtitle')" :icon="BookOpen">
+      <template #actions>
+        <button
+          class="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium shadow-sm transition-colors"
+          @click="openCreateModal"
+        >
+          <Plus class="h-4 w-4" />
+          {{ $t('teacher.classes.createClass') }}
+        </button>
+      </template>
+    </TeacherPageHeader>
 
     <!-- Stats -->
-    <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <div v-for="stat in stats" :key="stat.label" class="bg-card border-border rounded-2xl border p-5">
-        <div class="mb-3 flex items-center justify-between">
-          <span class="text-muted-foreground text-sm">{{ stat.label }}</span>
-          <div class="rounded-lg p-2" :class="stat.bg">
-            <component :is="stat.icon" class="h-4 w-4" :class="stat.color" />
-          </div>
-        </div>
-        <p class="text-foreground tabular-nums text-2xl font-bold">{{ stat.value }}</p>
-      </div>
-    </div>
+    <TeacherStatRow :stats="stats" />
 
     <!-- Search & Filter -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row">
@@ -261,7 +249,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -270,6 +258,9 @@ import {
 } from '@/components/icons'
 import { useToast } from '@/composables/useToast'
 import { usePolling } from '@/composables/usePolling'
+import { useTeacherClasses } from '@/composables/useTeacherClasses'
+import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
+import TeacherStatRow from '@/components/teacher/TeacherStatRow.vue'
 import { api } from '@/utils/api'
 import type { Class } from '@/types/class'
 
@@ -278,6 +269,10 @@ const { t } = useI18n()
 const toast = useToast()
 
 const classes = ref<Class[]>([])
+
+// Keep the sidebar's "My classes" shortcuts in step with what this page shows.
+const { setTeacherClasses } = useTeacherClasses()
+watch(classes, (list) => setTeacherClasses(list), { deep: true })
 const loading = ref(true)
 const saving = ref(false)
 const deleting = ref(false)

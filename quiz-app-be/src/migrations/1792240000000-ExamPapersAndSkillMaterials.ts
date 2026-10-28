@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * and the exercises generated on the Skills pages. Idempotent (IF NOT EXISTS) so it also
  * succeeds where DB_SYNCHRONIZE already created the tables.
  */
-export class ExamPapersAndSkillMaterials1792240000000
-  implements MigrationInterface
-{
+export class ExamPapersAndSkillMaterials1792240000000 implements MigrationInterface {
   name = 'ExamPapersAndSkillMaterials1792240000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
