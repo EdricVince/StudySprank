@@ -147,42 +147,6 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
-          <!-- Jump to the student side: see the product the way students do -->
-          <router-link
-            v-if="authStore.isTeacher && authStore.isTeacherApproved"
-            to="/dashboard"
-            class="text-muted-foreground hover:text-foreground hover:bg-accent hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors md:flex"
-            :title="$t('teacher.nav.studentViewHint')"
-          >
-            <GraduationCap class="h-4 w-4" />
-            {{ $t('teacher.nav.studentView') }}
-          </router-link>
-
-          <!-- Language -->
-          <label class="text-muted-foreground hover:bg-accent hover:text-foreground relative flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-2 text-sm transition-colors" :title="$t('teacher.nav.language')">
-            <Globe class="h-4 w-4" />
-            <select
-              :value="locale"
-              class="text-foreground cursor-pointer appearance-none bg-transparent pr-1 text-sm font-medium focus:outline-none"
-              :aria-label="$t('teacher.nav.language')"
-              @change="setLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
-            >
-              <option v-for="opt in localeOptions" :key="opt.value" :value="opt.value" class="bg-popover text-popover-foreground">
-                {{ opt.label }}
-              </option>
-            </select>
-          </label>
-
-          <!-- Theme -->
-          <button
-            class="text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg p-2 transition-colors"
-            :title="isDark ? $t('teacher.nav.lightMode') : $t('teacher.nav.darkMode')"
-            :aria-label="isDark ? $t('teacher.nav.lightMode') : $t('teacher.nav.darkMode')"
-            @click="toggleTheme"
-          >
-            <component :is="isDark ? Sun : Moon" class="h-5 w-5" />
-          </button>
-
           <!-- Role badge -->
           <div class="hidden items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1.5 lg:flex">
             <component :is="authStore.isAdmin ? CheckCircle : BookOpen" class="text-primary h-3.5 w-3.5" />
@@ -279,15 +243,10 @@ import {
   History,
   Settings,
   ArrowLeft,
-  Globe,
-  Sun,
-  Moon,
 } from '@/components/icons'
 import { useAuthStore } from '@/stores/auth.store'
 import { useAdminStore } from '@/stores/admin.store'
 import { usePolling } from '@/composables/usePolling'
-import { useTheme } from '@/composables/useTheme'
-import { useLocale, type SupportedLocale } from '@/composables/useLocale'
 import { useTeacherClasses } from '@/composables/useTeacherClasses'
 
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -295,8 +254,6 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const adminStore = useAdminStore()
-const { isDark, toggleTheme } = useTheme()
-const { setLocale, localeOptions } = useLocale()
 const { teacherClasses, refreshTeacherClasses } = useTeacherClasses()
 
 const isCollapsed = ref(false)

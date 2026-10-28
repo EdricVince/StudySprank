@@ -401,7 +401,7 @@ export default {
       dashboard: 'Dashboard', classes: 'Classes', students: 'Students', analytics: 'Analytics',
       lessons: 'Lessons', vocabulary: 'Vocabulary', tests: 'Tests',
       portal: 'Teacher Portal', teacher: 'Teacher', teacherAccount: 'Teacher Account', studentView: 'Student View', signOut: 'Sign Out',
-      myClasses: 'My classes', studentViewHint: 'See the product the way your students do', language: 'Language', lightMode: 'Switch to light mode', darkMode: 'Switch to dark mode',
+      myClasses: 'My classes',
     },
     dashboard: {
       title: 'Teacher Dashboard', subtitle: "Manage your classes and track students' progress",

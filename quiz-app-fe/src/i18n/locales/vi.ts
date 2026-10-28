@@ -401,7 +401,7 @@ export default {
       dashboard: 'Bảng điều khiển', classes: 'Lớp học', students: 'Học sinh', analytics: 'Phân tích',
       lessons: 'Bài học', vocabulary: 'Từ vựng', tests: 'Bài kiểm tra',
       portal: 'Cổng giáo viên', teacher: 'Giáo viên', teacherAccount: 'Tài khoản giáo viên', studentView: 'Xem như học sinh', signOut: 'Đăng xuất',
-      myClasses: 'Lớp của tôi', studentViewHint: 'Xem sản phẩm như học sinh của bạn', language: 'Ngôn ngữ', lightMode: 'Chuyển sang giao diện sáng', darkMode: 'Chuyển sang giao diện tối',
+      myClasses: 'Lớp của tôi',
     },
     dashboard: {
       title: 'Bảng điều khiển giáo viên', subtitle: 'Quản lý lớp học và theo dõi tiến độ học sinh',

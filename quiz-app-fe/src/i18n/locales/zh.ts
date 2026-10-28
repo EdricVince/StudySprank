@@ -401,7 +401,7 @@ export default {
       dashboard: '仪表板', classes: '班级', students: '学生', analytics: '分析',
       lessons: '课程', vocabulary: '词汇', tests: '测试',
       portal: '教师门户', teacher: '教师', teacherAccount: '教师账户', studentView: '学生视图', signOut: '退出登录',
-      myClasses: '我的班级', studentViewHint: '以学生的视角查看产品', language: '语言', lightMode: '切换到浅色模式', darkMode: '切换到深色模式',
+      myClasses: '我的班级',
     },
     dashboard: {
       title: '教师控制台', subtitle: '管理班级并跟踪学生进度',
