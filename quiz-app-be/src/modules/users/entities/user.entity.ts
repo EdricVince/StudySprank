@@ -59,6 +59,18 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, default: null })
   teacher_reviewed_at: Date | null;
 
+  // When the teacher (last) submitted the application: at registration or on re-submission.
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  teacher_applied_at: Date | null;
+
+  // The admin who made the latest approve/reject decision (NULL while pending).
+  @Column({ type: 'int', nullable: true, default: null })
+  teacher_reviewed_by: number | null;
+
+  // Last successful sign-in (password or OAuth).
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  last_login_at: Date | null;
+
   // Password-reset: SHA-256 hash of the emailed token + its expiry (epoch ms as string)
   @Column({ type: 'varchar', nullable: true, default: null })
   reset_token_hash: string | null;

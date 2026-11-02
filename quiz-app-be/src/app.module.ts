@@ -21,6 +21,7 @@ import { TestsModule } from './modules/tests/tests.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { BattleModule } from './modules/battle/battle.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { AiLogModule } from './modules/ai-log/ai-log.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AuditModule } from './modules/audit/audit.module';
     AssignmentsModule,
     BattleModule,
     AuditModule,
+    AiLogModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RateLimitGuard }],

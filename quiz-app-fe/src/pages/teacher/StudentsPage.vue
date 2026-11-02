@@ -171,7 +171,7 @@ import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
 import TeacherStatRow from '@/components/teacher/TeacherStatRow.vue'
 import type { Class, ClassStudent } from '@/types/class'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const searchQuery = ref('')
 const selectedClass = ref('')
@@ -222,7 +222,7 @@ function openStudent(s: StudentRow) {
 }
 
 const formatJoined = (date: string) =>
-  new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  new Date(date).toLocaleDateString(locale.value, { month: 'long', day: 'numeric', year: 'numeric' })
 
 const getInitials = (name: string) =>
   name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'

@@ -16,6 +16,10 @@ import { AdminService } from './admin.service';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 import { RolesGuard } from '../../core/guards/roles.guard';
 import { Roles } from '../../core/decorators/roles.decorator';
+import {
+  CurrentUser,
+  type CurrentUserData,
+} from '../../core/decorators/current-user.decorator';
 import { ROLE_ADMIN } from '../roles/entities/role.entity';
 import { IMAGE_DATA_URL, MAX_CARD_LEN } from '../users/teacher-card';
 import {
@@ -121,18 +125,29 @@ export class AdminController {
 
   @Post('create-teacher')
   @HttpCode(HttpStatus.CREATED)
-  async createTeacher(@Body() dto: CreateTeacherDto) {
+  async createTeacher(
+    @Body() dto: CreateTeacherDto,
+    @CurrentUser() admin: CurrentUserData,
+  ) {
     const result = await this.adminService.createTeacher(
       dto.name,
       dto.password,
       dto.email,
       dto.teacher_card_image,
+      admin.id,
     );
     return {
       code: 201,
       message: `Teacher account created: ${result.email}`,
       data: result,
     };
+  }
+
+  /** The whole record of one account plus its audit trail (same data as the user_accounts / activity_feed views). */
+  @Get('users/:id/account')
+  async getAccountDetail(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.adminService.getAccountDetail(id);
+    return { code: 200, message: 'Account record retrieved', data };
   }
 
   @Get('users/:id/profile')
@@ -166,8 +181,13 @@ export class AdminController {
   async setTeacherCard(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: TeacherCardDto,
+    @CurrentUser() admin: CurrentUserData,
   ) {
-    await this.adminService.setTeacherCard(id, dto.teacher_card_image);
+    await this.adminService.setTeacherCard(
+      id,
+      dto.teacher_card_image,
+      admin.id,
+    );
     return {
       code: 200,
       message: 'Teacher card uploaded and account verified',
@@ -180,11 +200,13 @@ export class AdminController {
   async reviewTeacher(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ReviewTeacherDto,
+    @CurrentUser() admin: CurrentUserData,
   ) {
     const data = await this.adminService.reviewTeacher(
       id,
       dto.status,
       dto.reason,
+      admin.id,
     );
     return {
       code: 200,

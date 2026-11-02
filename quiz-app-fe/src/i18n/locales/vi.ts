@@ -257,6 +257,7 @@ export default {
     activityHint: 'Được lưu trong bảng activity_logs',
     confirmDeleteDeck: 'Xóa bộ flashcard này? Học viên sẽ không còn truy cập được.',
     deckModal: {
+      importCsv: 'Nhập từ CSV',
       newTitle: 'Bộ flashcard mới', editTitle: 'Sửa bộ flashcard',
       name: 'Tên bộ thẻ', namePlaceholder: 'VD: Unit 3 — Từ vựng du lịch',
       category: 'Danh mục', description: 'Mô tả (không bắt buộc)',
@@ -291,6 +292,26 @@ export default {
     },
     nav: { adminGroup: 'Quản trị', overview: 'Tổng quan', approvals: 'Duyệt giáo viên', users: 'Người dùng', activity: 'Nhật ký hoạt động', ai: 'Cài đặt AI' },
     status: { none: 'Không', pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', inactive: 'Đã khóa' },
+    account: {
+      title: 'Hồ sơ tài khoản', open: 'Chi tiết', fullRecord: 'Hồ sơ tài khoản đầy đủ',
+      sections: { account: 'Tài khoản', application: 'Hồ sơ giáo viên', history: 'Lịch sử' },
+      fields: {
+        role: 'Vai trò', status: 'Tài khoản', registered: 'Ngày đăng ký', lastLogin: 'Đăng nhập gần nhất',
+        classesOwned: 'Lớp đang dạy', classesJoined: 'Lớp đã tham gia',
+        decision: 'Trạng thái hồ sơ', organization: 'Trường / trung tâm', applied: 'Nộp hồ sơ lúc',
+        document: 'Giấy tờ xác minh', onFile: 'Đã có', missing: 'Chưa tải lên',
+        decidedAt: 'Quyết định lúc', decidedBy: 'Người quyết định', reason: 'Lý do',
+      },
+      never: 'Chưa bao giờ', by: 'bởi {name}', historyEmpty: 'Chưa có thao tác nào được ghi lại.',
+      loadFailed: 'Không tải được hồ sơ tài khoản.',
+      dbHint: 'Cùng hồ sơ này được lưu trong database: Supabase → Table Editor → view user_accounts và teacher_applications (lịch sử: activity_feed, entity_type = user).',
+      events: {
+        user_register: 'Đã đăng ký tài khoản', teacher_apply: 'Đã nộp hồ sơ giáo viên',
+        teacher_resubmit: 'Đã nộp lại hồ sơ', teacher_review: 'Quyết định hồ sơ: {status}',
+        teacher_card_upload: 'Đã tải giấy tờ xác minh (tài khoản được duyệt)', admin_create_teacher: 'Tài khoản do quản trị viên tạo',
+        user_set_active: 'Tài khoản chuyển sang: {active}', user_reset_password: 'Quản trị viên đã đặt lại mật khẩu',
+      },
+    },
     users: {
       title: { all: 'Tất cả người dùng', student: 'Học sinh', teacher: 'Giáo viên' },
       tabs: { all: 'Tất cả', student: 'Học sinh', teacher: 'Giáo viên' },
@@ -511,6 +532,8 @@ export default {
       generating: 'Đang tạo…', generateBtn: 'Tạo câu hỏi',
       aiHint: 'Câu hỏi được thêm vào bên dưới — bạn có thể chỉnh sửa thoải mái rồi Lưu.',
       questionsHeading: 'Câu hỏi', addQuestion: 'Thêm câu hỏi',
+      importCsv: 'Nhập từ CSV', csvTemplate: 'Tệp mẫu', csvOnly: 'Vui lòng chọn tệp .csv (hãy lưu tệp Excel thành CSV trước).', csvNoRows: 'Không tìm thấy câu hỏi hợp lệ trong tệp.',
+      csvImported: 'Đã nhập {n} câu hỏi — hãy kiểm tra rồi lưu bài kiểm tra.', csvSkipped: 'Đã bỏ qua {n} dòng: thiếu câu hỏi, ít hơn 2 đáp án hoặc đáp án đúng không hợp lệ.',
       noQuestions: 'Chưa có câu hỏi', noQuestionsDesc: 'Thêm thủ công hoặc tạo bằng AI.',
       questionPlaceholder: 'Nội dung câu hỏi', optionPlaceholder: 'Đáp án {letter}',
       markCorrect: 'Đánh dấu đúng', addOption: '+ Thêm đáp án',

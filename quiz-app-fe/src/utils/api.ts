@@ -235,6 +235,9 @@ export const api = {
 
   getTeacherAnalytics: (): Promise<any> => apiRequest<any>('/classes/analytics'),
 
+  /** Distinct students across the teacher's classes (a student in two classes counts once). */
+  getStudentTotal: (): Promise<{ students: number }> => apiRequest<{ students: number }>('/classes/student-total'),
+
   /** A class and all its content (teacher: + roster with progress; student: published content only). */
   getClassHub: (id: number): Promise<ClassHub> => apiRequest<ClassHub>(`/classes/${id}/hub`),
 

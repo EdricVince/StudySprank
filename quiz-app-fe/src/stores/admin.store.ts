@@ -24,6 +24,38 @@ export interface AdminUser {
   teacher_organization: string | null
 }
 
+/** The full record of one account: a row of the `user_accounts` DB view plus its audit trail. */
+export interface AccountRecord {
+  id: number
+  email: string
+  name: string | null
+  role: 'student' | 'teacher' | 'admin'
+  is_active: boolean
+  is_verified: boolean
+  teacher_status: TeacherStatus
+  teacher_organization: string | null
+  has_teacher_card: boolean
+  teacher_applied_at: string | null
+  teacher_reviewed_at: string | null
+  teacher_reviewed_by_email: string | null
+  teacher_reject_reason: string | null
+  created_at: string
+  last_login_at: string | null
+  xp: number
+  classes_owned: number
+  classes_joined: number
+}
+
+export interface AccountEvent {
+  id: number
+  created_at: string
+  action: string
+  summary: string
+  metadata: Record<string, unknown>
+  actor_name: string | null
+  actor_email: string | null
+}
+
 export interface AdminStats {
   total: number
   students: number
@@ -137,6 +169,11 @@ export const useAdminStore = defineStore('admin', () => {
     return data.deleted
   }
 
+  /** The same record the `user_accounts` / `activity_feed` views hold in the database. */
+  async function getAccountDetail(userId: number): Promise<{ account: AccountRecord; history: AccountEvent[] }> {
+    return admin(`/users/${userId}/account`)
+  }
+
   async function getUserProfile(userId: number): Promise<AdminUserProfile> {
     return admin<AdminUserProfile>(`/users/${userId}/profile`)
   }
@@ -208,7 +245,7 @@ export const useAdminStore = defineStore('admin', () => {
     users, stats, teacherOverview, pendingTeachers, loading, error,
     students, teachers,
     fetchStats, fetchUsers,
-    setActive, resetPassword, deleteUser, bulkDeleteUsers, getUserProfile, createTeacher,
+    setActive, resetPassword, deleteUser, bulkDeleteUsers, getUserProfile, getAccountDetail, createTeacher,
     getTeacherCard, reviewTeacher, fetchTeacherOverview, fetchPendingTeachers,
     fetchActivity,
     fetchAiStatus, setAiKey, removeAiKey,

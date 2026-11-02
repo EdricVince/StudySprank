@@ -96,6 +96,14 @@ export const AUDIT_RULES: AuditRule[] = [
   // Teacher applications
   {
     method: 'POST',
+    path: '/api/v1/auth/register',
+    action: 'user.register',
+    entity: 'user',
+    label: 'Registered an account',
+    anyRole: true,
+  },
+  {
+    method: 'POST',
     path: '/api/v1/auth/register-teacher',
     action: 'teacher.apply',
     entity: 'user',

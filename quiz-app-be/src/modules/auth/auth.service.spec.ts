@@ -69,6 +69,7 @@ describe('AuthService — access/refresh tokens with rotation', () => {
       ),
       findById: jest.fn(async (id: number) => (id === user.id ? user : null)),
       create: jest.fn(),
+      touchLogin: jest.fn(),
     };
     const env: Record<string, string> = {
       JWT_SECRET: SECRET,
@@ -88,6 +89,8 @@ describe('AuthService — access/refresh tokens with rotation', () => {
     const res = await login();
     const p = payloadOf(res.access_token);
     expect(p.exp - p.iat).toBe(15 * 60);
+    // the sign-in time is kept on the account (visible to the admin and in the database)
+    expect(users.touchLogin).toHaveBeenCalledWith(user.id);
     expect(res.refresh_token).toBeTruthy();
     expect(refreshRepo.rows).toHaveLength(1);
     expect(refreshRepo.rows[0].token_hash).toBe(
@@ -229,6 +232,7 @@ describe('AuthService — teacher applications', () => {
       findById: jest.fn().mockResolvedValue(existing),
       createTeacherApplicant: jest.fn().mockResolvedValue(teacher),
       submitTeacherApplication: jest.fn().mockResolvedValue(undefined),
+      touchLogin: jest.fn().mockResolvedValue(undefined),
     } as any;
     const refreshRepo = {
       create: (x: any) => x,

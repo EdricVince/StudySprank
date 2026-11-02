@@ -257,6 +257,7 @@ export default {
     activityHint: '保存在 activity_logs 表中',
     confirmDeleteDeck: '删除这个闪卡组？学生将无法再访问。',
     deckModal: {
+      importCsv: '导入 CSV',
       newTitle: '新建闪卡组', editTitle: '编辑闪卡组',
       name: '闪卡组名称', namePlaceholder: '例如：第 3 单元 — 旅行词汇',
       category: '分类', description: '描述（可选）',
@@ -291,6 +292,26 @@ export default {
     },
     nav: { adminGroup: '管理', overview: '概览', approvals: '教师审核', users: '用户', activity: '活动日志', ai: 'AI 设置' },
     status: { none: '无', pending: '待审核', approved: '已批准', rejected: '已拒绝', inactive: '已停用' },
+    account: {
+      title: '账号档案', open: '详情', fullRecord: '完整账号档案',
+      sections: { account: '账号', application: '教师申请', history: '历史记录' },
+      fields: {
+        role: '角色', status: '账号状态', registered: '注册时间', lastLogin: '最近登录',
+        classesOwned: '任教班级', classesJoined: '已加入班级',
+        decision: '申请状态', organization: '学校 / 机构', applied: '申请时间',
+        document: '证明文件', onFile: '已提交', missing: '未上传',
+        decidedAt: '决定时间', decidedBy: '决定人', reason: '原因',
+      },
+      never: '从未', by: '由 {name}', historyEmpty: '暂无记录的操作。',
+      loadFailed: '无法加载账号档案。',
+      dbHint: '同样的档案也保存在数据库中：Supabase → Table Editor → 视图 user_accounts 和 teacher_applications（历史：activity_feed，entity_type = user）。',
+      events: {
+        user_register: '已注册账号', teacher_apply: '已提交教师申请',
+        teacher_resubmit: '已重新提交申请', teacher_review: '申请结果：{status}',
+        teacher_card_upload: '已上传证明文件（账号已批准）', admin_create_teacher: '账号由管理员创建',
+        user_set_active: '账号状态变为：{active}', user_reset_password: '管理员已重置密码',
+      },
+    },
     users: {
       title: { all: '所有用户', student: '学生', teacher: '教师' },
       tabs: { all: '全部', student: '学生', teacher: '教师' },
@@ -511,6 +532,8 @@ export default {
       generating: '生成中…', generateBtn: '生成题目',
       aiHint: '生成的题目会追加到下方 — 可自由编辑后保存。',
       questionsHeading: '题目', addQuestion: '添加题目',
+      importCsv: '导入 CSV', csvTemplate: '模板', csvOnly: '请选择 .csv 文件（请先将 Excel 另存为 CSV）。', csvNoRows: '该文件中没有可用的题目。',
+      csvImported: '已导入 {n} 道题 — 请检查后保存测试。', csvSkipped: '已跳过 {n} 行：缺少题目、选项少于 2 个或正确答案无效。',
       noQuestions: '还没有题目', noQuestionsDesc: '手动添加，或用 AI 生成。',
       questionPlaceholder: '题目内容', optionPlaceholder: '选项 {letter}',
       markCorrect: '标记为正确', addOption: '+ 添加选项',

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
 
 jest.setTimeout(60000);
@@ -20,6 +21,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? '';
 describe('Security (e2e): auth, RBAC & class isolation', () => {
   let app: INestApplication;
   let http: ReturnType<INestApplication['getHttpServer']>;
+  let dataSource: DataSource;
 
   const ts = Date.now();
   const teacherEmail = `e2e_ta_${ts}@test.com`;
@@ -61,6 +63,7 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
     );
     await app.init();
     http = app.getHttpServer();
+    dataSource = app.get(DataSource);
 
     // The first admin is bootstrapped from ADMIN_EMAIL / ADMIN_PASSWORD on start-up.
     const adminLogin = await request(http)
@@ -132,6 +135,12 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
         .set(auth(studentInToken))
         .expect(403));
 
+    it('blocks a student from the teacher student total (403)', () =>
+      request(http)
+        .get('/api/v1/classes/student-total')
+        .set(auth(studentInToken))
+        .expect(403));
+
     it('lets a teacher create a class (201)', async () => {
       const res = await request(http)
         .post('/api/v1/classes')
@@ -156,6 +165,14 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
         .get(`/api/v1/classes/${classId}`)
         .set(auth(studentInToken))
         .expect(200);
+    });
+
+    it('counts each enrolled student once for the teacher (student-total)', async () => {
+      const res = await request(http)
+        .get('/api/v1/classes/student-total')
+        .set(auth(teacherToken))
+        .expect(200);
+      expect(res.body.data.students).toBe(1);
     });
 
     it('the owning teacher can read the class (200)', () =>
@@ -370,6 +387,67 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
         .set(auth(applicantToken))
         .send({ name: 'Approved class' })
         .expect(201);
+    });
+
+    it('the admin record of the account shows the application, the reviewer and the trail', async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500)); // log writes are fire-and-forget
+      const res = await request(http)
+        .get(`/api/v1/admin/users/${applicantId}/account`)
+        .set(auth(adminToken))
+        .expect(200);
+      const { account, history } = res.body.data as {
+        account: Record<string, unknown>;
+        history: { action: string; metadata: Record<string, unknown> }[];
+      };
+      expect(account).toMatchObject({
+        email: applicantEmail,
+        role: 'teacher',
+        teacher_status: 'approved',
+        teacher_organization: 'E2E School',
+        has_teacher_card: true,
+        teacher_reviewed_by_email: ADMIN_EMAIL,
+        classes_owned: 1,
+      });
+      expect(account.teacher_applied_at).toBeTruthy();
+      expect(account.teacher_reviewed_at).toBeTruthy();
+      const actions = history.map((h) => h.action);
+      expect(actions).toEqual(
+        expect.arrayContaining(['teacher.apply', 'teacher.review']),
+      );
+      // both decisions (rejection with its reason, then approval) are in the trail
+      const decisions = history
+        .filter((h) => h.action === 'teacher.review')
+        .map((h) => h.metadata.status);
+      expect(decisions).toEqual(
+        expect.arrayContaining(['rejected', 'approved']),
+      );
+    });
+
+    it('the same record is readable straight from the database views', async () => {
+      const rows = await dataSource.query<
+        { status: string; decided_by_email: string; decisions: number }[]
+      >(
+        `SELECT status, decided_by_email, decisions FROM teacher_applications WHERE id = $1`,
+        [applicantId],
+      );
+      expect(rows[0]).toMatchObject({
+        status: 'approved',
+        decided_by_email: ADMIN_EMAIL,
+        decisions: 2,
+      });
+    });
+
+    it('signing in stores the last sign-in time; only an admin can read account records', async () => {
+      await login(applicantEmail);
+      const rows = await dataSource.query<{ last_login_at: Date | null }[]>(
+        `SELECT last_login_at FROM user_accounts WHERE id = $1`,
+        [applicantId],
+      );
+      expect(rows[0].last_login_at).toBeTruthy();
+      await request(http)
+        .get(`/api/v1/admin/users/${applicantId}/account`)
+        .set(auth(teacherToken))
+        .expect(403);
     });
 
     it('the review and the new class appear in the activity log', async () => {

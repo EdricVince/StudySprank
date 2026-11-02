@@ -56,7 +56,13 @@
             </div>
 
             <div class="space-y-1.5">
-              <label class="text-foreground text-sm font-medium" for="deck-cards">{{ $t('classHub.deckModal.cards') }}</label>
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-foreground text-sm font-medium" for="deck-cards">{{ $t('classHub.deckModal.cards') }}</label>
+                <button type="button" class="text-primary hover:text-primary/80 text-xs font-medium" @click="csvInput?.click()">
+                  {{ $t('classHub.deckModal.importCsv') }}
+                </button>
+                <input ref="csvInput" type="file" accept=".csv,text/csv" class="hidden" @change="onCsvPick" />
+              </div>
               <p class="text-muted-foreground text-xs">{{ $t('classHub.deckModal.cardsHint') }}</p>
               <textarea
                 id="deck-cards" v-model="form.cardText" rows="9" spellcheck="false"
@@ -94,6 +100,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/utils/api'
 import { errorText } from '@/utils/skills'
 import { cardsToLines, parseCardLines } from '@/utils/deckText'
+import { isCsvFile, parseCardsCsv } from '@/utils/csv'
 import type { FlashcardDeckData } from '@/types/content'
 
 const props = defineProps<{
@@ -154,6 +161,21 @@ async function generate() {
   } finally {
     generating.value = false
   }
+}
+
+// A CSV file (Term, Definition, Example) is added to the cards box; it is stored when the deck is saved.
+const csvInput = ref<HTMLInputElement | null>(null)
+async function onCsvPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!isCsvFile(file)) { error.value = t('flashcards.importModal.onlyCsv'); return }
+  const cards = parseCardsCsv(await file.text())
+  if (!cards.length) { error.value = t('flashcards.importModal.noRows'); return }
+  error.value = ''
+  const lines = cardsToLines(cards.map((c) => (c.example ? { term: c.term, definition: c.definition, example: c.example } : { term: c.term, definition: c.definition })))
+  form.cardText = form.cardText.trim() ? `${form.cardText.trim()}\n${lines}` : lines
 }
 
 async function save() {

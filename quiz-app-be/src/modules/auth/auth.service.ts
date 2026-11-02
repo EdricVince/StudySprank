@@ -156,6 +156,7 @@ export class AuthService {
     } catch {
       throw new InternalServerErrorException('Failed to create user');
     }
+    await this.usersService.touchLogin(user.id);
 
     return {
       id: user.id,
@@ -183,6 +184,7 @@ export class AuthService {
       organization: dto.organization.trim(),
       cardImage: dto.teacher_card_image,
     });
+    await this.usersService.touchLogin(user.id);
 
     return {
       id: user.id,
@@ -231,6 +233,7 @@ export class AuthService {
     if (!user.is_active) {
       throw new UnauthorizedException('Account is not active');
     }
+    await this.usersService.touchLogin(user.id);
 
     return {
       ...(await this.issueTokenPair(user)),
@@ -360,6 +363,7 @@ export class AuthService {
     if (!user.is_active) {
       throw new UnauthorizedException('Account is not active');
     }
+    await this.usersService.touchLogin(user.id);
 
     return {
       ...(await this.issueTokenPair(user)),

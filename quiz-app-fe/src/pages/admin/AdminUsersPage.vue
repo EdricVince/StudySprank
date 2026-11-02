@@ -527,6 +527,7 @@
             </div>
 
             <div class="flex items-center justify-end gap-3 px-6 py-4 bg-muted/10 border-t border-border">
+              <button class="px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition" @click="recordId = profileTarget?.id ?? null">{{ $t('staff.account.fullRecord') }}</button>
               <button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/20 rounded-lg transition" @click="profileTarget = null">{{ $t('common.close') }}</button>
             </div>
           </div>
@@ -601,6 +602,7 @@
         </div>
       </Transition>
     </Teleport>
+  <AdminAccountRecord :user-id="recordId" @close="recordId = null" />
   </div>
 </template>
 
@@ -610,8 +612,10 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminStore, type AdminUser, type AdminUserProfile } from '@/stores/admin.store'
 import { UserRole } from '@/types/role'
+import AdminAccountRecord from '@/components/admin/AdminAccountRecord.vue'
 
 const { t, locale } = useI18n()
+const recordId = ref<number | null>(null)
 const route = useRoute()
 const adminStore = useAdminStore()
 

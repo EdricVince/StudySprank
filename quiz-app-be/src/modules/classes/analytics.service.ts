@@ -41,6 +41,12 @@ export interface Bucket {
   value: number;
 }
 
+/** Exam sections are named by the AI ("Listening Part 1", "Reading"); group them under their skill. */
+const SKILLS = ['Reading', 'Listening', 'Writing', 'Speaking'];
+const skillOf = (section: string) =>
+  SKILLS.find((s) => section.toLowerCase().startsWith(s.toLowerCase())) ??
+  section;
+
 const percent = (score: number, total: number) =>
   total > 0 ? (score / total) * 100 : 0;
 
@@ -68,6 +74,18 @@ export class AnalyticsService {
     private progressRepo: Repository<UserProgress>,
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {}
+
+  /** How many different students are enrolled in the teacher's classes (one student in two classes counts once). */
+  async countDistinctStudents(teacherId: number): Promise<number> {
+    const rows = await this.enrollRepo.query<{ total: number }[]>(
+      `SELECT COUNT(DISTINCT e.student_id)::int AS total
+         FROM class_enrollments e
+         JOIN classes c ON c.id = e.class_id
+        WHERE c.teacher_id = $1`,
+      [teacherId],
+    );
+    return rows[0]?.total ?? 0;
+  }
 
   async getTeacherAnalytics(teacherId: number) {
     const now = Date.now();
@@ -303,7 +321,7 @@ export class AnalyticsService {
     >();
     for (const exam of exams) {
       for (const part of exam.breakdown ?? []) {
-        const skill = skills.get(part.section) ?? {
+        const skill = skills.get(skillOf(part.section)) ?? {
           correct: 0,
           total: 0,
           attempts: 0,
@@ -318,7 +336,7 @@ export class AnalyticsService {
           cell.total += part.total;
           skill.perClass.set(classId, cell);
         }
-        skills.set(part.section, skill);
+        skills.set(skillOf(part.section), skill);
       }
     }
     const skillsData = [...skills.entries()].map(([name, skill]) => ({

@@ -54,6 +54,7 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
+            <button class="adm-btn-ghost" @click="recordId = tc.id">{{ $t('staff.account.open') }}</button>
             <button class="adm-btn-ghost" @click="openDocument(tc)">{{ $t('staff.approvals.viewDocument') }}</button>
             <button
               v-if="tc.teacher_status !== 'approved'"
@@ -124,6 +125,7 @@
         </div>
       </div>
     </Teleport>
+  <AdminAccountRecord :user-id="recordId" @close="recordId = null" />
   </div>
 </template>
 
@@ -132,11 +134,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAdminStore, type TeacherOverviewRow } from '@/stores/admin.store'
 import { errorText } from '@/utils/skills'
+import AdminAccountRecord from '@/components/admin/AdminAccountRecord.vue'
 
 type Filter = 'pending' | 'approved' | 'rejected' | 'all'
 
 const { t, locale } = useI18n()
 const adminStore = useAdminStore()
+const recordId = ref<number | null>(null)
 
 const loading = ref(false)
 const loadFailed = ref(false)

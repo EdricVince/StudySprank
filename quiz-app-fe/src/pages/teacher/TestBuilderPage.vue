@@ -81,7 +81,12 @@
       <div class="space-y-4 lg:col-span-2">
         <div class="flex items-center justify-between">
           <h3 class="text-foreground font-semibold">{{ $t('teacher.testBuilder.questionsHeading') }} ({{ form.questions.length }})</h3>
-          <Button variant="outline" size="sm" @click="addQuestion"><Plus class="mr-2 h-4 w-4" /> {{ $t('teacher.testBuilder.addQuestion') }}</Button>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" @click="downloadTemplate"><Download class="mr-2 h-4 w-4" /> {{ $t('teacher.testBuilder.csvTemplate') }}</Button>
+            <Button variant="outline" size="sm" @click="csvInput?.click()"><Upload class="mr-2 h-4 w-4" /> {{ $t('teacher.testBuilder.importCsv') }}</Button>
+            <input ref="csvInput" type="file" accept=".csv,text/csv" class="hidden" @change="onCsvPick" />
+            <Button variant="outline" size="sm" @click="addQuestion"><Plus class="mr-2 h-4 w-4" /> {{ $t('teacher.testBuilder.addQuestion') }}</Button>
+          </div>
         </div>
 
         <div v-if="form.questions.length === 0" class="bg-card border-border rounded-2xl border p-10 text-center">
@@ -119,7 +124,8 @@ import { useToast } from '@/composables/useToast'
 import { useLocale } from '@/composables/useLocale'
 import { LEVEL_GROUPS, CONTENT_LANGUAGES } from '@/data/teachingOptions'
 import type { TestQuestionData, TeacherClassData } from '@/types/content'
-import { FileText, Plus, X, Trash2, Sparkles, HelpCircle, Loader2Icon as Loader2 } from '@/components/icons'
+import { FileText, Plus, X, Trash2, Sparkles, HelpCircle, Download, Upload, Loader2Icon as Loader2 } from '@/components/icons'
+import { isCsvFile, parseQuestionsCsv, questionsCsvTemplate } from '@/utils/csv'
 import TeacherPageHeader from '@/components/teacher/TeacherPageHeader.vue'
 import Button from '@/components/ui/button/Button.vue'
 
@@ -148,6 +154,28 @@ const errMsg = (e: unknown, fb: string) => (e instanceof ApiError ? e.errorMessa
 const newQuestion = (): Q => ({ question: '', options: ['', '', '', ''], correct: 0, points: 1 })
 const addQuestion = () => form.value.questions.push(newQuestion())
 const removeQuestion = (i: number) => form.value.questions.splice(i, 1)
+
+// Questions from a CSV file are appended to the form; nothing is stored until the teacher saves the test.
+const csvInput = ref<HTMLInputElement | null>(null)
+async function onCsvPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!isCsvFile(file)) return toast.error(t('teacher.testBuilder.csvOnly'))
+  const { questions, skipped } = parseQuestionsCsv(await file.text())
+  if (!questions.length) return toast.error(t('teacher.testBuilder.csvNoRows'))
+  form.value.questions.push(...questions)
+  toast.success(t('teacher.testBuilder.csvImported', { n: questions.length }))
+  if (skipped) toast.warning(t('teacher.testBuilder.csvSkipped', { n: skipped }))
+}
+
+function downloadTemplate() {
+  const a = document.createElement('a')
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(questionsCsvTemplate())
+  a.download = 'test-questions-template.csv'
+  a.click()
+}
 const removeOption = (q: Q, oi: number) => {
   q.options.splice(oi, 1)
   if (q.correct >= q.options.length) q.correct = 0

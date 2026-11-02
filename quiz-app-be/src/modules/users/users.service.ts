@@ -56,6 +56,7 @@ export class UsersService {
       role_id: ROLE_TEACHER,
       teacher_status: 'pending',
       teacher_organization: data.organization,
+      teacher_applied_at: new Date(),
       teacher_card_image: data.cardImage,
       is_verified: false,
     });
@@ -74,8 +75,15 @@ export class UsersService {
       teacher_status: 'pending',
       teacher_reject_reason: null,
       teacher_reviewed_at: null,
+      teacher_reviewed_by: null,
+      teacher_applied_at: new Date(),
       is_verified: false,
     });
+  }
+
+  /** Remember the moment of a successful sign-in. */
+  async touchLogin(id: number): Promise<void> {
+    await this.usersRepository.update(id, { last_login_at: new Date() });
   }
 
   // ── Password reset ──────────────────────────────────────────────────────────

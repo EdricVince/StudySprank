@@ -257,6 +257,7 @@ export default {
     activityHint: 'Stored in the activity_logs table',
     confirmDeleteDeck: 'Delete this flashcard deck? Students will lose access to it.',
     deckModal: {
+      importCsv: 'Import CSV',
       newTitle: 'New flashcard deck', editTitle: 'Edit flashcard deck',
       name: 'Deck name', namePlaceholder: 'e.g. Unit 3 — Travel vocabulary',
       category: 'Category', description: 'Description (optional)',
@@ -291,6 +292,26 @@ export default {
     },
     nav: { adminGroup: 'Administration', overview: 'Overview', approvals: 'Teacher approvals', users: 'Users', activity: 'Activity log', ai: 'AI settings' },
     status: { none: 'None', pending: 'Pending', approved: 'Approved', rejected: 'Rejected', inactive: 'Inactive' },
+    account: {
+      title: 'Account record', open: 'Details', fullRecord: 'Full account record',
+      sections: { account: 'Account', application: 'Teacher application', history: 'History' },
+      fields: {
+        role: 'Role', status: 'Account', registered: 'Registered', lastLogin: 'Last sign-in',
+        classesOwned: 'Classes taught', classesJoined: 'Classes joined',
+        decision: 'Application status', organization: 'School / centre', applied: 'Applied on',
+        document: 'ID document', onFile: 'On file', missing: 'Not uploaded',
+        decidedAt: 'Decided on', decidedBy: 'Decided by', reason: 'Reason',
+      },
+      never: 'Never', by: 'by {name}', historyEmpty: 'No recorded actions yet.',
+      loadFailed: 'Could not load the account record.',
+      dbHint: 'The same record is stored in the database: Supabase → Table Editor → views user_accounts and teacher_applications (history: activity_feed, entity_type = user).',
+      events: {
+        user_register: 'Registered an account', teacher_apply: 'Applied for a teacher account',
+        teacher_resubmit: 'Re-submitted the application', teacher_review: 'Application decision: {status}',
+        teacher_card_upload: 'ID document uploaded (account approved)', admin_create_teacher: 'Account created by an administrator',
+        user_set_active: 'Account set to: {active}', user_reset_password: 'Password reset by an administrator',
+      },
+    },
     users: {
       title: { all: 'All users', student: 'Students', teacher: 'Teachers' },
       tabs: { all: 'All', student: 'Students', teacher: 'Teachers' },
@@ -511,6 +532,8 @@ export default {
       generating: 'Generating…', generateBtn: 'Generate questions',
       aiHint: 'Generated questions are appended below — edit them freely, then Save.',
       questionsHeading: 'Questions', addQuestion: 'Add question',
+      importCsv: 'Import CSV', csvTemplate: 'Template', csvOnly: 'Please choose a .csv file (save Excel files as CSV first).', csvNoRows: 'No usable questions found in that file.',
+      csvImported: 'Imported {n} question(s) — review them, then save the test.', csvSkipped: '{n} row(s) were skipped: missing question, fewer than 2 options or an unknown correct answer.',
       noQuestions: 'No questions yet', noQuestionsDesc: 'Add one manually, or generate with AI.',
       questionPlaceholder: 'Question text', optionPlaceholder: 'Option {letter}',
       markCorrect: 'Mark correct', addOption: '+ Add option',

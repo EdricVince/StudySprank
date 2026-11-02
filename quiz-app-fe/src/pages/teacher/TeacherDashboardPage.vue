@@ -320,10 +320,11 @@ type DashboardClass = Class & { student_count: number }
 const classList = ref<DashboardClass[]>([])
 const allTests = ref<TestData[]>([])
 const assignments = ref<AssignmentData[]>([])
+const distinctStudents = ref<number | null>(null)
 
 const stats = computed<TeacherStat[]>(() => [
   { label: t('teacher.dashboard.stats.classes'), value: classList.value.length, icon: BookOpen, color: 'text-primary', bg: 'bg-primary/10' },
-  { label: t('teacher.dashboard.stats.students'), value: classList.value.reduce((sum, c) => sum + (c.student_count ?? 0), 0), icon: Users, color: 'text-chart-2', bg: 'bg-chart-2/10' },
+  { label: t('teacher.dashboard.stats.students'), value: distinctStudents.value ?? classList.value.reduce((sum, c) => sum + (c.student_count ?? 0), 0), icon: Users, color: 'text-chart-2', bg: 'bg-chart-2/10' },
   { label: t('teacher.dashboard.stats.tests'), value: allTests.value.length, icon: FileText, color: 'text-chart-1', bg: 'bg-chart-1/10' },
   { label: t('teacher.dashboard.stats.assignments'), value: assignments.value.length, icon: List, color: 'text-chart-3', bg: 'bg-chart-3/10' },
 ])
@@ -395,12 +396,15 @@ async function copyCode(cls: { id: number; joinCode: string }) {
 
 onMounted(async () => {
   try {
-    const [classes, assigns, tests] = await Promise.all([
+    const [classes, assigns, tests, studentTotal] = await Promise.all([
       api.getClasses() as Promise<DashboardClass[]>,
       api.getAssignments().catch(() => [] as AssignmentData[]),
       api.getTests().catch(() => [] as TestData[]),
+      api.getStudentTotal().catch(() => null),
     ])
     classList.value = classes
+    // Falls back to the per-class sum only if the endpoint is unavailable.
+    distinctStudents.value = studentTotal?.students ?? null
     setTeacherClasses(classes)
     assignments.value = assigns
     allTests.value = tests

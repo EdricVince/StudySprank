@@ -1,10 +1,12 @@
 import {
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AI_MODEL, getAnthropicClient } from '../../core/ai/anthropic';
+import { AiGenerationService } from '../ai-log/ai-generation.service';
 import * as crypto from 'crypto';
 import { verifyHs256 } from '../../core/security/jwt.util';
 
@@ -82,7 +84,10 @@ export class BattleService {
   /** socketId -> roomId */
   private socketRoom = new Map<string, string>();
 
-  constructor(private config: ConfigService) {}
+  constructor(
+    private config: ConfigService,
+    @Optional() private aiLog?: AiGenerationService,
+  ) {}
 
   // ── Auth (verify the app's hand-rolled HMAC JWT for the WS handshake) ──────────
   verifyToken(
@@ -303,7 +308,16 @@ Return ONLY a valid JSON array (no markdown, no prose):
           qq.correct >= 0 &&
           qq.correct < 4,
       );
-      if (valid.length >= Math.min(4, count)) return valid.slice(0, count);
+      if (valid.length >= Math.min(4, count)) {
+        const questions = valid.slice(0, count);
+        // Keep what the AI invented for this match in the database.
+        void this.aiLog?.record({
+          kind: 'battle_questions',
+          input: { difficulty, count },
+          output: questions,
+        });
+        return questions;
+      }
       throw new Error(`AI returned too few valid questions (${valid.length})`);
     } catch (e) {
       this.logger.error(`Battle AI generation failed: ${(e as Error).message}`);

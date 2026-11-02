@@ -48,6 +48,26 @@ export interface AdminUserRow {
   teacher_organization: string | null;
 }
 
+/** One entry of an account's audit trail (a row of the `activity_feed` view). */
+export interface AccountEvent {
+  id: number;
+  created_at: Date;
+  action: string;
+  summary: string;
+  metadata: Record<string, unknown>;
+  actor_id: number | null;
+  actor_name: string | null;
+  actor_email: string | null;
+}
+
+export interface AccountDetail {
+  /** A row of the `user_accounts` view. */
+  account: Record<string, unknown>;
+  history: AccountEvent[];
+}
+
+const ACCOUNT_HISTORY_LIMIT = 50;
+
 export interface AdminStats {
   total: number;
   students: number;
@@ -116,6 +136,7 @@ export class AdminService {
     password: string,
     customEmail?: string,
     teacherCardImage?: string,
+    adminId?: number,
   ): Promise<{ id: number; email: string }> {
     const email =
       customEmail ??
@@ -137,6 +158,8 @@ export class AdminService {
       is_verified: true,
       teacher_status: 'approved',
       teacher_reviewed_at: new Date(),
+      teacher_applied_at: new Date(),
+      teacher_reviewed_by: adminId ?? null,
     });
     const saved = await this.userRepo.save(user);
     return { id: saved.id, email: saved.email };
@@ -153,7 +176,11 @@ export class AdminService {
     return user.teacher_card_image;
   }
 
-  async setTeacherCard(userId: number, image: string): Promise<void> {
+  async setTeacherCard(
+    userId: number,
+    image: string,
+    adminId?: number,
+  ): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     // Uploading a card on the teacher's behalf also approves the account.
@@ -163,6 +190,7 @@ export class AdminService {
       teacher_status: 'approved',
       teacher_reject_reason: null,
       teacher_reviewed_at: new Date(),
+      teacher_reviewed_by: adminId ?? null,
     });
   }
 
@@ -174,6 +202,7 @@ export class AdminService {
     userId: number,
     status: Exclude<TeacherStatus, 'none'>,
     reason?: string,
+    adminId?: number,
   ): Promise<{ id: number; teacher_status: TeacherStatus }> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -191,9 +220,31 @@ export class AdminService {
       is_verified: status === 'approved',
       teacher_reject_reason: cleanReason || null,
       teacher_reviewed_at: status === 'pending' ? null : new Date(),
+      teacher_reviewed_by: status === 'pending' ? null : (adminId ?? null),
     });
     // No token revocation needed: JwtGuard reads teacher_status from the DB on every request.
     return { id: userId, teacher_status: status };
+  }
+
+  /**
+   * The full record of one account, read from the same `user_accounts` view and activity trail
+   * that can be queried directly in Supabase, so the admin and the database always agree.
+   */
+  async getAccountDetail(userId: number): Promise<AccountDetail> {
+    const rows = await this.userRepo.query<Record<string, unknown>[]>(
+      `SELECT * FROM user_accounts WHERE id = $1`,
+      [userId],
+    );
+    if (!rows[0]) throw new NotFoundException('User not found');
+    const history = await this.userRepo.query<AccountEvent[]>(
+      `SELECT id, created_at, action, summary, metadata, actor_id, actor_name, actor_email
+         FROM activity_feed
+        WHERE entity_type = 'user' AND entity_id = $1
+        ORDER BY id DESC
+        LIMIT $2`,
+      [userId, ACCOUNT_HISTORY_LIMIT],
+    );
+    return { account: rows[0], history };
   }
 
   /** One row per teacher with their activity counts (backed by the teacher_overview view). */

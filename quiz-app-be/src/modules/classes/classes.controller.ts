@@ -44,6 +44,16 @@ export class ClassesController {
     return { code: 200, message: 'OK', data };
   }
 
+  /** GET /classes/student-total — distinct students across the teacher's classes */
+  @Get('student-total')
+  @Roles(ROLE_TEACHER)
+  async getStudentTotal(@Req() req: AuthenticatedRequest) {
+    const students = await this.analyticsService.countDistinctStudents(
+      req.user.id,
+    );
+    return { code: 200, message: 'OK', data: { students } };
+  }
+
   /** GET /classes — teacher: own classes; student: enrolled classes */
   @Get()
   async findAll(@Req() req: AuthenticatedRequest) {

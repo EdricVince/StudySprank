@@ -187,4 +187,25 @@ describe('AnalyticsService', () => {
       },
     ]);
   });
+  it('groups exam parts such as "Listening Part 1" under their skill', async () => {
+    const { service } = build({
+      classes: [{ id: 1, name: 'Class A' }],
+      enrollments: [{ class_id: 1, student_id: 1, joined_at: daysAgo(10) }],
+      exams: [
+        {
+          user_id: 1,
+          breakdown: [
+            { section: 'Listening Part 1', correct: 1, total: 4 },
+            { section: 'Listening Part 2', correct: 3, total: 4 },
+            { section: 'Reading', correct: 2, total: 4 },
+          ],
+        },
+      ],
+    });
+    const r = await service.getTeacherAnalytics(1);
+    expect(r.skillsData.map((s) => [s.name, s.avgScore, s.attempts])).toEqual([
+      ['Listening', 50, 2],
+      ['Reading', 50, 1],
+    ]);
+  });
 });
