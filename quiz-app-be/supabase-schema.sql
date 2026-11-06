@@ -93,20 +93,6 @@ CREATE TABLE IF NOT EXISTS class_enrollments (
   UNIQUE(class_id, student_id)
 );
 
--- 9. VIDEOS
-CREATE TABLE IF NOT EXISTS videos (
-  id           SERIAL PRIMARY KEY,
-  teacher_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  class_id     INTEGER REFERENCES classes(id) ON DELETE SET NULL,
-  title        VARCHAR(255) NOT NULL,
-  description  TEXT,
-  video_url    VARCHAR(500) NOT NULL,
-  lesson_name  VARCHAR(255),
-  duration     INTEGER NOT NULL DEFAULT 0,
-  is_published BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 -- 10. LIVE SESSIONS
 CREATE TABLE IF NOT EXISTS live_sessions (
   id               SERIAL PRIMARY KEY,
@@ -132,8 +118,6 @@ CREATE INDEX IF NOT EXISTS idx_classes_teacher     ON classes(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_classes_code        ON classes(class_code);
 CREATE INDEX IF NOT EXISTS idx_enrollments_class   ON class_enrollments(class_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON class_enrollments(student_id);
-CREATE INDEX IF NOT EXISTS idx_videos_class        ON videos(class_id);
-CREATE INDEX IF NOT EXISTS idx_videos_teacher      ON videos(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_live_sessions_pin   ON live_sessions(pin);
 
 -- ── Auto-update updated_at ────────────────────────────────────
