@@ -994,6 +994,7 @@ export default {
       msgGood: 'Khá lắm! Cố gắng thêm nhé!', msgKeep: 'Đừng bỏ cuộc! Có công mài sắt có ngày nên kim!',
     },
     vocab: { title: 'Kết quả từ vựng', word: 'Từ', meaning: 'Nghĩa', result: 'Kết quả' },
+    preparing: 'Đang chuẩn bị câu hỏi cho bạn…',
     q: {
       whatMeans: 'Từ "{term}" nghĩa là gì?', means: '"{term}" nghĩa là "{meaning}"',
       hint: 'Một từ thuộc chủ đề "{topic}", mang nghĩa là "{meaning}".',

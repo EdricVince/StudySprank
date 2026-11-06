@@ -9,7 +9,10 @@ vi.mock('@/composables/useLocale', () => ({
   useLocale: () => ({ locale: { get value() { return ui.locale } } }),
 }))
 
-import { useVocabulary } from './useVocabulary'
+vi.mock('@/utils/api', () => ({ api: { generateVocabulary: vi.fn() } }))
+
+import { useVocabulary, sourceOfWords } from './useVocabulary'
+import { api } from '@/utils/api'
 import { useLearningLanguage } from './useLearningLanguage'
 
 const englishWords = new Set(vocabulary.map((w) => w.en))
@@ -114,5 +117,101 @@ describe('useVocabulary — the answers are never in the language of the questio
     const q = generateMCQuestions(1)[0]!
     expect(q.correctAnswer).toBe(q.vocabWord.en)
     expect(q.termDisplay).toMatch(/[一-鿿]/)
+  })
+})
+
+const generateVocabulary = api.generateVocabulary as unknown as ReturnType<typeof vi.fn>
+const aiItems = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    term: `aiword${i}`,
+    meaning: `nghĩa ${i}`,
+    explanation: 'e',
+    example: 'x',
+  }))
+
+describe('useVocabulary — rounds prepared by the AI', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+    ui.locale = 'en'
+    useLearningLanguage().setLanguage('en')
+    generateVocabulary.mockReset()
+  })
+
+  it('builds a multiple-choice round from the AI words: English terms, Vietnamese answers', async () => {
+    generateVocabulary.mockResolvedValue(aiItems(12))
+    const { generateMCQuestionsAi } = useVocabulary()
+    const qs = await generateMCQuestionsAi(5)
+
+    expect(generateVocabulary).toHaveBeenCalledWith(
+      expect.objectContaining({ learningLang: 'en', uiLang: 'vi' }), // meanings are asked in the meaning language
+    )
+    expect(qs).toHaveLength(5)
+    for (const q of qs) {
+      expect(q.termDisplay).toMatch(/^aiword\d+$/)
+      expect(q.correctAnswer).toMatch(/^nghĩa \d+$/)
+      expect(q.options).toHaveLength(4)
+      expect(new Set(q.options).size).toBe(4)
+      expect(q.options).toContain(q.correctAnswer)
+      expect(q.question).toBe(`What does "${q.termDisplay}" mean?`)
+    }
+    expect(sourceOfWords(qs.map((q) => q.vocabWord))).toBe('ai')
+  })
+
+  it('plays with the built-in words when the AI is not available', async () => {
+    generateVocabulary.mockRejectedValue(new Error('503'))
+    const { generateMCQuestionsAi } = useVocabulary()
+    const qs = await generateMCQuestionsAi(5)
+
+    expect(qs).toHaveLength(5)
+    expect(englishWords.has(qs[0]!.termDisplay)).toBe(true)
+    expect(sourceOfWords(qs.map((q) => q.vocabWord))).toBe('builtin')
+  })
+
+  it('does not trust an AI answer with too few usable words', async () => {
+    generateVocabulary.mockResolvedValue([...aiItems(2), { term: '', meaning: 'x' }, { term: 'noMeaning', meaning: ' ' }])
+    const { generateMCQuestionsAi } = useVocabulary()
+    const qs = await generateMCQuestionsAi(5)
+    expect(sourceOfWords(qs.map((q) => q.vocabWord))).toBe('builtin')
+  })
+
+  it('tops a short AI answer up with built-in words so the round still has every question', async () => {
+    generateVocabulary.mockResolvedValue(aiItems(5))
+    const { generateMatchingPairsAi } = useVocabulary()
+    const pairs = await generateMatchingPairsAi(8)
+
+    expect(pairs).toHaveLength(8)
+    expect(pairs.filter((p) => p.vocabWord.id < 0)).toHaveLength(5)
+    expect(pairs.filter((p) => p.vocabWord.id > 0)).toHaveLength(3)
+    expect(new Set(pairs.map((p) => p.term)).size).toBe(8)
+  })
+
+  it('drops duplicate AI words and asks the AI not to repeat the words of earlier rounds', async () => {
+    generateVocabulary.mockResolvedValue([...aiItems(6), { term: 'AIWORD0', meaning: 'trùng' }])
+    const { generateTFQuestionsAi } = useVocabulary()
+    const first = await generateTFQuestionsAi(6)
+    expect(new Set(first.map((q) => q.termDisplay.toLowerCase())).size).toBe(6)
+
+    await generateTFQuestionsAi(6)
+    const secondCall = generateVocabulary.mock.calls[1]![0] as { exclude: string[] }
+    expect(secondCall.exclude).toContain('aiword0')
+  })
+
+  it('true/false shows a meaning taken from the same round when the statement is false', async () => {
+    generateVocabulary.mockResolvedValue(aiItems(10))
+    const { generateTFQuestionsAi } = useVocabulary()
+    const qs = await generateTFQuestionsAi(10)
+    for (const q of qs) {
+      expect(q.explanation).toContain(q.meaningDisplay)
+      expect(q.statement).toMatch(/nghĩa \d+/)
+    }
+  })
+
+  it('speed round uses the same AI preparation', async () => {
+    generateVocabulary.mockResolvedValue(aiItems(15))
+    const { generateSpeedQuestionsAi } = useVocabulary()
+    const qs = await generateSpeedQuestionsAi(8)
+    expect(qs).toHaveLength(8)
+    expect(sourceOfWords(qs.map((q) => q.vocabWord))).toBe('ai')
   })
 })

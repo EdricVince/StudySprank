@@ -1012,6 +1012,7 @@ export default {
       msgGood: 'Nice try! Keep pushing forward!', msgKeep: "Don't give up! Practice makes perfect!",
     },
     vocab: { title: 'Vocabulary Results', word: 'Word', meaning: 'Meaning', result: 'Result' },
+    preparing: 'Preparing your questions…',
     q: {
       whatMeans: 'What does "{term}" mean?', means: '"{term}" means "{meaning}"',
       hint: 'A word in the "{topic}" topic that means "{meaning}".',

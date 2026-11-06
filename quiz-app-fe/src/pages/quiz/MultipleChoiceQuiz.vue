@@ -1,7 +1,15 @@
 <template>
   <div class="min-h-screen p-4 lg:p-6">
+    <!-- Loading: the AI is preparing a fresh round -->
+    <template v-if="isLoading">
+      <div class="flex min-h-[60vh] flex-col items-center justify-center gap-4" data-test="quiz-loading">
+        <div class="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary"></div>
+        <p class="text-muted-foreground text-base">{{ $t('quizPlay.preparing') }}</p>
+      </div>
+    </template>
+
     <!-- Show Result -->
-    <template v-if="gameState.status === 'finished'">
+    <template v-else-if="gameState.status === 'finished'">
       <QuizResult
         :result="quizResult"
         @play-again="restartQuiz"
@@ -129,12 +137,12 @@ import XPFloat from '@/components/ui/XPFloat.vue'
 import { sfx } from '@/utils/soundFx'
 import type { MultipleChoiceQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
 import { useQuizCompletion, wordsFromAnswers } from '@/composables/useQuizCompletion'
-import { useVocabulary, type VocabMCQuestion } from '@/composables/useVocabulary'
+import { useVocabulary, sourceOfWords, type VocabMCQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
 const route = useRoute()
 const { finishQuiz, xpEarned } = useQuizCompletion()
-const { generateMCQuestions } = useVocabulary()
+const { generateMCQuestionsAi } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 10, 3), 50))
 
@@ -156,7 +164,15 @@ const xpFloat = ref<InstanceType<typeof XPFloat> | null>(null)
 const startTime = ref(Date.now())
 const vocabAnswers = ref<{ termDisplay: string; meaningDisplay: string; isCorrect: boolean }[]>([])
 
-const questions = ref<MultipleChoiceQuestion[]>(generateMCQuestions(questionCount.value))
+// The AI prepares each round (built-in words when it is unavailable).
+const questions = ref<MultipleChoiceQuestion[]>([])
+const isLoading = ref(true)
+const loadQuestions = async () => {
+  isLoading.value = true
+  questions.value = await generateMCQuestionsAi(questionCount.value)
+  isLoading.value = false
+  startTime.value = Date.now()
+}
 
 const currentQuestion = computed(() => questions.value[gameState.value.currentQuestion])
 const isLastQuestion = computed(() => gameState.value.currentQuestion >= questions.value.length - 1)
@@ -262,6 +278,7 @@ const nextQuestion = async () => {
       accuracy,
       questionCount: questions.value.length,
       words: wordsFromAnswers(vocabAnswers.value),
+      source: sourceOfWords(questions.value.map((q) => (q as VocabMCQuestion).vocabWord)),
       durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
     })
   } else {
@@ -292,12 +309,10 @@ const restartQuiz = () => {
   selectedAnswer.value = null
   startTime.value = Date.now()
   vocabAnswers.value = []
-  questions.value = generateMCQuestions(questionCount.value)
+  void loadQuestions()
 }
 
-onMounted(() => {
-  startTime.value = Date.now()
-})
+onMounted(loadQuestions)
 </script>
 
 <style scoped>

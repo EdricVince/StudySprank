@@ -1,7 +1,15 @@
 <template>
   <div class="min-h-screen p-4 lg:p-6">
+    <!-- Loading: the AI is preparing a fresh round -->
+    <template v-if="isLoading">
+      <div class="flex min-h-[60vh] flex-col items-center justify-center gap-4" data-test="quiz-loading">
+        <div class="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary"></div>
+        <p class="text-muted-foreground text-base">{{ $t('quizPlay.preparing') }}</p>
+      </div>
+    </template>
+
     <!-- Show Result -->
-    <template v-if="gameState.status === 'finished'">
+    <template v-else-if="gameState.status === 'finished'">
       <QuizResult
         :result="quizResult"
         @play-again="restartQuiz"
@@ -140,12 +148,12 @@ import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { MultipleChoiceQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
 import { useQuizCompletion, wordsFromAnswers } from '@/composables/useQuizCompletion'
-import { useVocabulary, type VocabMCQuestion } from '@/composables/useVocabulary'
+import { useVocabulary, sourceOfWords, type VocabMCQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
 const route = useRoute()
 const { finishQuiz, xpEarned } = useQuizCompletion()
-const { generateSpeedQuestions } = useVocabulary()
+const { generateSpeedQuestionsAi } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 15, 3), 50))
 
@@ -175,7 +183,14 @@ const vocabAnswers = ref<{ termDisplay: string; meaningDisplay: string; isCorrec
 let countdownInterval: ReturnType<typeof setInterval> | null = null
 let questionTimer: ReturnType<typeof setInterval> | null = null
 
-const questions = ref<MultipleChoiceQuestion[]>(generateSpeedQuestions(questionCount.value))
+// The AI prepares each round (built-in words when it is unavailable); the 3-2-1 starts once it is ready.
+const questions = ref<MultipleChoiceQuestion[]>([])
+const isLoading = ref(true)
+const loadQuestions = async () => {
+  isLoading.value = true
+  questions.value = await generateSpeedQuestionsAi(questionCount.value)
+  isLoading.value = false
+}
 
 const currentQuestion = computed(() => questions.value[gameState.value.currentQuestion])
 const isLastQuestion = computed(() => gameState.value.currentQuestion >= questions.value.length - 1)
@@ -318,6 +333,7 @@ const nextQuestion = async () => {
       accuracy,
       questionCount: questions.value.length,
       words: wordsFromAnswers(vocabAnswers.value),
+      source: sourceOfWords(questions.value.map((q) => (q as VocabMCQuestion).vocabWord)),
       durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
     })
   } else {
@@ -338,7 +354,7 @@ const goToQuizzes = () => {
   router.push('/quizzes')
 }
 
-const restartQuiz = () => {
+const restartQuiz = async () => {
   gameState.value = {
     status: 'idle',
     currentQuestion: 0,
@@ -352,9 +368,9 @@ const restartQuiz = () => {
   selectedAnswer.value = null
   questionResults.value = []
   vocabAnswers.value = []
-  questions.value = generateSpeedQuestions(questionCount.value)
   showCountdown.value = true
   countdownValue.value = 3
+  await loadQuestions()
   startCountdown()
 }
 
@@ -364,7 +380,8 @@ watch(showExitModal, (open) => {
   if (!open && gameState.value.status === 'playing' && selectedAnswer.value === null) startQuestionTimer(false)
 })
 
-onMounted(() => {
+onMounted(async () => {
+  await loadQuestions()
   startCountdown()
 })
 

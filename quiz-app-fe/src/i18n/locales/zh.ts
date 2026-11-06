@@ -994,6 +994,7 @@ export default {
       msgGood: '不错！继续加油！', msgKeep: '别放弃！熟能生巧！',
     },
     vocab: { title: '词汇结果', word: '单词', meaning: '释义', result: '结果' },
+    preparing: '正在为你准备题目……',
     q: {
       whatMeans: '“{term}”是什么意思？', means: '“{term}”的意思是“{meaning}”',
       hint: '一个与“{topic}”有关的词，意思是“{meaning}”。',

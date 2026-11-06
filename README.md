@@ -16,6 +16,8 @@ real-time quizzes and a teacher portal. Graduation project.
 - Quiz modes: multiple choice, true/false, speed round, matching pairs, word scramble, typing, idioms, 1-vs-1 battle.
   A word is always asked in the language being learned and answered in a different language (an English interface
   while learning English explains the words in Vietnamese).
+  Multiple choice, true/false, speed round, matching, word scramble and typing prepare every round with the AI (fresh words
+  each time, never the ones asked recently) and fall back to the built-in word list when the AI is not configured or slow.
 - Learning history: every finished flashcard session and quiz game is saved word by word (Flashcards → History,
   Quizzes → History). Open one to see the words and how you did, study them again, or practise only the missed ones.
 - AI skill practice: reading, listening (browser TTS), writing (band-score feedback), speaking (speech recognition + feedback).

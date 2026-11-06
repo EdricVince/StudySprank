@@ -1,7 +1,15 @@
 <template>
   <div class="min-h-screen p-4 lg:p-6">
+    <!-- Loading: the AI is preparing a fresh round -->
+    <template v-if="isLoading">
+      <div class="flex min-h-[60vh] flex-col items-center justify-center gap-4" data-test="quiz-loading">
+        <div class="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary"></div>
+        <p class="text-muted-foreground text-base">{{ $t('quizPlay.preparing') }}</p>
+      </div>
+    </template>
+
     <!-- Show Result -->
-    <template v-if="gameState.status === 'finished'">
+    <template v-else-if="gameState.status === 'finished'">
       <QuizResult
         :result="quizResult"
         @play-again="restartQuiz"
@@ -121,7 +129,7 @@ import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { MatchingPair, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
 import { useQuizCompletion } from '@/composables/useQuizCompletion'
-import { useVocabulary } from '@/composables/useVocabulary'
+import { useVocabulary, sourceOfWords, type VocabMatchingPair } from '@/composables/useVocabulary'
 
 interface Card {
   id: number
@@ -133,7 +141,7 @@ interface Card {
 const router = useRouter()
 const route = useRoute()
 const { finishQuiz, xpEarned } = useQuizCompletion()
-const { generateMatchingPairs } = useVocabulary()
+const { generateMatchingPairsAi } = useVocabulary()
 
 const questionCount = computed(() => Math.min(Math.max(parseInt(route.query.count as string) || 8, 3), 30))
 
@@ -148,7 +156,14 @@ const gameState = ref<QuizState>({
   answers: [],
 })
 
-const pairs = ref<MatchingPair[]>(generateMatchingPairs(questionCount.value))
+// The AI prepares each round (built-in words when it is unavailable).
+const pairs = ref<MatchingPair[]>([])
+const isLoading = ref(true)
+const loadPairs = async () => {
+  isLoading.value = true
+  pairs.value = await generateMatchingPairsAi(questionCount.value)
+  isLoading.value = false
+}
 
 const vocabAnswers = ref<{ termDisplay: string; meaningDisplay: string; isCorrect: boolean }[]>([])
 
@@ -195,6 +210,7 @@ const endGame = async () => {
       meaning: p.definition,
       isCorrect: vocabAnswers.value.some((a) => a.termDisplay === p.term),
     })),
+    source: sourceOfWords(pairs.value.map((p) => (p as VocabMatchingPair).vocabWord)),
     durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
   })
 }
@@ -346,17 +362,19 @@ const goToQuizzes = () => {
   router.push('/quizzes')
 }
 
-const restartQuiz = () => {
+const restartQuiz = async () => {
   gameState.value.status = 'playing'
   vocabAnswers.value = []
-  pairs.value = generateMatchingPairs(questionCount.value)
+  await loadPairs()
   initializeGame()
   startTime.value = Date.now()
   startTimer()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadPairs()
   initializeGame()
+  startTime.value = Date.now()
   startTimer()
 })
 

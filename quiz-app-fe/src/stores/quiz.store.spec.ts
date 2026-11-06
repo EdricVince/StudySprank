@@ -17,4 +17,21 @@ describe('quiz.store', () => {
     expect(store.getSeenWordIds().size).toBe(0)
     expect(localStorage.getItem('studyspark-seen-words')).toBeNull()
   })
+
+  it('remembers the latest AI words (without duplicates, newest last) so they are not asked again', () => {
+    const store = useQuizStore()
+    store.rememberAiTerms(['door', 'cat'])
+    store.rememberAiTerms(['cat', 'sun'])
+    expect(store.getRecentAiTerms()).toEqual(['door', 'cat', 'sun'])
+
+    store.rememberAiTerms(Array.from({ length: 80 }, (_, i) => `w${i}`))
+    const recent = store.getRecentAiTerms()
+    expect(recent).toHaveLength(60)
+    expect(recent[59]).toBe('w79')
+  })
+
+  it('survives corrupt stored data', () => {
+    localStorage.setItem('studyspark-recent-ai-terms', '{not json')
+    expect(useQuizStore().getRecentAiTerms()).toEqual([])
+  })
 })
