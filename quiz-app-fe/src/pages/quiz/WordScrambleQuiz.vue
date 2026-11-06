@@ -164,7 +164,7 @@ import QuizResult from '@/components/quiz/QuizResult.vue'
 import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { WordScrambleQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
-import { useQuizCompletion } from '@/composables/useQuizCompletion'
+import { useQuizCompletion, wordsFromAnswers } from '@/composables/useQuizCompletion'
 import { useVocabulary, type VocabScrambleQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
@@ -195,6 +195,8 @@ const startTime = ref(Date.now())
 const vocabAnswers = ref<{ termDisplay: string; meaningDisplay: string; isCorrect: boolean }[]>([])
 
 const isLoading = ref(true)
+// True when this round's words came from the AI (stored with the game in the history).
+const usedAi = ref(false)
 const questions = ref<WordScrambleQuestion[]>([])
 
 // Prefer AI-generated words (each carries a descriptive clue sentence); top up with
@@ -205,6 +207,7 @@ const loadQuestions = async () => {
   const target = questionCount.value
   const prev = questions.value.map(q => q.word)
   let qs: WordScrambleQuestion[] = await generateAiScrambleQuestions(target, prev)
+  usedAi.value = qs.length > 0
   if (qs.length < target) {
     qs = [...qs, ...generateScrambleQuestions(target - qs.length)]
   }
@@ -320,6 +323,9 @@ const nextQuestion = async () => {
       score: gameState.value.score,
       accuracy,
       questionCount: questions.value.length,
+      words: wordsFromAnswers(vocabAnswers.value),
+      durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
+      source: usedAi.value ? 'ai' : 'builtin',
     })
   } else {
     gameState.value.currentQuestion++

@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
   UseGuards,
   Req,
   HttpCode,
@@ -36,11 +37,20 @@ export class ClassesController {
     private activityLog: ActivityLogService,
   ) {}
 
-  /** GET /classes/analytics — teacher analytics dashboard */
+  /**
+   * GET /classes/analytics[?classId=] — teacher analytics dashboard, over the students who joined
+   * the teacher's classes (or only the one class given).
+   */
   @Get('analytics')
   @Roles(ROLE_TEACHER)
-  async getAnalytics(@Req() req: AuthenticatedRequest) {
-    const data = await this.analyticsService.getTeacherAnalytics(req.user.id);
+  async getAnalytics(
+    @Req() req: AuthenticatedRequest,
+    @Query('classId', new ParseIntPipe({ optional: true })) classId?: number,
+  ) {
+    const data = await this.analyticsService.getTeacherAnalytics(
+      req.user.id,
+      classId,
+    );
     return { code: 200, message: 'OK', data };
   }
 

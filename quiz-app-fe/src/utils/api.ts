@@ -32,6 +32,13 @@ import type {
 
 import { API_BASE_URL } from '@/lib/apiBase'
 import type { ClassHub } from '@/types/class'
+import type { MyStatistics, StatPeriod } from '@/types/statistics'
+import type {
+  LearningSessionData,
+  LearningSessionPageData,
+  NewLearningSession,
+  SessionKind,
+} from '@/types/learning'
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean
@@ -233,7 +240,9 @@ export const api = {
   joinClass: (classCode: string): Promise<unknown> =>
     apiRequest<unknown>('/classes/join', { method: 'POST', body: JSON.stringify({ class_code: classCode }) }),
 
-  getTeacherAnalytics: (): Promise<any> => apiRequest<any>('/classes/analytics'),
+  /** Analytics over the students who joined the teacher's classes, or only the one class given. */
+  getTeacherAnalytics: (classId?: number | null): Promise<any> =>
+    apiRequest<any>(`/classes/analytics${classId ? `?classId=${classId}` : ''}`),
 
   /** Distinct students across the teacher's classes (a student in two classes counts once). */
   getStudentTotal: (): Promise<{ students: number }> => apiRequest<{ students: number }>('/classes/student-total'),
@@ -455,4 +464,45 @@ export const api = {
     apiRequest(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteAssignment: (id: number): Promise<void> =>
     apiRequest(`/assignments/${id}`, { method: 'DELETE' }),
+
+  // ── The student's own learning statistics (week / month / year) ──
+  getMyStatistics: (period: StatPeriod = 'week'): Promise<MyStatistics> =>
+    apiRequest(`/progress/statistics?period=${period}`),
+
+  // ── Learning history (finished flashcard sessions and quiz games, word by word) ──
+  saveLearningSession: (s: NewLearningSession): Promise<LearningSessionData> =>
+    apiRequest('/learning-sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        kind: s.kind,
+        mode_id: s.modeId,
+        mode_name: s.modeName,
+        source: s.source,
+        title: s.title,
+        deck_id: s.deckId,
+        vocab_set_id: s.vocabSetId,
+        learning_lang: s.learningLang,
+        meaning_lang: s.meaningLang,
+        score: s.score,
+        xp_earned: s.xpEarned,
+        duration_seconds: s.durationSeconds,
+        words: s.words.map((w) => ({
+          term: w.term.slice(0, 500),
+          meaning: w.meaning.slice(0, 2000),
+          example: w.example || undefined,
+          is_correct: typeof w.isCorrect === 'boolean' ? w.isCorrect : undefined,
+        })),
+      }),
+    }),
+  getLearningSessions: (query: { kind?: SessionKind; limit?: number; offset?: number } = {}): Promise<LearningSessionPageData> => {
+    const params = new URLSearchParams()
+    if (query.kind) params.set('kind', query.kind)
+    if (query.limit) params.set('limit', String(query.limit))
+    if (query.offset) params.set('offset', String(query.offset))
+    const qs = params.toString()
+    return apiRequest(`/learning-sessions${qs ? `?${qs}` : ''}`)
+  },
+  getLearningSession: (id: number): Promise<LearningSessionData> => apiRequest(`/learning-sessions/${id}`),
+  deleteLearningSession: (id: number): Promise<void> =>
+    apiRequest(`/learning-sessions/${id}`, { method: 'DELETE' }),
 }

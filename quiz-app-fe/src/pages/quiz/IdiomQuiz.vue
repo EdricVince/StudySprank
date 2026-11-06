@@ -125,6 +125,7 @@ import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import XPFloat from '@/components/ui/XPFloat.vue'
 import { sfx } from '@/utils/soundFx'
 import { useQuizCompletion } from '@/composables/useQuizCompletion'
+import type { SessionWord } from '@/types/learning'
 import { generateIdiomQuestions, type IdiomQuestion } from '@/data/idioms'
 
 const router = useRouter()
@@ -144,6 +145,8 @@ const status = ref<'playing' | 'finished'>('playing')
 const showExitModal = ref(false)
 const xpFloat = ref<InstanceType<typeof XPFloat> | null>(null)
 const startTime = ref(Date.now())
+// Every idiom of the game with whether it was answered right; saved to the history.
+const idiomWords = ref<SessionWord[]>([])
 
 const q = computed(() => questions.value[currentIdx.value]!)
 const isLastQuestion = computed(() => currentIdx.value >= questions.value.length - 1)
@@ -197,6 +200,7 @@ function selectAnswer(option: string) {
   if (selected.value !== null) return
   selected.value = option
   const correct = option === q.value.meaning
+  idiomWords.value.push({ term: q.value.phrase, meaning: q.value.meaning, example: q.value.example, isCorrect: correct })
   if (correct) {
     streak.value++
     const pts = 10 + Math.min(streak.value - 1, 5) * 2
@@ -229,6 +233,9 @@ function finish() {
     score: score.value,
     accuracy: accuracyPct.value,
     questionCount: questions.value.length,
+    words: idiomWords.value,
+    meaningLang: 'en', // the idiom explanations are written in English
+    durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
   })
 }
 
@@ -257,6 +264,7 @@ function restart() {
   score.value = 0
   streak.value = 0
   correctCount.value = 0
+  idiomWords.value = []
   selected.value = null
   status.value = 'playing'
   startTime.value = Date.now()

@@ -266,6 +266,7 @@ import { Swords, RefreshCw, Zap } from '@/components/icons'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth.store'
 import { useQuizCompletion } from '@/composables/useQuizCompletion'
+import type { SessionWord } from '@/types/learning'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -297,6 +298,9 @@ const opponentScore = ref(0)
 const streak = ref(0)
 const correctCount = ref(0)
 const countdownNum = ref(3)
+// Each question with its right answer and whether the player got it; saved to the history.
+const battleWords = ref<SessionWord[]>([])
+const battleStartedAt = ref(Date.now())
 const waitingForOpponent = ref(false)
 const resultData = ref<{ result: string; you?: { total?: number; correctCount?: number }; opponent?: { correctCount?: number }; forfeit?: boolean } | null>(null)
 
@@ -331,6 +335,8 @@ function connectSocket(): Socket {
 
   socket.on('battle:answer_result', (d: { correct: boolean; correctIndex: number; yourScore: number; finished: boolean }) => {
     revealedCorrect.value = d.correctIndex
+    const asked = questions.value[currentQ.value]
+    if (asked) battleWords.value.push({ term: asked.question, meaning: asked.options[d.correctIndex] ?? '', isCorrect: d.correct })
     playerScore.value = d.yourScore
     if (d.correct) { streak.value++; correctCount.value++ } else { streak.value = 0 }
     window.setTimeout(() => {
@@ -384,6 +390,7 @@ function startCountdown() {
       clearInterval(cdTimer!)
       phase.value = 'battle'
       currentQ.value = 0
+      battleStartedAt.value = Date.now()
       startQuestionTimer()
     }
   }, 1000)
@@ -437,6 +444,10 @@ async function finishBattle(d: NonNullable<typeof resultData.value> & { you?: { 
     score: playerScore.value,
     accuracy: (correctCount.value / total) * 100,
     questionCount: total,
+    words: battleWords.value,
+    source: 'ai',
+    meaningLang: 'en', // questions and answers are English
+    durationSeconds: Math.floor((Date.now() - battleStartedAt.value) / 1000),
   })
 }
 
@@ -455,6 +466,7 @@ function resetBattle() {
   opponentScore.value = 0
   streak.value = 0
   correctCount.value = 0
+  battleWords.value = []
   answeredIndex.value = null
   revealedCorrect.value = null
   waitingForOpponent.value = false

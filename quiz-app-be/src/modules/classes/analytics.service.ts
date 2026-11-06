@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Class } from './entities/class.entity';
 import { ClassEnrollment } from './entities/class-enrollment.entity';
 import { UserProgress } from '../progress/entities/user-progress.entity';
 import { User } from '../users/entities/user.entity';
+import { skillOf } from '../entrance-exam/skill-of';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PERIOD_DAYS = { week: 7, month: 30, year: 365 } as const;
@@ -18,6 +19,9 @@ const MAX_TOP_STUDENTS = 5;
 const MAX_STRUGGLING_STUDENTS = 6;
 const MAX_TESTS_LISTED = 6;
 const MONTH_BUCKETS = 5;
+/** How far back the learning-activity figures of the student roster look. */
+const ROSTER_WINDOW_DAYS = 30;
+const MAX_ROSTER = 200;
 const YEAR_BUCKETS = 12;
 
 interface SubmissionRow {
@@ -30,6 +34,14 @@ interface SubmissionRow {
   created_at: Date;
 }
 
+/** A flashcard session or quiz game of a student (what they practised, not what the teacher set). */
+interface SessionRow {
+  user_id: number;
+  created_at: Date;
+  accuracy: number;
+  total_items: number;
+}
+
 interface ExamRow {
   user_id: number;
   breakdown: { section: string; correct: number; total: number }[] | null;
@@ -40,12 +52,6 @@ export interface Bucket {
   date: string;
   value: number;
 }
-
-/** Exam sections are named by the AI ("Listening Part 1", "Reading"); group them under their skill. */
-const SKILLS = ['Reading', 'Listening', 'Writing', 'Speaking'];
-const skillOf = (section: string) =>
-  SKILLS.find((s) => section.toLowerCase().startsWith(s.toLowerCase())) ??
-  section;
 
 const percent = (score: number, total: number) =>
   total > 0 ? (score / total) * 100 : 0;
@@ -63,6 +69,10 @@ const relativeChange = (current: number, previous: number) =>
  * Teacher analytics, computed only from data that really exists: the submissions of the teacher's
  * own tests, the students' progress records and their submitted IELTS mock exams. Anything the
  * database cannot tell us (e.g. a trend with no previous period) is returned as null, never guessed.
+ *
+ * Only students who are *currently enrolled* in the teacher's classes count: someone who left a class,
+ * or never joined it, does not appear in any figure. With a `classId` the whole dashboard narrows
+ * to that one class (and to the students who joined it).
  */
 @Injectable()
 export class AnalyticsService {
@@ -87,17 +97,28 @@ export class AnalyticsService {
     return rows[0]?.total ?? 0;
   }
 
-  async getTeacherAnalytics(teacherId: number) {
+  async getTeacherAnalytics(teacherId: number, classId?: number) {
     const now = Date.now();
     const classes = await this.classRepo.find({
       where: { teacher_id: teacherId },
     });
-    const classIds = classes.map((c) => c.id);
+    if (classId !== undefined && !classes.some((c) => c.id === classId)) {
+      throw new ForbiddenException('Not your class');
+    }
     const classMap = new Map(classes.map((c) => [c.id, c]));
+    const scope =
+      classId === undefined ? classes : classes.filter((c) => c.id === classId);
+    const scopeIds = scope.map((c) => c.id);
 
-    const enrollments: ClassEnrollment[] = classIds.length
-      ? await this.enrollRepo.find({ where: { class_id: In(classIds) } })
+    const allEnrollments: ClassEnrollment[] = classes.length
+      ? await this.enrollRepo.find({
+          where: { class_id: In(classes.map((c) => c.id)) },
+        })
       : [];
+    // The students who joined the class(es) being looked at — nobody else is analysed.
+    const enrollments = allEnrollments.filter((e) =>
+      scopeIds.includes(e.class_id),
+    );
     const classesOfStudent = new Map<number, number[]>();
     for (const e of enrollments) {
       classesOfStudent.set(e.student_id, [
@@ -107,19 +128,47 @@ export class AnalyticsService {
     }
     const enrolledIds = [...classesOfStudent.keys()];
 
-    const submissions = await this.classRepo.query<SubmissionRow[]>(
+    const joined = new Set(
+      enrollments.map((e) => `${e.class_id}:${e.student_id}`),
+    );
+    const enrolledSet = new Set(enrolledIds);
+    const allSubmissions = await this.classRepo.query<SubmissionRow[]>(
       `SELECT s.student_id, s.test_id, t.title, t.class_id, s.score, s.total, s.created_at
          FROM test_submissions s
          JOIN tests t ON t.id = s.test_id
         WHERE t.teacher_id = $1`,
       [teacherId],
     );
+    // A result counts only while its student is in the class the test belongs to
+    // (a test for no particular class counts for any student who joined one of the classes looked at).
+    const submissions = allSubmissions.filter((s) =>
+      s.class_id === null
+        ? enrolledSet.has(s.student_id)
+        : joined.has(`${s.class_id}:${s.student_id}`),
+    );
     const at = (s: SubmissionRow) => new Date(s.created_at).getTime();
 
-    // Everyone this teacher has taught or examined.
-    const poolIds = [
-      ...new Set([...enrolledIds, ...submissions.map((s) => s.student_id)]),
-    ];
+    // What the enrolled students practised themselves: flashcard sessions and quiz games.
+    const sessionRows: SessionRow[] = enrolledIds.length
+      ? await this.classRepo.query<SessionRow[]>(
+          `SELECT user_id, created_at, accuracy, total_items
+             FROM learning_sessions
+            WHERE user_id = ANY($1::int[]) AND created_at >= now() - interval '365 days'`,
+          [enrolledIds],
+        )
+      : [];
+    const sessions = sessionRows.filter((r) => enrolledSet.has(r.user_id));
+    const sessionsByStudent = new Map<number, SessionRow[]>();
+    for (const row of sessions) {
+      sessionsByStudent.set(row.user_id, [
+        ...(sessionsByStudent.get(row.user_id) ?? []),
+        row,
+      ]);
+    }
+    const sessionAt = (row: SessionRow) => new Date(row.created_at).getTime();
+
+    // Only the students who joined are analysed.
+    const poolIds = enrolledIds;
     const progressList: UserProgress[] = poolIds.length
       ? await this.progressRepo.find({ where: { user_id: In(poolIds) } })
       : [];
@@ -135,6 +184,7 @@ export class AnalyticsService {
       const days = [
         progressMap.get(id)?.last_activity_date ?? null,
         ...(submissionsByStudent.get(id) ?? []).map((s) => isoDay(at(s))),
+        ...(sessionsByStudent.get(id) ?? []).map((r) => isoDay(sessionAt(r))),
       ].filter((d): d is string => d !== null);
       return days.length ? days.reduce((a, b) => (a > b ? a : b)) : null;
     };
@@ -160,11 +210,15 @@ export class AnalyticsService {
     const averageOf = (rows: SubmissionRow[]) =>
       mean(rows.map((s) => percent(s.score, s.total)));
 
-    // ── Activity: distinct students who took a test or were last active in each bucket ──
+    // ── Activity: distinct students who took a test, practised or were last active in each bucket ──
     const activeBetween = (fromMs: number, toMs: number) => {
       const active = new Set<number>();
       for (const s of submissions) {
         if (at(s) >= fromMs && at(s) < toMs) active.add(s.student_id);
+      }
+      for (const r of sessions) {
+        if (sessionAt(r) >= fromMs && sessionAt(r) < toMs)
+          active.add(r.user_id);
       }
       for (const id of poolIds) {
         const last = lastActivity(id);
@@ -239,7 +293,7 @@ export class AnalyticsService {
     };
 
     // ── Average test score per class (null while a class has no submissions) ──
-    const classScores = classes.map((cls) => {
+    const classScores = scope.map((cls) => {
       const rows = submissions.filter((s) => s.class_id === cls.id);
       return {
         name: cls.name,
@@ -280,14 +334,18 @@ export class AnalyticsService {
 
     // ── Students needing attention: a low test average or gone quiet ──────────
     const quietSince = isoDay(now - INACTIVE_AFTER_DAYS * DAY_MS);
+    const needsAttention = (id: number) => {
+      const rows = submissionsByStudent.get(id) ?? [];
+      const avg = rows.length ? Math.round(averageOf(rows)) : null;
+      const last = lastActivity(id);
+      const isQuiet = !last || last < quietSince;
+      const isLow = avg !== null && avg < STRUGGLING_BELOW_PERCENT;
+      return { avg, last, flagged: isQuiet || isLow, rows };
+    };
     const strugglingStudents = enrolledIds
       .map((id) => {
-        const rows = submissionsByStudent.get(id) ?? [];
-        const avg = rows.length ? Math.round(averageOf(rows)) : null;
-        const last = lastActivity(id);
-        const isQuiet = !last || last < quietSince;
-        const isLow = avg !== null && avg < STRUGGLING_BELOW_PERCENT;
-        if (!isQuiet && !isLow) return null;
+        const { avg, last, flagged, rows } = needsAttention(id);
+        if (!flagged) return null;
         return {
           id,
           name: nameOf(id),
@@ -349,7 +407,46 @@ export class AnalyticsService {
       })),
     }));
 
+    // ── Progress of every student who joined: what they did, how they scored, when they were last seen ──
+    const windowStart = now - ROSTER_WINDOW_DAYS * DAY_MS;
+    const roster = enrolledIds
+      .map((id) => {
+        const { avg, last, flagged, rows } = needsAttention(id);
+        const recent = (sessionsByStudent.get(id) ?? []).filter(
+          (r) => sessionAt(r) >= windowStart,
+        );
+        const progress = progressMap.get(id);
+        return {
+          id,
+          name: nameOf(id),
+          email: userMap.get(id)?.email ?? '',
+          classes: (classesOfStudent.get(id) ?? [])
+            .map((cid) => classMap.get(cid)?.name)
+            .filter((n): n is string => !!n),
+          level: progress?.level ?? 1,
+          xp: progress?.xp ?? 0,
+          streak: progress?.streak_count ?? 0,
+          lastActiveDate: last,
+          tests: rows.length,
+          avgScore: avg,
+          sessions: recent.length,
+          words: recent.reduce((sum, r) => sum + r.total_items, 0),
+          accuracy: recent.length
+            ? Math.round(mean(recent.map((r) => r.accuracy)))
+            : null,
+          needsAttention: flagged,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, MAX_ROSTER);
+
     return {
+      selectedClassId: classId ?? null,
+      classes: classes.map((c) => ({
+        id: c.id,
+        name: c.name,
+        students: enrolments(allEnrollments, c.id),
+      })),
       kpiData,
       activityDataMap,
       classScores,
@@ -357,6 +454,8 @@ export class AnalyticsService {
       testScores,
       strugglingStudents,
       skillsData,
+      students: roster,
+      studentsTotal: enrolledIds.length,
     };
   }
 }

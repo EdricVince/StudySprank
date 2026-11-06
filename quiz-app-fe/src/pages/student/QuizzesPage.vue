@@ -7,7 +7,15 @@
           <h1 class="text-foreground text-3xl font-bold tracking-tight lg:text-4xl">{{ $t('quizzesPage.title') }}</h1>
           <p class="text-muted-foreground mt-2 text-lg">{{ $t('quizzesPage.subtitle') }}</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            class="bg-card border-border hover:border-primary/40 flex items-center gap-2 rounded-xl border px-4 py-2 transition-colors"
+            data-test="quiz-history"
+            @click="router.push('/quizzes/history')"
+          >
+            <History class="text-primary h-5 w-5" />
+            <span class="text-foreground font-semibold">{{ $t('history.open') }}</span>
+          </button>
           <div class="bg-card border-border flex items-center gap-2 rounded-xl border px-4 py-2">
             <Flame class="text-primary h-5 w-5" />
             <span class="text-foreground font-semibold">{{ $t('quizzesPage.dayStreak', { n: progressStore.streakCount }) }}</span>
@@ -220,29 +228,40 @@
       <!-- Recent Games -->
       <div class="animate-fade-in-up delay-300">
         <div class="bg-card border-border rounded-2xl border p-6">
-          <h3 class="text-foreground mb-4 flex items-center gap-2 font-semibold">
-            <History class="text-primary h-5 w-5" />
-            {{ $t('quizzesPage.recentGames') }}
+          <h3 class="text-foreground mb-4 flex items-center justify-between gap-2 font-semibold">
+            <span class="flex items-center gap-2">
+              <History class="text-primary h-5 w-5" />
+              {{ $t('quizzesPage.recentGames') }}
+            </span>
+            <button
+              v-if="recentGames.length > 0"
+              class="text-primary text-sm font-medium hover:underline"
+              @click="router.push('/quizzes/history')"
+            >
+              {{ $t('history.viewAll') }}
+            </button>
           </h3>
           <div class="space-y-3">
-            <div
-              v-for="game in quizStore.recentGames"
+            <button
+              v-for="game in recentGames"
               :key="game.id"
-              class="bg-secondary/50 flex items-center gap-4 rounded-xl p-4 transition-colors hover:bg-secondary"
+              data-test="recent-game"
+              class="bg-secondary/50 flex w-full items-center gap-4 rounded-xl p-4 text-left transition-colors hover:bg-secondary"
+              @click="router.push({ path: '/quizzes/history', query: { session: String(game.id) } })"
             >
               <div class="bg-primary/10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl">
-                <component :is="getModeIcon(game.modeId)" class="text-primary h-5 w-5" />
+                <component :is="getModeIcon(game.mode_id)" class="text-primary h-5 w-5" />
               </div>
               <div class="min-w-0 flex-1">
-                <h4 class="text-foreground font-medium">{{ game.modeName }}</h4>
-                <p class="text-muted-foreground text-sm">{{ formatRelativeDate(game.date) }}</p>
+                <h4 class="text-foreground font-medium">{{ gameName(game) }}</h4>
+                <p class="text-muted-foreground text-sm">{{ formatRelativeDate(game.created_at) }}</p>
               </div>
               <div class="text-right">
                 <p class="text-foreground font-semibold">{{ game.score }} {{ $t('quizzesPage.pts') }}</p>
                 <p class="text-muted-foreground text-sm">{{ game.accuracy }}% {{ $t('quizzesPage.acc') }}</p>
               </div>
-            </div>
-            <div v-if="quizStore.recentGames.length === 0" class="text-muted-foreground py-8 text-center">
+            </button>
+            <div v-if="recentGames.length === 0" class="text-muted-foreground py-8 text-center">
               <History class="mx-auto mb-2 h-8 w-8 opacity-40" />
               <p class="text-sm">{{ $t('quizzesPage.noGamesYet') }}</p>
             </div>
@@ -422,14 +441,13 @@ import QuizModeCard from '@/components/quiz/QuizModeCard.vue'
 import JoinClassModal from '@/components/quiz/JoinClassModal.vue'
 import type { QuizMode } from '@/types/quiz'
 import { useProgressStore } from '@/stores/progress.store'
-import { useQuizStore } from '@/stores/quiz.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/utils/api'
 import type { TestData, AssignmentData } from '@/types/content'
+import type { LearningSessionData } from '@/types/learning'
 
 const router = useRouter()
 const progressStore = useProgressStore()
-const quizStore = useQuizStore()
 const authStore = useAuthStore()
 
 // Content published by the student's teachers, shown as "Assignments from Teacher":
@@ -446,8 +464,15 @@ onMounted(loadAssignments)
 const openTest = (id: number) => router.push(`/quizzes/test/${id}`)
 const openDoc = (d: AssignmentData) => { viewingDoc.value = d }
 
+// The learner's latest games come from the server (the same history as the full history page).
+const recentGames = ref<LearningSessionData[]>([])
+async function loadRecentGames() {
+  try { recentGames.value = (await api.getLearningSessions({ kind: 'quiz', limit: 5 })).items } catch { /* non-critical */ }
+}
+onMounted(loadRecentGames)
+
 const overallAccuracy = computed(() => {
-  const games = quizStore.recentGames
+  const games = recentGames.value
   if (games.length === 0) return 0
   const sum = games.reduce((acc, g) => acc + g.accuracy, 0)
   return Math.round(sum / games.length)
@@ -470,15 +495,17 @@ function getModeIcon(modeId: string): Component {
 }
 
 function formatRelativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins} min ago`
+  const rtf = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 60) return rtf.format(-Math.max(mins, 0), 'minute')
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'Yesterday'
-  return `${days} days ago`
+  if (hours < 24) return rtf.format(-hours, 'hour')
+  return rtf.format(-Math.floor(hours / 24), 'day')
+}
+
+function gameName(game: LearningSessionData): string {
+  const key = `history.modes.${game.mode_id}`
+  return te(key) ? t(key) : game.mode_name
 }
 
 const getRankClass = (rank: number): string => {
@@ -488,7 +515,7 @@ const getRankClass = (rank: number): string => {
   return 'bg-muted text-muted-foreground'
 }
 
-const { t } = useI18n()
+const { t, te, locale } = useI18n()
 
 // Quiz modes — title/description are replaced by the translations below.
 const BASE_MODES: QuizMode[] = [

@@ -189,6 +189,13 @@ const endGame = async () => {
     score: gameState.value.score,
     accuracy: finalAccuracy.value,
     questionCount: pairs.value.length,
+    // Every pair of the round: the ones matched in time are right, the rest were missed.
+    words: pairs.value.map((p) => ({
+      term: p.term,
+      meaning: p.definition,
+      isCorrect: vocabAnswers.value.some((a) => a.termDisplay === p.term),
+    })),
+    durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
   })
 }
 

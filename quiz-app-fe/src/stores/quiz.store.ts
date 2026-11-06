@@ -1,37 +1,10 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
 
-export interface GameRecord {
-  id: string
-  modeId: string
-  modeName: string
-  score: number
-  accuracy: number
-  questionCount: number
-  xpEarned: number
-  date: string
-}
-
-const STORAGE_KEY = 'studyspark-quiz-history'
+// Games the learner has played are kept on the server (learning history); only the words already
+// offered are remembered here, so a new round starts with words that have not been seen recently.
 const SEEN_KEY = 'studyspark-seen-words'
 
-function loadHistory(): GameRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
 export const useQuizStore = defineStore('quiz', () => {
-  const recentGames = ref<GameRecord[]>(loadHistory())
-
-  function addGame(game: Omit<GameRecord, 'id' | 'date'>) {
-    const record: GameRecord = { ...game, id: Date.now().toString(), date: new Date().toISOString() }
-    recentGames.value.unshift(record)
-    if (recentGames.value.length > 20) recentGames.value = recentGames.value.slice(0, 20)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(recentGames.value))
-  }
-
   function getSeenWordIds(): Set<number> {
     try {
       const raw = localStorage.getItem(SEEN_KEY)
@@ -50,5 +23,5 @@ export const useQuizStore = defineStore('quiz', () => {
     }
   }
 
-  return { recentGames, addGame, getSeenWordIds, markWordsAsSeen }
+  return { getSeenWordIds, markWordsAsSeen }
 })

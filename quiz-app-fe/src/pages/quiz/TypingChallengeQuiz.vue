@@ -116,12 +116,26 @@ import ComboMultiplier from '@/components/quiz/ComboMultiplier.vue'
 import XPFloat from '@/components/ui/XPFloat.vue'
 import { sfx } from '@/utils/soundFx'
 import { useQuizCompletion } from '@/composables/useQuizCompletion'
+import { useLocale } from '@/composables/useLocale'
+import { vocabulary, getWordInLang } from '@/data/vocabulary'
+import { resolveMeaningLang } from '@/utils/meaningLanguage'
+import type { SessionWord } from '@/types/learning'
 import { api } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
 // XP shown on the result screen is what the server actually awarded.
 const { finishQuiz, xpEarned } = useQuizCompletion()
+// The words are English; their meanings (kept in the history) are never English.
+const { locale: uiLang } = useLocale()
+const meaningLang = computed(() => resolveMeaningLang(uiLang.value as string, 'en'))
+const typedWords = ref<SessionWord[]>([])
+const aiMeanings = new Map<string, string>()
+const meaningOf = (word: string) => {
+  const key = word.toLowerCase()
+  const known = vocabulary.find((v) => v.en === key)
+  return aiMeanings.get(key) ?? (known ? getWordInLang(known, meaningLang.value) : '')
+}
 
 const WORDS_EASY = ['cat','dog','sun','run','play','book','home','food','tree','fish','jump','blue','rain','cake','door','ship','ball','hand','face','bird','love','soft','warm','cool','star','look','talk','walk','read','draw']
 const WORDS_MEDIUM = ['apple','garden','journey','picture','morning','window','purple','simple','follow','between','country','example','hundred','nothing','quickly','several','village','already','another','because','certain','during','enough','family','middle','people','result','school','system','travel','wonder','yellow']
@@ -182,7 +196,7 @@ const fetchAiWords = async () => {
     const [min, max] = TIER_LEN[difficulty.value as Difficulty]
     const items = await api.generateVocabulary({
       learningLang: 'en',
-      uiLang: 'en',
+      uiLang: meaningLang.value,
       count: 30,
       exclude: aiWords.value.slice(-40),
     })
@@ -190,6 +204,7 @@ const fetchAiWords = async () => {
     const words = (items ?? [])
       .map((i) => i.term.toLowerCase().trim())
       .filter((w) => re.test(w))
+    for (const it of items ?? []) aiMeanings.set(it.term.toLowerCase().trim(), it.meaning)
     if (words.length) aiWords.value.push(...words)
   } catch {
     // AI unavailable — the local list keeps the game running.
@@ -224,6 +239,7 @@ const startGame = async () => {
   wordPool.value = [...shuffle(getWordList()), ...shuffle(getWordList())]
   poolConsumed.value = 0
   wordResults.value = []
+  typedWords.value = []
   score.value = 0
   wordsTyped.value = 0
   combo.value = 0
@@ -247,6 +263,7 @@ const submitWord = () => {
   const isCorrect = typed.toLowerCase() === target.toLowerCase()
 
   wordResults.value.push(isCorrect)
+  if (typedWords.value.length < 300) typedWords.value.push({ term: target, meaning: meaningOf(target), isCorrect })
   wordsTyped.value++
   poolConsumed.value++
   ensurePool()
@@ -281,6 +298,9 @@ const endGame = () => {
     score: score.value,
     accuracy: accuracy.value,
     questionCount: wordsTyped.value,
+    words: typedWords.value,
+    source: typedWords.value.some((w) => aiMeanings.has(w.term.toLowerCase())) ? 'ai' : 'builtin',
+    durationSeconds: 60 - Math.max(0, timeLeft.value),
   })
 }
 

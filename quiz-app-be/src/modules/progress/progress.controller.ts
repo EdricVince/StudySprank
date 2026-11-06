@@ -5,11 +5,14 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ProgressService } from './progress.service';
+import { StatisticsService } from './statistics.service';
+import { StatisticsQuery } from './dto/statistics-query.dto';
 import { JwtGuard } from '../../core/guards/jwt.guard';
 import { CurrentUser } from '../../core/decorators/current-user.decorator';
 import type { CurrentUserData } from '../../core/decorators/current-user.decorator';
@@ -24,7 +27,23 @@ interface ApiResponse<T> {
 @Controller('api/v1/progress')
 @UseGuards(JwtGuard)
 export class ProgressController {
-  constructor(private readonly progressService: ProgressService) {}
+  constructor(
+    private readonly progressService: ProgressService,
+    private readonly statisticsService: StatisticsService,
+  ) {}
+
+  /** The signed-in student's own learning statistics (week / month / year). */
+  @Get('statistics')
+  async getMyStatistics(
+    @CurrentUser() user: CurrentUserData,
+    @Query() query: StatisticsQuery,
+  ): Promise<ApiResponse<any>> {
+    const data = await this.statisticsService.getMyStatistics(
+      user.id,
+      query.period ?? 'week',
+    );
+    return { code: HttpStatus.OK, message: 'Statistics fetched', data };
+  }
 
   @Get('me')
   async getMyStats(

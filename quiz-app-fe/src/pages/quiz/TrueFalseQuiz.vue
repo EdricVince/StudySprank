@@ -143,7 +143,7 @@ import QuizResult from '@/components/quiz/QuizResult.vue'
 import VocabResultsTable from '@/components/quiz/VocabResultsTable.vue'
 import QuizExitModal from '@/components/quiz/QuizExitModal.vue'
 import type { TrueFalseQuestion, QuizResult as QuizResultType, QuizState } from '@/types/quiz'
-import { useQuizCompletion } from '@/composables/useQuizCompletion'
+import { useQuizCompletion, wordsFromAnswers } from '@/composables/useQuizCompletion'
 import { useVocabulary, type VocabTFQuestion } from '@/composables/useVocabulary'
 
 const router = useRouter()
@@ -253,6 +253,8 @@ const nextQuestion = async () => {
       score: gameState.value.score,
       accuracy,
       questionCount: questions.value.length,
+      words: wordsFromAnswers(vocabAnswers.value),
+      durationSeconds: Math.floor((Date.now() - startTime.value) / 1000),
     })
   } else {
     gameState.value.currentQuestion++

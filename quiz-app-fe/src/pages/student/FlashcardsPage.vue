@@ -6,12 +6,16 @@
         <h1 class="text-foreground text-2xl font-bold tracking-tight lg:text-3xl">{{ $t('flashcards.title') }}</h1>
         <p class="text-muted-foreground mt-1 text-base">{{ $t('flashcards.subtitle') }}</p>
       </div>
-      <div v-if="!authStore.isStudent" class="flex flex-wrap gap-3">
-        <Button variant="outline" @click="showImportModal = true">
+      <div class="flex flex-wrap gap-3">
+        <Button variant="outline" data-test="flashcard-history" @click="router.push('/flashcards/history')">
+          <History class="mr-2 h-5 w-5" />
+          {{ $t('history.open') }}
+        </Button>
+        <Button v-if="!authStore.isStudent" variant="outline" @click="showImportModal = true">
           <Upload class="mr-2 h-5 w-5" />
           {{ $t('flashcards.import') }}
         </Button>
-        <Button @click="openCreateDeck">
+        <Button v-if="!authStore.isStudent" @click="openCreateDeck">
           <Plus class="mr-2 h-5 w-5" />
           {{ $t('flashcards.createDeck') }}
         </Button>
@@ -636,6 +640,7 @@ import {
   Mic,
   GraduationCap,
   Users,
+  History,
 } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
 import { useProgressStore } from '@/stores/progress.store'

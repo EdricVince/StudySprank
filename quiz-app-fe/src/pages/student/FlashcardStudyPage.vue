@@ -127,7 +127,7 @@
             <!-- Card Header -->
             <div class="flex items-center justify-between p-5">
               <span class="text-primary text-sm font-medium">
-                <template v-if="isVocabMode">{{ $t('flashcards.studyPage.meaning', { lang: uiLang.toUpperCase() }) }}</template>
+                <template v-if="isVocabMode">{{ $t('flashcards.studyPage.meaning', { lang: meaningLang.toUpperCase() }) }}</template>
                 <template v-else>{{ $t('flashcards.studyPage.definition') }}</template>
               </span>
               <div class="flex items-center gap-2">
@@ -280,10 +280,11 @@ import Hammer from 'hammerjs'
 import { useProgressStore } from '@/stores/progress.store'
 import { useToast } from '@/composables/useToast'
 import { useLearningLanguage } from '@/composables/useLearningLanguage'
-import { useLocale } from '@/composables/useLocale'
+import { useMeaningLanguage } from '@/composables/useMeaningLanguage'
 import { useVocabulary } from '@/composables/useVocabulary'
 import { api } from '@/utils/api'
 import { QUALITY_KNOWN, QUALITY_UNKNOWN, describeDueReason } from '@/utils/srs'
+import type { SessionSource } from '@/types/learning'
 import {
   X,
   Check,
@@ -303,15 +304,18 @@ const router = useRouter()
 const progressStore = useProgressStore()
 const toast = useToast()
 const { currentOption: currentLearningOption } = useLearningLanguage()
-const { locale: uiLang } = useLocale()
+// Meanings are shown in the app language, but never in the language being learned.
+const { meaningLang } = useMeaningLanguage()
 const { getRandomWords, getWordInLang } = useVocabulary()
 
 const isVocabMode = computed(() => route.name === 'FlashcardVocabPractice' || route.query.mode === 'vocab')
 const isVocabSetMode = computed(() => route.name === 'FlashcardVocabSetStudy')
+// Studying again the words of a saved session (all of them, or only the ones that were missed).
+const isReplayMode = computed(() => route.name === 'FlashcardSessionReplay')
 const deckId = computed(() => Number(route.params.id))
 const deckMeta = ref<{ title: string; description: string } | null>(null)
 // Spaced repetition applies to flashcard decks only (not AI practice / teacher vocab sets).
-const isSrsMode = computed(() => !isVocabMode.value && !isVocabSetMode.value)
+const isSrsMode = computed(() => !isVocabMode.value && !isVocabSetMode.value && !isReplayMode.value)
 const dueInfo = ref<{ due: number; fresh: number } | null>(null)
 
 const cardContainer = ref<HTMLElement | null>(null)
@@ -328,7 +332,7 @@ const currentDeck = computed(() => {
     return {
       id: 'vocab',
       title: t('flashcards.studyPage.vocabTitle', { flag: currentLearningOption.value.flag }),
-      description: t('flashcards.studyPage.vocabDesc', { lang: currentLearningOption.value.name, ui: uiLang.value.toUpperCase() }),
+      description: t('flashcards.studyPage.vocabDesc', { lang: currentLearningOption.value.name, ui: meaningLang.value.toUpperCase() }),
     }
   }
   return { id: deckId.value, title: deckMeta.value?.title ?? t('flashcards.studyPage.deck'), description: deckMeta.value?.description ?? '' }
@@ -350,6 +354,11 @@ interface Flashcard {
 }
 
 const isLoadingCards = ref(false)
+// Whether the practice words came from the AI (kept in the history) or the built-in list.
+let vocabFromAi = false
+// Set when studying a saved session again: what the original session was about.
+const replayOf = ref<{ source: SessionSource; title: string; deckId: number | null; vocabSetId: number | null; learningLang: string; meaningLang: string } | null>(null)
+let sessionStartedAt = Date.now()
 
 // Local fallback batch (offline / AI not configured) — the static word list.
 function buildVocabCards(): Flashcard[] {
@@ -357,7 +366,7 @@ function buildVocabCards(): Flashcard[] {
   return words.map((w, i) => ({
     id: i + 1,
     term: getWordInLang(w, currentLearningOption.value.value),
-    definition: getWordInLang(w, uiLang.value as string),
+    definition: getWordInLang(w, meaningLang.value),
     example: undefined,
     isFavorite: false,
     isKnown: null,
@@ -369,11 +378,12 @@ async function loadVocabCards(exclude: string[] = []): Promise<Flashcard[]> {
   try {
     const items = await api.generateVocabulary({
       learningLang: currentLearningOption.value.value,
-      uiLang: uiLang.value as string,
+      uiLang: meaningLang.value,
       count: 15,
       exclude,
     })
     if (items && items.length) {
+      vocabFromAi = true
       return items.map((it, i) => ({
         id: i + 1,
         term: it.term,
@@ -387,6 +397,7 @@ async function loadVocabCards(exclude: string[] = []): Promise<Flashcard[]> {
   } catch {
     // AI unavailable — fall through to the local word list.
   }
+  vocabFromAi = false
   return buildVocabCards()
 }
 
@@ -455,6 +466,7 @@ const goToNext = async () => {
     currentIndex.value++
   } else {
     showCompletionModal.value = true
+    void saveSession()
     const result = await progressStore.logFlashcardSession(knownCount.value)
     if (result?.throttled) {
       toast.warning(t('quizPlay.throttled'))
@@ -465,6 +477,38 @@ const goToNext = async () => {
     } else if (result?.capped) {
       toast.info(t('quizPlay.capped'))
     }
+  }
+}
+
+// What this round was about, for the learning history.
+function sessionContext() {
+  const learningLang = currentLearningOption.value.value as string
+  const meaning = meaningLang.value as string
+  if (replayOf.value) {
+    const r = replayOf.value
+    return { modeId: 'flashcards-review', modeName: 'Flashcards review', source: r.source, title: r.title, deckId: r.deckId ?? undefined, vocabSetId: r.vocabSetId ?? undefined, learningLang: r.learningLang, meaningLang: r.meaningLang }
+  }
+  if (isVocabMode.value) {
+    return { modeId: 'flashcards-vocab', modeName: 'Vocabulary practice', source: (vocabFromAi ? 'ai' : 'builtin') as SessionSource, title: 'Vocabulary practice', learningLang, meaningLang: meaning }
+  }
+  if (isVocabSetMode.value) {
+    return { modeId: 'flashcards-vocab-set', modeName: 'Vocabulary set', source: 'vocab_set' as SessionSource, title: currentDeck.value.title, vocabSetId: deckId.value, learningLang, meaningLang: meaning }
+  }
+  return { modeId: 'flashcards', modeName: 'Flashcards', source: 'deck' as SessionSource, title: currentDeck.value.title, deckId: deckId.value, learningLang, meaningLang: meaning }
+}
+
+// Save the finished round with every card and whether the learner knew it.
+async function saveSession() {
+  try {
+    await api.saveLearningSession({
+      kind: 'flashcard',
+      ...sessionContext(),
+      score: knownCount.value,
+      durationSeconds: Math.round((Date.now() - sessionStartedAt) / 1000),
+      words: cards.value.map(c => ({ term: c.term, meaning: c.definition, example: c.example, isCorrect: c.isKnown })),
+    })
+  } catch {
+    toast.warning(t('history.saveFailed'))
   }
 }
 
@@ -499,6 +543,7 @@ const restartSession = async () => {
   showCompletionModal.value = false
   isFlipped.value = false
   currentIndex.value = 0
+  sessionStartedAt = Date.now()
   if (isVocabMode.value) {
     // Pull a brand-new, different batch so "Study Again" isn't the same words.
     isLoadingCards.value = true
@@ -514,12 +559,13 @@ const reviewUnknown = () => {
   const unknownCards = cards.value.filter(c => c.isKnown === false)
   cards.value = unknownCards.map(c => ({ ...c, isKnown: null }))
   currentIndex.value = 0
+  sessionStartedAt = Date.now()
   isFlipped.value = false
   showCompletionModal.value = false
 }
 
 const exitStudy = () => {
-  router.push('/flashcards')
+  router.push(isReplayMode.value ? '/flashcards/history' : '/flashcards')
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -584,6 +630,25 @@ const setupHammer = () => {
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
   setupHammer()
+  if (isReplayMode.value) {
+    isLoadingCards.value = true
+    try {
+      const s = await api.getLearningSession(Number(route.params.sessionId))
+      replayOf.value = { source: s.source, title: s.title, deckId: s.deck_id, vocabSetId: s.vocab_set_id, learningLang: s.learning_lang, meaningLang: s.meaning_lang }
+      deckMeta.value = { title: s.title, description: t('history.replayDesc') }
+      const onlyMissed = route.query.only === 'missed'
+      cards.value = (s.words ?? [])
+        .filter(w => !onlyMissed || w.is_correct === false)
+        .map((w, i) => ({ id: i + 1, term: w.term, definition: w.meaning, example: w.example ?? undefined, isFavorite: false, isKnown: null }))
+    } catch {
+      router.replace('/flashcards/history')
+      return
+    } finally {
+      isLoadingCards.value = false
+    }
+    if (cards.value.length === 0) router.replace('/flashcards/history')
+    return
+  }
   if (isVocabMode.value) {
     isLoadingCards.value = true
     cards.value = await loadVocabCards()

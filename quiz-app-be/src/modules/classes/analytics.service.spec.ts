@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -11,6 +12,7 @@ interface Fixture {
   exams?: Record<string, unknown>[];
   progress?: { user_id: number; last_activity_date: string | null }[];
   users?: { id: number; name: string | null; email: string }[];
+  sessions?: Record<string, unknown>[];
 }
 
 const build = (f: Fixture) => {
@@ -20,7 +22,9 @@ const build = (f: Fixture) => {
       Promise.resolve(
         sql.includes('test_submissions')
           ? (f.submissions ?? [])
-          : (f.exams ?? []),
+          : sql.includes('learning_sessions')
+            ? (f.sessions ?? [])
+            : (f.exams ?? []),
       ),
     ),
   };
@@ -207,5 +211,127 @@ describe('AnalyticsService', () => {
       ['Listening', 50, 2],
       ['Reading', 50, 1],
     ]);
+  });
+
+  describe('only students who joined the class are analysed', () => {
+    const base = {
+      classes: [
+        { id: 1, name: 'Class A' },
+        { id: 2, name: 'Class B' },
+      ],
+      enrollments: [
+        { class_id: 1, student_id: 1, joined_at: daysAgo(20) },
+        { class_id: 2, student_id: 2, joined_at: daysAgo(20) },
+      ],
+      users: [
+        { id: 1, name: 'An', email: 'an@x.com' },
+        { id: 2, name: 'Binh', email: 'binh@x.com' },
+        { id: 3, name: 'Left', email: 'left@x.com' },
+      ],
+    };
+
+    it('ignores results of students who left the class or never joined it', async () => {
+      const { service } = build({
+        ...base,
+        submissions: [
+          sub({ student_id: 1, class_id: 1, score: 4, total: 4 }), // joined
+          sub({ student_id: 3, class_id: 1, score: 4, total: 4 }), // left class 1 (no enrolment)
+          sub({ student_id: 1, class_id: 2, score: 4, total: 4 }), // not a member of class 2
+        ],
+      });
+      const r = await service.getTeacherAnalytics(1);
+
+      expect(r.kpiData.week.quizzes).toBe(1);
+      expect(r.topStudents.map((s) => s.name)).toEqual(['An']);
+      expect(r.testScores[0].count).toBe(1);
+      expect(r.students.map((s) => s.name)).toEqual(['An', 'Binh']);
+      expect(r.studentsTotal).toBe(2);
+    });
+
+    it('does not count practice of students who are not enrolled', async () => {
+      const { service } = build({
+        ...base,
+        sessions: [
+          { user_id: 1, created_at: daysAgo(1), accuracy: 80, total_items: 10 },
+          {
+            user_id: 3,
+            created_at: daysAgo(1),
+            accuracy: 100,
+            total_items: 50,
+          },
+        ],
+      });
+      const r = await service.getTeacherAnalytics(1);
+      expect(r.kpiData.week.students).toBe(1);
+      expect(r.students.find((s) => s.id === 3)).toBeUndefined();
+    });
+
+    it('narrows everything to one class when a class is chosen', async () => {
+      const { service } = build({
+        ...base,
+        submissions: [
+          sub({ student_id: 1, class_id: 1, score: 4, total: 4 }),
+          sub({ student_id: 2, class_id: 2, score: 2, total: 4 }),
+        ],
+      });
+      const r = await service.getTeacherAnalytics(1, 2);
+
+      expect(r.selectedClassId).toBe(2);
+      expect(r.kpiData.week.quizzes).toBe(1);
+      expect(r.kpiData.week.avgScore).toBe(50);
+      expect(r.classScores.map((c) => c.name)).toEqual(['Class B']);
+      expect(r.students.map((s) => s.name)).toEqual(['Binh']);
+      // the selector still lists every class of the teacher
+      expect(r.classes.map((c) => [c.id, c.students])).toEqual([
+        [1, 1],
+        [2, 1],
+      ]);
+    });
+
+    it('refuses a class that belongs to another teacher (403)', async () => {
+      const { service } = build(base);
+      await expect(service.getTeacherAnalytics(1, 99)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+
+    it('gives each joined student a progress row with tests, practice and level', async () => {
+      const { service } = build({
+        ...base,
+        submissions: [sub({ student_id: 1, class_id: 1, score: 3, total: 4 })],
+        sessions: [
+          { user_id: 1, created_at: daysAgo(2), accuracy: 60, total_items: 10 },
+          { user_id: 1, created_at: daysAgo(3), accuracy: 80, total_items: 5 },
+          {
+            user_id: 1,
+            created_at: daysAgo(90),
+            accuracy: 10,
+            total_items: 99,
+          }, // too old for the 30-day window
+        ],
+        progress: [{ user_id: 1, last_activity_date: dayString(2) }],
+      });
+      const r = await service.getTeacherAnalytics(1);
+      const an = r.students.find((s) => s.id === 1)!;
+
+      expect(an).toMatchObject({
+        name: 'An',
+        classes: ['Class A'],
+        tests: 1,
+        avgScore: 75,
+        sessions: 2,
+        words: 15,
+        accuracy: 70,
+        needsAttention: false,
+      });
+      const binh = r.students.find((s) => s.id === 2)!;
+      expect(binh).toMatchObject({
+        tests: 0,
+        avgScore: null,
+        sessions: 0,
+        accuracy: null,
+        needsAttention: true,
+      });
+    });
   });
 });

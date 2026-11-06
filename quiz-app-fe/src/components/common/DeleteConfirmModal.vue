@@ -16,7 +16,7 @@
           </p>
           <div class="flex gap-3">
             <Button variant="outline" class="flex-1" @click="close">
-              Cancel
+              {{ $t('common.cancel') }}
             </Button>
             <Button variant="destructive" class="flex-1" @click="handleConfirm">
               {{ confirmText }}

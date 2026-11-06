@@ -7,7 +7,7 @@ const push = vi.fn()
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 
 vi.mock('@/utils/api', () => ({
-  api: { getTests: vi.fn(), getAssignments: vi.fn() },
+  api: { getTests: vi.fn(), getAssignments: vi.fn(), getLearningSessions: vi.fn() },
 }))
 
 vi.mock('@/stores/progress.store', () => ({
@@ -16,7 +16,6 @@ vi.mock('@/stores/progress.store', () => ({
     longestStreak: 4, totalCardsStudied: 20, leaderboard: [],
   }),
 }))
-vi.mock('@/stores/quiz.store', () => ({ useQuizStore: () => ({ recentGames: [] }) }))
 vi.mock('@/stores/auth.store', () => ({ useAuthStore: () => ({ currentUser: { id: 1 } }) }))
 
 import QuizzesPage from './QuizzesPage.vue'

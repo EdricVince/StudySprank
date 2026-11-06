@@ -3,21 +3,37 @@
     <!-- Header -->
     <TeacherPageHeader :title="$t('teacher.analytics.title')" :subtitle="$t('teacher.analytics.subtitle')" :icon="BarChart2">
       <template #actions>
-        <div class="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
-          <button
-            v-for="p in periods"
-            :key="p.value"
-            class="rounded-lg px-4 py-2 text-sm font-medium transition-all"
-            :class="selectedPeriod === p.value
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'"
-            @click="selectedPeriod = p.value"
+        <div class="flex flex-wrap items-center gap-3">
+          <select
+            v-if="classOptions.length"
+            v-model="selectedClassId"
+            data-test="class-filter"
+            class="bg-card border-border text-foreground rounded-xl border px-3 py-2.5 text-sm font-medium"
+            :aria-label="$t('teacher.analytics.classFilter')"
           >
-            {{ p.label }}
-          </button>
+            <option :value="null">{{ $t('teacher.analytics.allClasses') }}</option>
+            <option v-for="c in classOptions" :key="c.id" :value="c.id">{{ c.name }} ({{ c.students }})</option>
+          </select>
+          <div class="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+            <button
+              v-for="p in periods"
+              :key="p.value"
+              class="rounded-lg px-4 py-2 text-sm font-medium transition-all"
+              :class="selectedPeriod === p.value
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'"
+              @click="pickPeriod(p.value)"
+            >
+              {{ p.label }}
+            </button>
+          </div>
         </div>
       </template>
     </TeacherPageHeader>
+
+    <p v-if="hasClasses && !analyticsError" data-test="scope-note" class="text-muted-foreground -mt-2 mb-6 text-sm">
+      {{ selectedClassName ? $t('teacher.analytics.scopeClass', { name: selectedClassName }) : $t('teacher.analytics.scopeAll') }}
+    </p>
 
     <!-- Loading skeleton -->
     <template v-if="loading">
@@ -39,7 +55,32 @@
       <button class="ml-auto text-red-400/50 hover:text-red-400" @click="analyticsError = ''">✕</button>
     </div>
 
-    <template v-else>
+    <!-- A brand-new teacher: one clear next step instead of a page of empty boxes -->
+    <div
+      v-else-if="!loading && !hasClasses"
+      data-test="analytics-onboarding"
+      class="bg-card border-border mx-auto max-w-2xl rounded-2xl border p-10 text-center"
+    >
+      <div class="bg-primary/10 mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full">
+        <BarChart2 class="text-primary h-8 w-8" />
+      </div>
+      <h2 class="text-foreground mb-2 text-xl font-semibold">{{ $t('teacher.analytics.emptyTitle') }}</h2>
+      <p class="text-muted-foreground mx-auto mb-6 max-w-md text-sm">{{ $t('teacher.analytics.emptyDesc') }}</p>
+      <ol class="text-foreground mx-auto mb-8 max-w-sm space-y-3 text-left text-sm">
+        <li v-for="(step, i) in ['emptyStep1', 'emptyStep2', 'emptyStep3']" :key="step" class="flex items-center gap-3">
+          <span class="bg-primary/10 text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold">{{ i + 1 }}</span>
+          {{ $t('teacher.analytics.' + step) }}
+        </li>
+      </ol>
+      <button
+        class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-6 py-3 text-sm font-semibold transition-colors"
+        @click="router.push('/teacher/classes')"
+      >
+        {{ $t('teacher.analytics.emptyCta') }}
+      </button>
+    </div>
+
+    <template v-else-if="!loading">
       <!-- KPI Cards -->
       <div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div
@@ -69,27 +110,37 @@
       <!-- Charts Row 1 -->
       <div class="mb-6 grid gap-6 lg:grid-cols-5">
         <!-- Activity Bar Chart -->
-        <div class="bg-card border-border rounded-2xl border p-6 lg:col-span-3">
+        <div class="bg-card border-border flex flex-col rounded-2xl border p-6 lg:col-span-3">
           <div class="mb-5 flex items-center justify-between">
             <h3 class="text-foreground font-semibold">{{ $t('teacher.analytics.studentActivity') }}</h3>
             <span class="text-muted-foreground text-xs">{{ $t('teacher.analytics.activePerPeriod') }}</span>
           </div>
 
-          <div v-if="maxActivity === 0" class="flex h-40 flex-col items-center justify-center gap-2 rounded-xl bg-secondary/30 text-center">
+          <div v-if="maxActivity === 0" class="flex min-h-48 flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-secondary/30 text-center">
             <BarChart2 class="text-muted-foreground/40 h-8 w-8" />
             <p class="text-muted-foreground text-sm">{{ $t('teacher.analytics.noActivityData') }}</p>
           </div>
 
           <template v-else>
-            <div class="flex h-40 items-end gap-1.5">
+            <div class="relative flex min-h-48 flex-1 items-stretch gap-1.5 pl-8" data-test="activity-chart">
+              <div
+                v-for="g in gridLines"
+                :key="g.pct"
+                class="border-border/70 pointer-events-none absolute inset-x-0 border-t border-dashed"
+                :style="{ bottom: `${g.pct}%` }"
+              >
+                <span class="text-muted-foreground absolute -top-2 left-0 w-6 text-right text-[10px] tabular-nums">{{ g.label }}</span>
+              </div>
               <div
                 v-for="(bar, i) in activityData"
                 :key="i"
-                class="group relative flex h-full flex-1 flex-col items-center justify-end"
+                class="group relative flex flex-1 flex-col items-center justify-end"
               >
+                <span v-if="bar.value > 0" class="text-foreground mb-1 text-[11px] font-semibold tabular-nums">{{ bar.value }}</span>
                 <div
-                  class="bg-primary/20 hover:bg-primary w-full rounded-t-lg transition-all duration-300"
-                  :style="{ height: `${(bar.value / maxActivity) * 100}%` }"
+                  class="w-full rounded-t-lg transition-all duration-300"
+                  :class="bar.value > 0 ? 'bg-primary/60 hover:bg-primary' : 'bg-border'"
+                  :style="{ height: bar.value > 0 ? `${(bar.value / maxActivity) * 100}%` : '3px' }"
                 >
                   <div class="bg-foreground text-background pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2 py-1 text-xs opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
                     {{ $t('teacher.analytics.barTooltip', { value: bar.value }) }}
@@ -97,7 +148,7 @@
                 </div>
               </div>
             </div>
-            <div class="mt-2 flex gap-1.5">
+            <div class="mt-2 flex gap-1.5 pl-8">
               <div v-for="(bar, i) in activityData" :key="i" class="text-muted-foreground flex-1 text-center text-xs">
                 {{ bucketLabel(bar.date) }}
               </div>
@@ -209,6 +260,71 @@
         </div>
       </div>
 
+      <!-- Progress of every student who joined -->
+      <div class="mb-6 bg-card border-border rounded-2xl border p-6" data-test="student-roster">
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h3 class="text-foreground font-semibold">{{ $t('teacher.analytics.rosterTitle') }}</h3>
+            <p class="text-muted-foreground mt-0.5 text-xs">{{ $t('teacher.analytics.rosterDesc') }}</p>
+          </div>
+          <input
+            v-if="students.length > 6"
+            v-model="rosterQuery"
+            type="search"
+            class="bg-background border-border text-foreground w-56 rounded-xl border px-3 py-2 text-sm"
+            :placeholder="$t('teacher.analytics.searchStudents')"
+          />
+        </div>
+        <div v-if="!students.length" class="flex h-24 items-center justify-center rounded-xl bg-secondary/30 px-4 text-center">
+          <p class="text-muted-foreground text-sm">{{ $t('teacher.analytics.noStudentsInClass') }}</p>
+        </div>
+        <div v-else-if="!filteredStudents.length" class="flex h-16 items-center justify-center rounded-xl bg-secondary/30">
+          <p class="text-muted-foreground text-sm">{{ $t('teacher.analytics.noMatch') }}</p>
+        </div>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full min-w-[820px] text-sm">
+            <thead>
+              <tr class="text-muted-foreground border-border border-b text-left text-xs uppercase tracking-wide">
+                <th class="py-2 pr-3 font-medium">{{ $t('teacher.analytics.col.student') }}</th>
+                <th class="px-3 py-2 text-right font-medium">{{ $t('teacher.analytics.col.level') }}</th>
+                <th class="px-3 py-2 text-right font-medium">{{ $t('teacher.analytics.col.streak') }}</th>
+                <th class="px-3 py-2 text-right font-medium">{{ $t('teacher.analytics.col.tests') }}</th>
+                <th class="px-3 py-2 text-right font-medium">{{ $t('teacher.analytics.col.sessions') }}</th>
+                <th class="px-3 py-2 text-right font-medium">{{ $t('teacher.analytics.col.words') }}</th>
+                <th class="px-3 py-2 text-right font-medium">{{ $t('teacher.analytics.col.accuracy') }}</th>
+                <th class="px-3 py-2 font-medium">{{ $t('teacher.analytics.col.lastActive') }}</th>
+                <th class="py-2 pl-3 font-medium">{{ $t('teacher.analytics.col.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in filteredStudents" :key="s.id" data-test="roster-row" class="border-border border-b last:border-0">
+                <td class="py-3 pr-3">
+                  <p class="text-foreground font-medium">{{ s.name }}</p>
+                  <p class="text-muted-foreground text-xs">{{ s.classes.join(', ') }}</p>
+                </td>
+                <td class="text-foreground px-3 py-3 text-right tabular-nums">{{ s.level }}</td>
+                <td class="text-foreground px-3 py-3 text-right tabular-nums">{{ s.streak }}</td>
+                <td class="text-foreground px-3 py-3 text-right tabular-nums">
+                  {{ s.tests ? `${s.tests} · ${s.avgScore}%` : '—' }}
+                </td>
+                <td class="text-foreground px-3 py-3 text-right tabular-nums">{{ s.sessions || '—' }}</td>
+                <td class="text-foreground px-3 py-3 text-right tabular-nums">{{ s.words || '—' }}</td>
+                <td class="text-foreground px-3 py-3 text-right tabular-nums">{{ s.accuracy === null ? '—' : `${s.accuracy}%` }}</td>
+                <td class="text-muted-foreground px-3 py-3 text-xs">{{ lastActiveText(s.lastActiveDate) }}</td>
+                <td class="py-3 pl-3">
+                  <span
+                    class="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    :class="s.needsAttention ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'"
+                  >
+                    {{ $t(s.needsAttention ? 'teacher.analytics.status.attention' : 'teacher.analytics.status.onTrack') }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Skills Monitor Section: section results of the students' IELTS mock exams -->
       <div class="mb-6 bg-card border-border rounded-2xl border p-6">
         <div class="mb-5 flex items-center justify-between">
@@ -256,7 +372,7 @@
           <span class="bg-chart-1/10 text-chart-1 rounded-full px-2.5 py-0.5 text-xs font-medium">{{ strugglingStudents.length }}</span>
         </div>
         <div v-if="!strugglingStudents.length" class="flex h-24 items-center justify-center rounded-xl bg-secondary/30">
-          <p class="text-muted-foreground text-sm">{{ $t('teacher.analytics.allPerformingWell') }}</p>
+          <p class="text-muted-foreground text-sm">{{ $t(hasStudents ? 'teacher.analytics.allPerformingWell' : 'teacher.analytics.noStudentsYet') }}</p>
         </div>
         <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div
@@ -298,8 +414,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   Users, FileText, Trophy, TrendingUp, TrendingDown,
   AlertCircle, BarChart2,
@@ -317,7 +434,17 @@ interface TestScore { id: number; title: string; class: string | null; avg: numb
 interface StrugglingStudent { id: number; name: string; class: string | null; score: number | null; quizzes: number; lastActiveDate: string | null }
 interface SkillScore { name: string; avgScore: number; attempts: number; classes: { name: string; score: number }[] }
 
+interface ClassOption { id: number; name: string; students: number }
+interface RosterStudent {
+  id: number; name: string; email: string; classes: string[]; level: number; xp: number; streak: number
+  lastActiveDate: string | null; tests: number; avgScore: number | null
+  sessions: number; words: number; accuracy: number | null; needsAttention: boolean
+}
+
 interface TeacherAnalytics {
+  classes: ClassOption[]
+  selectedClassId: number | null
+  students: RosterStudent[]
   kpiData: Record<Period, Kpi>
   activityDataMap: Record<Period, ActivityBucket[]>
   classScores: ClassScore[]
@@ -328,6 +455,7 @@ interface TeacherAnalytics {
 }
 
 const { t, te, locale } = useI18n()
+const router = useRouter()
 
 const selectedPeriod = ref<Period>('week')
 const periods = computed(() => [
@@ -360,6 +488,21 @@ const topStudents = ref<TopStudent[]>([])
 const testScores = ref<TestScore[]>([])
 const strugglingStudents = ref<StrugglingStudent[]>([])
 const skillsData = ref<SkillScore[]>([])
+const classOptions = ref<ClassOption[]>([])
+const students = ref<RosterStudent[]>([])
+const selectedClassId = ref<number | null>(null)
+const selectedClassName = computed(() => classOptions.value.find((c) => c.id === selectedClassId.value)?.name ?? '')
+const rosterQuery = ref('')
+const filteredStudents = computed(() => {
+  const q = rosterQuery.value.trim().toLowerCase()
+  return q ? students.value.filter((s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)) : students.value
+})
+// Once the teacher picks a period themselves, loading another class must not override it.
+let periodPicked = false
+const pickPeriod = (p: Period) => {
+  periodPicked = true
+  selectedPeriod.value = p
+}
 
 const kpiCards = computed(() => {
   const d = kpiDataMap.value[selectedPeriod.value]
@@ -372,6 +515,19 @@ const kpiCards = computed(() => {
 
 const activityData = computed(() => activityDataMap.value[selectedPeriod.value])
 const maxActivity = computed(() => Math.max(0, ...activityData.value.map((d) => d.value)))
+
+// Horizontal guide lines of the activity chart: baseline, half and top, labelled with their value.
+const gridLines = computed(() => {
+  const max = maxActivity.value
+  const lines = [0, Math.ceil(max / 2), max].map((value) => ({ value, pct: max ? (value / max) * 100 : 0, label: value }))
+  return lines.filter((l, i) => lines.findIndex((o) => o.value === l.value) === i)
+})
+
+// A teacher who has no class yet has nothing to analyse; one without students has nobody to flag.
+const hasClasses = computed(() => classOptions.value.length > 0)
+const hasStudents = computed(() => classScores.value.some((c) => c.students > 0))
+const hasActivityIn = (p: Period) =>
+  kpiDataMap.value[p].quizzes > 0 || activityDataMap.value[p].some((b) => b.value > 0)
 
 // The server sends ISO dates; each bucket is labelled in the user's language.
 const bucketLabel = (isoDate: string) => {
@@ -400,9 +556,13 @@ const lastActiveText = (isoDate: string | null) => {
   return new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' }).format(-days, 'day')
 }
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
+  analyticsError.value = ''
   try {
-    const data = (await api.getTeacherAnalytics()) as TeacherAnalytics
+    const data = (await api.getTeacherAnalytics(selectedClassId.value)) as TeacherAnalytics
+    classOptions.value = data.classes ?? []
+    students.value = data.students ?? []
     kpiDataMap.value = data.kpiData
     activityDataMap.value = data.activityDataMap
     classScores.value = data.classScores
@@ -410,6 +570,8 @@ onMounted(async () => {
     testScores.value = data.testScores
     strugglingStudents.value = data.strugglingStudents
     skillsData.value = data.skillsData
+    // Nothing happened this week but a longer period has data: open on it instead of an empty chart.
+    if (!periodPicked && !hasActivityIn('week')) selectedPeriod.value = (['month', 'year'] as Period[]).find(hasActivityIn) ?? 'week'
   } catch (e: unknown) {
     console.error('Failed to load analytics:', e)
     const status = (e as { status?: number })?.status
@@ -425,5 +587,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
+// Picking another class (or all) reloads the whole dashboard for exactly those students.
+watch(selectedClassId, load)
 </script>

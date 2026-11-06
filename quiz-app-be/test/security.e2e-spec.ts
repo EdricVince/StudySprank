@@ -389,6 +389,12 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
         .expect(201);
     });
 
+    it('a teacher cannot read the analytics of another teacher’s class (403)', () =>
+      request(http)
+        .get(`/api/v1/classes/analytics?classId=${classId}`)
+        .set(auth(applicantToken))
+        .expect(403));
+
     it('the admin record of the account shows the application, the reviewer and the trail', async () => {
       await new Promise((resolve) => setTimeout(resolve, 500)); // log writes are fire-and-forget
       const res = await request(http)
@@ -471,6 +477,256 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
         .get('/api/v1/admin/activity')
         .set(auth(teacherToken))
         .expect(403);
+    });
+  });
+
+  describe('Learning history (flashcards and quiz games)', () => {
+    const session = (over: Record<string, unknown> = {}) => ({
+      kind: 'quiz',
+      mode_id: 'multiple-choice',
+      mode_name: 'Multiple Choice',
+      source: 'builtin',
+      title: 'Multiple Choice',
+      learning_lang: 'en',
+      meaning_lang: 'vi',
+      score: 200,
+      xp_earned: 10,
+      duration_seconds: 42,
+      words: [
+        { term: 'door', meaning: 'cửa', is_correct: true },
+        { term: 'cat', meaning: 'con mèo', is_correct: false },
+      ],
+      ...over,
+    });
+    let quizId = 0;
+    let deckSessionId = 0;
+    let historyDeckId = 0;
+
+    beforeAll(async () => {
+      const res = await request(http)
+        .post('/api/v1/flashcard-decks')
+        .set(auth(teacherToken))
+        .send({
+          title: 'Unit 1',
+          class_id: classId,
+          cards: [{ term: 'apple', definition: 'quả táo' }],
+        })
+        .expect(201);
+      historyDeckId = res.body.data.id;
+    });
+
+    it('requires a signed-in user (401)', () =>
+      request(http)
+        .post('/api/v1/learning-sessions')
+        .send(session())
+        .expect(401));
+
+    it('rejects an empty word list and unknown fields (400)', async () => {
+      await request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(studentInToken))
+        .send(session({ words: [] }))
+        .expect(400);
+      await request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(studentInToken))
+        .send(session({ user_id: 1 }))
+        .expect(400);
+    });
+
+    it('stores a finished quiz game with its words', async () => {
+      const res = await request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(studentInToken))
+        .send(session())
+        .expect(201);
+      quizId = res.body.data.id;
+      expect(res.body.data).toMatchObject({
+        total_items: 2,
+        correct_items: 1,
+        accuracy: 50,
+      });
+      expect(res.body.data.words).toHaveLength(2);
+    });
+
+    it('stores a flashcard session on a class deck, and the words can be read back in order', async () => {
+      const res = await request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(studentInToken))
+        .send(
+          session({
+            kind: 'flashcard',
+            mode_id: 'flashcards',
+            mode_name: 'Flashcards',
+            source: 'deck',
+            title: 'Unit 1',
+            deck_id: historyDeckId,
+            words: [{ term: 'apple', meaning: 'quả táo', is_correct: true }],
+          }),
+        )
+        .expect(201);
+      deckSessionId = res.body.data.id;
+      const detail = await request(http)
+        .get(`/api/v1/learning-sessions/${deckSessionId}`)
+        .set(auth(studentInToken))
+        .expect(200);
+      expect(detail.body.data.deck_id).toBe(historyDeckId);
+      expect(detail.body.data.words.map((w: any) => w.term)).toEqual(['apple']);
+    });
+
+    it('lists the history by kind, only the caller’s own', async () => {
+      const flash = await request(http)
+        .get('/api/v1/learning-sessions?kind=flashcard')
+        .set(auth(studentInToken))
+        .expect(200);
+      expect(flash.body.data.items.map((s: any) => s.id)).toEqual([
+        deckSessionId,
+      ]);
+      const quiz = await request(http)
+        .get('/api/v1/learning-sessions?kind=quiz')
+        .set(auth(studentInToken))
+        .expect(200);
+      expect(quiz.body.data.items.map((s: any) => s.id)).toContain(quizId);
+
+      const other = await request(http)
+        .get('/api/v1/learning-sessions')
+        .set(auth(studentOutToken))
+        .expect(200);
+      expect(other.body.data.total).toBe(0);
+      await request(http)
+        .get(`/api/v1/learning-sessions/${quizId}`)
+        .set(auth(studentOutToken))
+        .expect(404);
+      await request(http)
+        .delete(`/api/v1/learning-sessions/${quizId}`)
+        .set(auth(studentOutToken))
+        .expect(404);
+    });
+
+    it('is readable straight from the database view, with the class and the words', async () => {
+      const rows = await dataSource.query<
+        { title: string; class_name: string | null; words: string }[]
+      >(
+        `SELECT title, class_name, words FROM learning_history_feed WHERE id = $1`,
+        [deckSessionId],
+      );
+      expect(rows[0].title).toBe('Unit 1');
+      expect(rows[0].class_name).toBeTruthy();
+      expect(rows[0].words).toContain('apple = quả táo');
+    });
+
+    it('keeps the history after the deck is deleted, and the owner can delete a session', async () => {
+      await request(http)
+        .delete(`/api/v1/flashcard-decks/${historyDeckId}`)
+        .set(auth(teacherToken))
+        .expect(204);
+      const detail = await request(http)
+        .get(`/api/v1/learning-sessions/${deckSessionId}`)
+        .set(auth(studentInToken))
+        .expect(200);
+      expect(detail.body.data.deck_id).toBeNull();
+      expect(detail.body.data.title).toBe('Unit 1');
+
+      await request(http)
+        .delete(`/api/v1/learning-sessions/${quizId}`)
+        .set(auth(studentInToken))
+        .expect(204);
+      await request(http)
+        .get(`/api/v1/learning-sessions/${quizId}`)
+        .set(auth(studentInToken))
+        .expect(404);
+    });
+  });
+
+  describe('Analytics: teacher sees joined students only, student sees their own statistics', () => {
+    it('students who joined appear in the class analytics; nobody else does', async () => {
+      await request(http)
+        .post('/api/v1/classes/join')
+        .set(auth(studentOutToken))
+        .send({ class_code: classCode })
+        .expect(201);
+
+      const res = await request(http)
+        .get(`/api/v1/classes/analytics?classId=${classId}`)
+        .set(auth(teacherToken))
+        .expect(200);
+      expect(res.body.data.selectedClassId).toBe(classId);
+      expect(res.body.data.students.map((x: any) => x.email)).toEqual([
+        studentOutEmail,
+      ]);
+      expect(res.body.data.studentsTotal).toBe(1);
+      expect(res.body.data.classes.map((c: any) => c.id)).toContain(classId);
+    });
+
+    it('a student who left the class disappears from it', async () => {
+      await request(http)
+        .delete(`/api/v1/classes/${classId}/leave`)
+        .set(auth(studentOutToken))
+        .expect(204);
+      const res = await request(http)
+        .get(`/api/v1/classes/analytics?classId=${classId}`)
+        .set(auth(teacherToken))
+        .expect(200);
+      expect(res.body.data.students).toEqual([]);
+    });
+
+    it('students cannot open the teacher analytics (403) and a bad class id is rejected (400)', async () => {
+      await request(http)
+        .get('/api/v1/classes/analytics')
+        .set(auth(studentInToken))
+        .expect(403);
+      await request(http)
+        .get('/api/v1/classes/analytics?classId=abc')
+        .set(auth(teacherToken))
+        .expect(400);
+    });
+
+    it('a student reads their own statistics, week by default', async () => {
+      await request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(studentInToken))
+        .send({
+          kind: 'quiz',
+          mode_id: 'multiple-choice',
+          mode_name: 'Multiple Choice',
+          source: 'builtin',
+          title: 'Multiple Choice',
+          duration_seconds: 90,
+          words: [
+            { term: 'door', meaning: 'cửa', is_correct: false },
+            { term: 'cat', meaning: 'con mèo', is_correct: true },
+          ],
+        })
+        .expect(201);
+
+      const res = await request(http)
+        .get('/api/v1/progress/statistics')
+        .set(auth(studentInToken))
+        .expect(200);
+      const d = res.body.data;
+      expect(d.period).toBe('week');
+      expect(d.activity).toHaveLength(7);
+      expect(d.summary.quizGames).toBeGreaterThanOrEqual(1);
+      expect(d.byMode.map((m: any) => m.modeId)).toContain('multiple-choice');
+      expect(d.vocabulary.learned).toBeGreaterThanOrEqual(1);
+      expect(d.vocabulary.weakWords.map((w: any) => w.term)).toContain('door');
+      expect(d.hasHistory).toBe(true);
+    });
+
+    it('statistics belong to the caller only, support month/year and reject other periods', async () => {
+      const other = await request(http)
+        .get('/api/v1/progress/statistics?period=year')
+        .set(auth(studentOutToken))
+        .expect(200);
+      expect(other.body.data.activity).toHaveLength(12);
+      expect(other.body.data.summary.sessions).toBe(0);
+      expect(other.body.data.vocabulary.weakWords).toEqual([]);
+
+      await request(http)
+        .get('/api/v1/progress/statistics?period=decade')
+        .set(auth(studentInToken))
+        .expect(400);
+      await request(http).get('/api/v1/progress/statistics').expect(401);
     });
   });
 });

@@ -68,6 +68,8 @@ const routes = [
 
       // Flashcards
       { path: 'flashcards',                name: 'Flashcards',           component: () => import('@/pages/student/FlashcardsPage.vue') },
+      { path: 'flashcards/history',        name: 'FlashcardHistory',     component: () => import('@/pages/student/LearningHistoryPage.vue'), props: { kind: 'flashcard' } },
+      { path: 'flashcards/history/:sessionId/study', name: 'FlashcardSessionReplay', component: () => import('@/pages/student/FlashcardStudyPage.vue') },
       { path: 'flashcards/:id',            name: 'FlashcardDeck',        component: () => import('@/pages/student/FlashcardDeckPage.vue') },
       { path: 'flashcards/vocab-practice', name: 'FlashcardVocabPractice', component: () => import('@/pages/student/FlashcardStudyPage.vue') },
       { path: 'flashcards/vocab-set/:id/study', name: 'FlashcardVocabSetStudy', component: () => import('@/pages/student/FlashcardStudyPage.vue') },
@@ -75,6 +77,7 @@ const routes = [
 
       // Quizzes
       { path: 'quizzes',                   name: 'Quizzes',           component: () => import('@/pages/student/QuizzesPage.vue') },
+      { path: 'quizzes/history',           name: 'QuizHistory',       component: () => import('@/pages/student/LearningHistoryPage.vue'), props: { kind: 'quiz' } },
       { path: 'quizzes/multiple-choice',   name: 'MultipleChoiceQuiz', component: () => import('@/pages/quiz/MultipleChoiceQuiz.vue') },
       { path: 'quizzes/word-scramble',     name: 'WordScrambleQuiz',  component: () => import('@/pages/quiz/WordScrambleQuiz.vue') },
       { path: 'quizzes/matching-pairs',    name: 'MatchingPairsQuiz', component: () => import('@/pages/quiz/MatchingPairsQuiz.vue') },
