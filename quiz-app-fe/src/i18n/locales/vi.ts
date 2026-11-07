@@ -1041,7 +1041,6 @@ export default {
       seen: 'gặp {n} lần', correct: 'đúng {n}', missed: 'sai {n}',
       status: { learned: 'Đã thuộc', weak: 'Cần luyện', unrated: 'Chưa chấm' },
     },
-    backFlashcards: 'Quay lại Flashcards', backQuizzes: 'Quay lại Quizzes',
     flashcardTitle: 'Lịch sử học flashcard', flashcardSubtitle: 'Mọi bộ thẻ bạn đã học cùng các từ trong đó — mở một lượt để học lại',
     quizTitle: 'Lịch sử chơi game', quizSubtitle: 'Mọi ván game bạn đã chơi và các từ đã luyện',
     sessionsCount: '{n} lượt',

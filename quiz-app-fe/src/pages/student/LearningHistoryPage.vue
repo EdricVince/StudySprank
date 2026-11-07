@@ -1,21 +1,26 @@
 <template>
   <div class="mx-auto max-w-4xl p-6 lg:p-8">
     <!-- Header -->
-    <div class="animate-fade-in-down mb-6">
-      <button
-        class="text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1.5 text-sm transition-colors"
-        @click="goBack"
+    <!-- (going back is the "←" button of the top bar) -->
+    <div class="animate-fade-in-down mb-6 flex items-center gap-4">
+      <div class="bg-primary/10 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+        <component :is="isFlashcards ? Layers : Gamepad2" class="text-primary h-6 w-6" />
+      </div>
+      <div class="min-w-0 flex-1">
+        <h1 class="text-foreground text-2xl font-bold tracking-tight lg:text-3xl">
+          {{ $t(isFlashcards ? 'history.flashcardTitle' : 'history.quizTitle') }}
+        </h1>
+        <p class="text-muted-foreground mt-1 text-sm lg:text-base">
+          {{ $t(isFlashcards ? 'history.flashcardSubtitle' : 'history.quizSubtitle') }}
+        </p>
+      </div>
+      <span
+        v-if="tab === 'sessions' && !loading && total > 0"
+        class="bg-secondary text-foreground hidden shrink-0 rounded-full px-3 py-1 text-sm font-medium sm:inline"
+        data-test="sessions-count"
       >
-        <ArrowLeft class="h-4 w-4" />
-        {{ $t(isFlashcards ? 'history.backFlashcards' : 'history.backQuizzes') }}
-      </button>
-      <h1 class="text-foreground text-3xl font-bold tracking-tight">
-        {{ $t(isFlashcards ? 'history.flashcardTitle' : 'history.quizTitle') }}
-      </h1>
-      <p class="text-muted-foreground mt-2">
-        {{ $t(isFlashcards ? 'history.flashcardSubtitle' : 'history.quizSubtitle') }}
-        <span v-if="!loading && total > 0" class="text-foreground font-medium">· {{ $t('history.sessionsCount', { n: total }) }}</span>
-      </p>
+        {{ $t('history.sessionsCount', { n: total }, total) }}
+      </span>
     </div>
 
     <!-- Sessions (one row per flashcard run / game) or the words themselves -->
@@ -76,11 +81,11 @@
         <div class="min-w-0 flex-1">
           <h3 class="text-foreground truncate font-semibold">{{ displayTitle(s) }}</h3>
           <p class="text-muted-foreground mt-0.5 truncate text-sm">
-            {{ modeLabel(s) }} · {{ sourceLabel(s) }} · {{ formatDate(s.created_at) }}
+            <template v-if="displayTitle(s) !== modeLabel(s)">{{ modeLabel(s) }} · </template>{{ sourceLabel(s) }} · {{ formatDate(s.created_at) }}
           </p>
         </div>
         <div class="hidden text-right sm:block">
-          <p class="text-foreground font-semibold">{{ $t('history.wordsCount', { n: s.total_items }) }}</p>
+          <p class="text-foreground font-semibold">{{ $t('history.wordsCount', { n: s.total_items }, s.total_items) }}</p>
           <p class="text-muted-foreground text-sm">
             {{ $t(isFlashcards ? 'history.knownOf' : 'history.correctOf', { correct: s.correct_items, total: s.total_items }) }}
           </p>
@@ -188,7 +193,7 @@
               <div class="min-w-0">
                 <h2 class="text-foreground truncate text-xl font-bold">{{ detail ? displayTitle(detail) : '…' }}</h2>
                 <p v-if="detail" class="text-muted-foreground mt-1 text-sm">
-                  {{ modeLabel(detail) }} · {{ sourceLabel(detail) }} · {{ formatDate(detail.created_at) }}
+                  <template v-if="displayTitle(detail) !== modeLabel(detail)">{{ modeLabel(detail) }} · </template>{{ sourceLabel(detail) }} · {{ formatDate(detail.created_at) }}
                 </p>
               </div>
               <button class="hover:bg-secondary rounded-lg p-2 transition-colors" :aria-label="$t('common.close')" @click="closeDetail">
@@ -283,7 +288,7 @@ import { api } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import type { LearningSessionData, SessionKind, VocabularyEntryData, VocabularyStatus } from '@/types/learning'
 import {
-  AlertCircle, ArrowLeft, BookOpen, Check, ChevronRight, Gamepad2, History, Layers, RefreshCw, RotateCcw, Trash2, X,
+  AlertCircle, BookOpen, Check, ChevronRight, Gamepad2, History, Layers, RefreshCw, RotateCcw, Trash2, X,
 } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal.vue'

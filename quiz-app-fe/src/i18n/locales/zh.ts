@@ -1041,7 +1041,6 @@ export default {
       seen: '出现 {n} 次', correct: '答对 {n}', missed: '答错 {n}',
       status: { learned: '已掌握', weak: '需练习', unrated: '未评分' },
     },
-    backFlashcards: '返回闪卡', backQuizzes: '返回测验',
     flashcardTitle: '闪卡学习历史', flashcardSubtitle: '你学过的每个卡组及其中的单词——打开一条记录即可重新学习',
     quizTitle: '游戏历史', quizSubtitle: '你玩过的每局游戏和练习过的单词',
     sessionsCount: '{n} 次',
