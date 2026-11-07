@@ -67,10 +67,6 @@ export class UserProfile {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   social_links: SocialLink[];
 
-  /** The IELTS band the student is aiming for (4.0 – 9.0 in steps of 0.5). */
-  @Column({ type: 'real', nullable: true })
-  target_band: number | null;
-
   @Column({ type: 'jsonb', default: () => "'{}'" })
   preferences: UserPreferences;
 

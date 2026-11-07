@@ -3,7 +3,6 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
-  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -14,9 +13,6 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-
-/** The bands the IELTS target can take: 1.0 to 9.0 in steps of 0.5 (what the slider offers). */
-export const TARGET_BANDS = Array.from({ length: 17 }, (_, i) => 1 + i / 2);
 
 const HTTP_URL = /^https?:\/\/\S+$/i;
 export const MAX_SOCIAL_LINKS = 10;
@@ -85,8 +81,6 @@ export class UpdateAccountProfileDto {
   @ValidateNested({ each: true })
   @Type(() => SocialLinkDto)
   social_links?: SocialLinkDto[];
-
-  @IsOptional() @IsIn(TARGET_BANDS) target_band?: number;
 
   @IsOptional()
   @ValidateNested()

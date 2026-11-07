@@ -27,6 +27,9 @@ import type {
   GeneratedTestData,
   AssignmentData,
   ExamHistoryItem,
+  ExamFormat,
+  GeneratedExamView,
+  ExamResultView,
   ActivityItem,
 } from '@/types/content'
 
@@ -292,15 +295,23 @@ export const api = {
     apiRequest<unknown>(`/goals/custom/${id}`, { method: 'DELETE' }),
 
   // ── Entrance Exam (IELTS) ─────────────────────────────────────
-  generateExam: (data: { question_count?: number; variant?: number; paper_id?: number }): Promise<{ questions: any[]; time_limit: number; exam_type: string; variant: number; session_id: string; paper_id: number; theme: string }> =>
+  /** The shape of the mock test (parts, questions, minutes), so the screens never hard-code it. */
+  getExamFormat: (): Promise<ExamFormat> =>
+    apiRequest('/entrance-exam/format', { requiresAuth: false }),
+
+  generateExam: (data: { variant?: number; paper_id?: number }): Promise<GeneratedExamView> =>
     apiRequest('/entrance-exam/generate', { method: 'POST', body: JSON.stringify(data) }),
 
-  submitExam: (data: { answers: { question_id: number; selected?: number; written?: string }[]; session_id: string }): Promise<any> =>
+  submitExam: (data: {
+    answers: { question_id: number; selected?: number; written?: string }[]
+    session_id: string
+    language?: 'en' | 'vi' | 'zh'
+  }): Promise<ExamResultView> =>
     apiRequest('/entrance-exam/submit', { method: 'POST', body: JSON.stringify(data) }),
 
   getExamHistory: (): Promise<ExamHistoryItem[]> => apiRequest('/entrance-exam/history'),
 
-  getExamAttempt: (id: number): Promise<any> => apiRequest(`/entrance-exam/attempts/${id}`),
+  getExamAttempt: (id: number): Promise<ExamResultView> => apiRequest(`/entrance-exam/attempts/${id}`),
 
   // ── Schedule ──────────────────────────────────────────────────
   generateSchedule: (data: { current_level: string; target_exam: string; target_band?: string; weekly_hours: number; focus_areas?: string[] }): Promise<any> =>

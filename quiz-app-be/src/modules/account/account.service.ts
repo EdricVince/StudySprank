@@ -23,7 +23,6 @@ export interface AccountProfileView {
   location: string;
   bio: string;
   social_links: SocialLink[];
-  target_band: number | null;
   preferences: UserPreferences;
 }
 
@@ -77,7 +76,6 @@ export class AccountService {
       location: row?.location ?? '',
       bio: row?.bio ?? '',
       social_links: row?.social_links ?? [],
-      target_band: row?.target_band ?? null,
       preferences: row?.preferences ?? {},
     };
   }
@@ -108,7 +106,6 @@ export class AccountService {
         title: orNull(trimmed(dto.title)),
         location: orNull(trimmed(dto.location)),
         bio: orNull(trimmed(dto.bio)),
-        target_band: dto.target_band,
       }),
     );
     if (dto.social_links !== undefined) {

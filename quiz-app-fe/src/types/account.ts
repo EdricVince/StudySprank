@@ -22,7 +22,7 @@ export interface PreferencesData {
   }
 }
 
-/** The profile card, IELTS target band and settings of the signed-in account (as the API returns it). */
+/** The profile card and settings of the signed-in account (as the API returns it). */
 export interface AccountProfileData {
   username: string
   phone: string
@@ -30,7 +30,6 @@ export interface AccountProfileData {
   location: string
   bio: string
   social_links: SocialLinkData[]
-  target_band: number | null
   preferences: PreferencesData
 }
 

@@ -225,12 +225,17 @@ export class StatisticsService {
       { correct: number; total: number; attempts: number }
     >();
     for (const exam of exams) {
+      const countedSkills = new Set<string>();
       for (const part of exam.breakdown ?? []) {
         const key = skillOf(part.section);
         const cell = skills.get(key) ?? { correct: 0, total: 0, attempts: 0 };
         cell.correct += part.correct;
         cell.total += part.total;
-        cell.attempts += 1;
+        // several parts per skill (Listening Part 1–4) are still one attempt of that skill
+        if (!countedSkills.has(key)) {
+          cell.attempts += 1;
+          countedSkills.add(key);
+        }
         skills.set(key, cell);
       }
     }

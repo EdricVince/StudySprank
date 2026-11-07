@@ -40,7 +40,7 @@ const del = api.deleteAccount as unknown as ReturnType<typeof vi.fn>
 const exportData = api.exportAccountData as unknown as ReturnType<typeof vi.fn>
 
 const serverProfile = (over: Record<string, unknown> = {}) => ({
-  username: '', phone: '', title: '', location: '', bio: '', social_links: [], target_band: null, preferences: {}, ...over,
+  username: '', phone: '', title: '', location: '', bio: '', social_links: [], preferences: {}, ...over,
 })
 
 function mountSettings() {

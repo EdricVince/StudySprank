@@ -15,6 +15,7 @@ import type { AuthenticatedRequest } from '../../core/decorators/current-user.de
 import { EntranceExamService } from './entrance-exam.service';
 import { isAiConfigured } from '../../core/ai/anthropic';
 import { StartExamDto, SubmitExamDto } from './dto/exam.dto';
+import { examFormatSummary } from './ielts-format';
 
 @Controller('api/v1/entrance-exam')
 export class EntranceExamController {
@@ -24,6 +25,12 @@ export class EntranceExamController {
   aiStatus() {
     const ai_enabled = isAiConfigured();
     return { code: 200, message: 'AI status', data: { ai_enabled } };
+  }
+
+  /** The shape of the mock test (parts, questions, minutes): the screens show it instead of hard-coding it. */
+  @Get('format')
+  format() {
+    return { code: 200, message: 'Exam format', data: examFormatSummary() };
   }
 
   @Post('generate')

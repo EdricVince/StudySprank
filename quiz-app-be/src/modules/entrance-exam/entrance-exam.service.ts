@@ -21,18 +21,61 @@ import type {
   ExamQuestion,
   ExamResult,
   ExamReviewItem,
+  ExamSkillScore,
   ExamType,
+  ExamWritingFeedback,
   ExamWritingResponse,
   StartExamDto,
   SubmitExamDto,
 } from './dto/exam.dto';
+import {
+  EXAM_TIME_LIMIT_MIN,
+  LISTENING_PARTS,
+  PartBlueprint,
+  READING_PASSAGES,
+  SKILL_MINUTES,
+  WRITING_SECTION,
+  WRITING_TASK1,
+  bandFromRaw,
+  isTextAnswerCorrect,
+  levelOfBand,
+  overallBand,
+  roundHalf,
+  writingBand,
+} from './ielts-format';
+import {
+  CHART_TYPES,
+  extractJsonObject,
+  normalizeMarking,
+  normalizePart,
+  normalizeWritingTasks,
+  writingQuestions,
+} from './ielts-parse';
+import {
+  ExamLanguage,
+  LISTENING_SCENARIOS,
+  fallbackRecommendations,
+  partPrompt,
+  recommendationsPrompt,
+  writingMarkingPrompt,
+  writingPrompt,
+} from './ielts-prompts';
+import { skillOf } from './skill-of';
 
-/** Minutes allowed for the 20-question IELTS mini exam. */
-const EXAM_TIME_LIMIT_MIN = 30;
-/** Token budget for generating the exam (passages + questions + chart). */
-const EXAM_MAX_TOKENS = 4800;
+/** Token budget for one Listening part / Reading passage (script + questions). */
+const PART_MAX_TOKENS = 7000;
+/** Token budget for the Writing tasks (chart data + essay topic). */
+const WRITING_MAX_TOKENS = 2500;
+/** Token budget for marking the Writing answers. */
+const MARKING_MAX_TOKENS = 3500;
+/** How many parts are written by the AI at the same time. */
+const GENERATION_CONCURRENCY = 4;
+/** Tries per part before the whole exam is given up. */
+const PART_ATTEMPTS = 2;
 /** How many past sittings the history list returns. */
 const HISTORY_LIMIT = 20;
+/** A Writing answer shorter than this is not sent to the examiner: it has no assessable language. */
+const MIN_ASSESSABLE_WORDS = 20;
 
 // 18 diverse themes to maximise variety across sessions
 const IELTS_THEMES = [
@@ -56,118 +99,28 @@ const IELTS_THEMES = [
   'Wildlife Conservation & Zoology — endangered species, rewilding, habitat loss, animal behaviour',
 ];
 
-// ── Scoring helper ─────────────────────────────────────────────────────────────
+/** Steps between the themes of the parts of one paper (coprime with 18, so they never repeat). */
+const THEME_STRIDE = 5;
 
-function estimateIelts(pct: number): { band: string; level: string } {
-  if (pct >= 90) return { band: '8.0–9.0', level: 'C2 — Expert' };
-  if (pct >= 80) return { band: '7.0–7.5', level: 'C1 — Advanced' };
-  if (pct >= 68) return { band: '6.0–6.5', level: 'B2 — Upper-Intermediate' };
-  if (pct >= 55) return { band: '5.0–5.5', level: 'B1 — Intermediate' };
-  if (pct >= 42) return { band: '4.0–4.5', level: 'A2 — Elementary' };
-  if (pct >= 28) return { band: '3.0–3.5', level: 'A2 — Beginner' };
-  return { band: '1.0–2.5', level: 'A1 — Starter' };
-}
+const themeName = (theme: string) => theme.split(' — ')[0];
 
-// ── Robust JSON-array parser ───────────────────────────────────────────────────
-// Extracts and repairs a potentially truncated JSON array from AI output.
-
-function tryParseJsonArray(raw: string): unknown[] {
-  const asArray = (text: string): unknown[] => {
-    const v: unknown = JSON.parse(text);
-    if (!Array.isArray(v)) throw new Error('Expected a JSON array');
-    return v as unknown[];
+/** Run `fn` over `items` with at most `limit` calls in flight, keeping the order of the results. */
+export async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
   };
-  const cleaned = raw
-    .trim()
-    .replace(/```json\n?|```/g, '')
-    .trim();
-
-  // 1. Happy path
-  const match = cleaned.match(/\[[\s\S]*\]/);
-  if (match) {
-    try {
-      return asArray(match[0]);
-    } catch {
-      /* fall through to repair */
-    }
-
-    let text = match[0];
-    // Remove last incomplete object (no closing brace before end of array)
-    text = text.replace(/,?\s*\{[^{}]*$/, '');
-    // Remove trailing dangling comma
-    text = text.replace(/,\s*$/, '');
-    // Count and close unclosed brackets
-    const objOpen =
-      (text.match(/\{/g) ?? []).length - (text.match(/\}/g) ?? []).length;
-    const arrOpen =
-      (text.match(/\[/g) ?? []).length - (text.match(/\]/g) ?? []).length;
-    for (let i = 0; i < objOpen; i++) text += '}';
-    for (let i = 0; i < arrOpen; i++) text += ']';
-    try {
-      return asArray(text);
-    } catch {
-      /* fall through */
-    }
-  }
-
-  // 2. Last resort — parse the whole cleaned string
-  return asArray(cleaned);
-}
-
-/** Shape of one question as produced by the model (everything is untrusted). */
-interface RawQuestion {
-  section?: unknown;
-  type?: unknown;
-  passage?: unknown;
-  question?: unknown;
-  options?: unknown;
-  correct_answer?: unknown;
-  explanation?: unknown;
-}
-
-function nonEmpty(value: unknown, fallback: string): string {
-  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
-}
-
-/** Writing Task 1 comes back as a nested chart object — store it as a JSON string. */
-function passageText(value: unknown): string | null {
-  if (typeof value === 'string') return value.trim() ? value : null;
-  if (value && typeof value === 'object') return JSON.stringify(value);
-  return null;
-}
-
-/**
- * Turn the model's raw array into clean questions: drops entries without question
- * text, numbers them 1..n, and makes sure the answer key points at a real option.
- */
-export function normalizeQuestions(raw: unknown[]): ExamQuestion[] {
-  const out: ExamQuestion[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const q = item as RawQuestion;
-    if (typeof q.question !== 'string' || !q.question.trim()) continue;
-
-    const section = nonEmpty(q.section, 'Reading');
-    const isWriting = section === 'Writing';
-    const options =
-      !isWriting && Array.isArray(q.options)
-        ? q.options.map((o) => String(o))
-        : [];
-    const answer = Number.isInteger(q.correct_answer)
-      ? (q.correct_answer as number)
-      : -1;
-
-    out.push({
-      id: out.length + 1,
-      section,
-      type: nonEmpty(q.type, 'multiple-choice'),
-      passage: passageText(q.passage),
-      question: q.question,
-      options,
-      correct_answer: answer >= 0 && answer < options.length ? answer : -1,
-      explanation: typeof q.explanation === 'string' ? q.explanation : '',
-    });
-  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
   return out;
 }
 
@@ -195,30 +148,44 @@ function rowsToQuestions(rows: ExamQuestionRow[]): ExamQuestion[] {
       section: r.section,
       type: r.type,
       passage: r.passage,
+      instruction: r.instruction ?? undefined,
       question: r.question,
       options: r.options,
       correct_answer: r.correct_answer,
+      accepted_answers: r.accepted_answers ?? [],
       explanation: r.explanation,
     }));
 }
 
-/** Questions as sent to the student before submission: no correct answer, no explanation. */
+/** Questions as sent to the student before submission: no answer key, no explanation. */
 export type ClientExamQuestion = Omit<
   ExamQuestion,
-  'correct_answer' | 'explanation'
+  'correct_answer' | 'explanation' | 'accepted_answers'
 >;
 
 export function toClientQuestions(
   questions: ExamQuestion[],
 ): ClientExamQuestion[] {
   return questions.map(
-    ({ correct_answer: _answer, explanation: _explanation, ...rest }) => rest,
+    ({
+      correct_answer: _answer,
+      explanation: _explanation,
+      accepted_answers: _accepted,
+      ...rest
+    }) => rest,
   );
 }
 
+/** Typed-answer questions have no options (the screen shows a text box for them). */
+const isTyped = (q: ExamQuestion) => q.options.length === 0;
+
+const wordCount = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
 export interface GeneratedExam {
   questions: ClientExamQuestion[];
+  /** Total minutes (Listening + Reading + Writing). */
   time_limit: number;
+  skill_minutes: typeof SKILL_MINUTES;
   exam_type: ExamType;
   variant: number;
   /** Id of the exam attempt — send it back on submit. */
@@ -268,6 +235,7 @@ export class EntranceExamService {
     return {
       questions: toClientQuestions(rowsToQuestions(paper.questions ?? [])),
       time_limit: paper.time_limit,
+      skill_minutes: SKILL_MINUTES,
       exam_type: 'ielts',
       variant: paper.variant,
       session_id: String(attempt.id),
@@ -294,6 +262,38 @@ export class EntranceExamService {
     return paper;
   }
 
+  /** One call to the model that must return a JSON object; `parse` turns it into the result. */
+  private async askForObject<T>(
+    prompt: string,
+    maxTokens: number,
+    parse: (raw: Record<string, unknown>) => T,
+  ): Promise<T> {
+    const client = this.client;
+    if (!client) throw new ServiceUnavailableException(AI_NOT_CONFIGURED);
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= PART_ATTEMPTS; attempt++) {
+      try {
+        const res = await client.messages.create({
+          model: AI_MODEL,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+        });
+        return parse(extractJsonObject(messageText(res)));
+      } catch (e) {
+        lastError = e;
+        this.logger.warn(
+          `AI exam call failed (try ${attempt}/${PART_ATTEMPTS}): ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * The whole paper: every Listening part and Reading passage and the two Writing tasks are
+   * written by the AI (one call each, a few at a time) and checked against the IELTS blueprint.
+   * If any part cannot be filled the exam is not created (a half exam is never stored).
+   */
   private async createPaper(
     dto: StartExamDto,
     userId: number,
@@ -306,23 +306,70 @@ export class EntranceExamService {
       dto.variant !== undefined
         ? dto.variant % IELTS_THEMES.length
         : Math.floor(Math.random() * IELTS_THEMES.length);
-    const theme = IELTS_THEMES[variant];
+    // Distinct themes for the academic parts: Listening 3, Listening 4, Reading 1–3, Writing 1–2.
+    const themeAt = (slot: number) =>
+      IELTS_THEMES[(variant + slot * THEME_STRIDE) % IELTS_THEMES.length];
+    const scenarioAt = (slot: number) =>
+      LISTENING_SCENARIOS[(variant + slot) % LISTENING_SCENARIOS.length];
 
-    let questions: ExamQuestion[];
+    const topicOf = (part: PartBlueprint): string => {
+      switch (part.section) {
+        case 'Listening Part 1':
+          return scenarioAt(0);
+        case 'Listening Part 2':
+          return scenarioAt(3);
+        case 'Listening Part 3':
+          return `an academic assignment connected with: ${themeAt(0)}`;
+        case 'Listening Part 4':
+          return themeAt(1);
+        case 'Reading Passage 1':
+          return themeAt(2);
+        case 'Reading Passage 2':
+          return themeAt(3);
+        default:
+          return themeAt(4);
+      }
+    };
+    const chartType = CHART_TYPES[variant % CHART_TYPES.length];
+
+    let parts: ExamQuestion[][];
+    let writing: ExamQuestion[];
     try {
-      const res = await this.client.messages.create({
-        model: AI_MODEL,
-        max_tokens: EXAM_MAX_TOKENS,
-        messages: [{ role: 'user', content: this.buildIeltsPrompt(theme) }],
-      });
-      questions = normalizeQuestions(tryParseJsonArray(messageText(res)));
-      if (!questions.length) throw new Error('No usable questions returned');
+      const blueprints = [...LISTENING_PARTS, ...READING_PASSAGES];
+      const jobs: (() => Promise<ExamQuestion[]>)[] = [
+        ...blueprints.map(
+          (part) => () =>
+            this.askForObject(
+              partPrompt(part, topicOf(part)),
+              PART_MAX_TOKENS,
+              (raw) => normalizePart(raw, part),
+            ),
+        ),
+        () =>
+          this.askForObject(
+            writingPrompt(chartType, themeAt(5), themeAt(6)),
+            WRITING_MAX_TOKENS,
+            (raw) => writingQuestions(normalizeWritingTasks(raw), 0),
+          ),
+      ];
+      const done = await mapLimit(jobs, GENERATION_CONCURRENCY, (job) => job());
+      writing = done.pop() as ExamQuestion[];
+      parts = done;
     } catch (e) {
       this.logger.error('AI exam generation failed', e);
       throw new ServiceUnavailableException(
         'AI exam generation failed. Please try again.',
       );
     }
+
+    // One flat list in the order of the paper; ids are the 1-based positions.
+    const questions = [...parts.flat(), ...writing].map((q, i) => ({
+      ...q,
+      id: i + 1,
+    }));
+    const theme = [themeAt(2), themeAt(3), themeAt(4)]
+      .map(themeName)
+      .join(' · ');
 
     return this.papers.save(
       this.papers.create({
@@ -337,9 +384,11 @@ export class EntranceExamService {
           section: q.section,
           type: q.type,
           passage: q.passage ?? null,
+          instruction: q.instruction ?? null,
           question: q.question,
           options: q.options,
           correct_answer: q.correct_answer,
+          accepted_answers: q.accepted_answers ?? [],
           explanation: q.explanation,
         })),
       }),
@@ -356,74 +405,126 @@ export class EntranceExamService {
     // Submitting twice (retry after a dropped response) returns the saved result.
     if (attempt.status === 'submitted' && attempt.result) return attempt.result;
 
+    const language: ExamLanguage = dto.language ?? 'en';
     const questions = rowsToQuestions(attempt.paper.questions ?? []);
-    const answerMap = new Map<number, number>();
+    const selectedMap = new Map<number, number>();
     const writtenMap = new Map<number, string>();
     for (const a of dto.answers) {
-      if (a.selected !== undefined) answerMap.set(a.question_id, a.selected);
+      if (a.selected !== undefined) selectedMap.set(a.question_id, a.selected);
       if (a.written?.trim()) writtenMap.set(a.question_id, a.written);
     }
 
-    const breakdown: Record<string, { correct: number; total: number }> = {};
+    const breakdown = new Map<string, { correct: number; total: number }>();
+    const perSkill: Record<
+      'Listening' | 'Reading',
+      { correct: number; total: number }
+    > = {
+      Listening: { correct: 0, total: 0 },
+      Reading: { correct: 0, total: 0 },
+    };
     const review: ExamReviewItem[] = [];
-    const writing: ExamWritingResponse[] = [];
+    const writingAnswers: (ExamWritingResponse & { words: number })[] = [];
     let correct = 0;
     let scoredTotal = 0;
 
     for (const q of questions) {
-      if (q.section === 'Writing') {
+      if (q.section === WRITING_SECTION) {
         const text = writtenMap.get(q.id);
-        if (text) writing.push({ task: q.type, question: q.question, text });
+        if (text) {
+          writingAnswers.push({
+            task: q.type,
+            question: q.question,
+            text,
+            words: wordCount(text),
+          });
+        }
         continue;
       }
-      if (!breakdown[q.section]) {
-        breakdown[q.section] = { correct: 0, total: 0 };
+      const typed = isTyped(q);
+      const selected = selectedMap.get(q.id);
+      const written = writtenMap.get(q.id);
+      const isCorrect = typed
+        ? isTextAnswerCorrect(written, q.accepted_answers)
+        : selected !== undefined &&
+          q.correct_answer >= 0 &&
+          selected === q.correct_answer;
+
+      const section = breakdown.get(q.section) ?? { correct: 0, total: 0 };
+      section.total++;
+      if (isCorrect) section.correct++;
+      breakdown.set(q.section, section);
+      const skill = skillOf(q.section);
+      if (skill === 'Listening' || skill === 'Reading') {
+        perSkill[skill].total++;
+        if (isCorrect) perSkill[skill].correct++;
       }
-      breakdown[q.section].total++;
       scoredTotal++;
-      const selected = answerMap.get(q.id);
-      if (
-        selected !== undefined &&
-        q.correct_answer >= 0 &&
-        selected === q.correct_answer
-      ) {
-        correct++;
-        breakdown[q.section].correct++;
-      }
+      if (isCorrect) correct++;
+
       review.push({
         question_id: q.id,
         section: q.section,
+        type: q.type,
         question: q.question,
         options: q.options,
-        selected: selected ?? null,
+        selected: typed ? null : (selected ?? null),
+        written: typed ? (written?.trim() ?? null) : null,
+        is_correct: isCorrect,
         correct_answer: q.correct_answer,
-        explanation: q.explanation,
+        accepted_answers: q.accepted_answers ?? [],
+        explanation: q.explanation ?? '',
       });
     }
 
+    const writing_feedback = await this.markWriting(writingAnswers, language);
+    const task = (name: string) =>
+      writing_feedback.find((f) => f.task === name)?.band ?? null;
+    const writing_band = writingBand({
+      task1: task(WRITING_TASK1),
+      task2: task('writing-task2'),
+    });
+
+    const skills: ExamSkillScore[] = (['Listening', 'Reading'] as const)
+      .filter((s) => perSkill[s].total > 0)
+      .map((s) => ({
+        skill: s,
+        correct: perSkill[s].correct,
+        total: perSkill[s].total,
+        band: bandFromRaw(s, perSkill[s].correct, perSkill[s].total),
+      }));
+    if (writingAnswers.length > 0) {
+      skills.push({
+        skill: 'Writing',
+        correct: null,
+        total: null,
+        band: writing_band,
+      });
+    }
+    const overall = overallBand(skills.map((s) => s.band)) ?? 0;
+    const level = levelOfBand(overall);
+
     const pct = scoredTotal > 0 ? Math.round((correct / scoredTotal) * 100) : 0;
-    const est = estimateIelts(pct);
-    const weak_areas = Object.entries(breakdown)
+    const weak_areas = [...breakdown.entries()]
       .filter(([, v]) => v.total > 0 && v.correct / v.total < 0.6)
       .map(([k]) => k);
-
     const recommendations = await this.generateRecommendations(
-      pct,
-      correct,
-      scoredTotal,
-      est.band,
-      est.level,
+      overall,
+      level,
+      skills.map((s) => ({ skill: s.skill, band: s.band })),
       weak_areas,
+      language,
     );
 
     const result: ExamResult = {
       total: scoredTotal,
       correct,
       score_percent: pct,
-      estimated_band: est.band,
+      estimated_band: overall.toFixed(1),
       estimated_score: `${pct}%`,
-      level: est.level,
-      breakdown: Object.entries(breakdown).map(([section, v]) => ({
+      level,
+      overall_band: overall,
+      skills,
+      breakdown: [...breakdown.entries()].map(([section, v]) => ({
         section,
         ...v,
       })),
@@ -431,14 +532,16 @@ export class EntranceExamService {
       weak_areas,
       // Answer key is revealed only after submission.
       review,
-      writing_responses: writing,
+      writing_responses: writingAnswers.map(({ words: _w, ...r }) => r),
+      writing_feedback,
     };
 
     attempt.status = 'submitted';
     attempt.answers = dto.answers;
     attempt.result = result;
     attempt.score_percent = pct;
-    attempt.estimated_band = est.band;
+    attempt.estimated_band = result.estimated_band;
+    attempt.overall_band = overall;
     attempt.submitted_at = new Date();
     await this.attempts.save(attempt);
     return result;
@@ -458,6 +561,7 @@ export class EntranceExamService {
       theme: a.paper?.theme ?? '',
       score_percent: a.score_percent,
       estimated_band: a.estimated_band,
+      overall_band: a.overall_band ?? null,
       level: a.result?.level ?? null,
       correct: a.result?.correct ?? null,
       total: a.result?.total ?? null,
@@ -477,40 +581,77 @@ export class EntranceExamService {
     return attempt.result;
   }
 
-  private async generateRecommendations(
-    pct: number,
-    correct: number,
-    total: number,
-    band: string,
-    level: string,
-    weakSections: string[],
-  ): Promise<string[]> {
-    if (!this.client) {
-      return [
-        `Bạn đạt ${pct}% (${correct}/${total} câu đúng) — tương đương ${band}.`,
-        pct >= 70
-          ? 'Kết quả tốt! Tiếp tục luyện tập để cải thiện IELTS.'
-          : `Hãy ôn luyện thêm — đặc biệt các phần: ${weakSections.join(', ') || 'tất cả kỹ năng'}.`,
-        'Dùng tính năng AI Schedule để lên lịch học cá nhân hóa.',
-      ];
+  /**
+   * Mark the Writing answers like an examiner. An answer with almost no text is band 1 without
+   * asking the AI; if the AI cannot mark the rest the Writing band stays empty (it is never guessed).
+   */
+  private async markWriting(
+    answers: (ExamWritingResponse & { words: number })[],
+    language: ExamLanguage,
+  ): Promise<ExamWritingFeedback[]> {
+    if (!answers.length) return [];
+    const empty = (a: {
+      task: string;
+      words: number;
+    }): ExamWritingFeedback => ({
+      task: a.task,
+      band: 1,
+      words: a.words,
+      criteria: [],
+      strengths: [],
+      improvements: [],
+    });
+    const short = answers.filter((a) => a.words < MIN_ASSESSABLE_WORDS);
+    const real = answers.filter((a) => a.words >= MIN_ASSESSABLE_WORDS);
+    let marked: ExamWritingFeedback[] = [];
+    if (real.length && this.client) {
+      try {
+        marked = await this.askForObject(
+          writingMarkingPrompt(real, language),
+          MARKING_MAX_TOKENS,
+          (raw) => normalizeMarking(raw, real),
+        );
+      } catch (e) {
+        this.logger.error('AI writing marking failed', e);
+      }
     }
-    const prompt = `You are an expert IELTS Academic coach. A student just completed a mini practice exam.
+    return [...short.map(empty), ...marked].sort(
+      (a, b) =>
+        answers.findIndex((x) => x.task === a.task) -
+        answers.findIndex((x) => x.task === b.task),
+    );
+  }
 
-Results:
-- Score: ${pct}% (${correct}/${total} correct)
-- Estimated band/score: ${band}
-- CEFR Level: ${level}
-- Weak sections: ${weakSections.length > 0 ? weakSections.join(', ') : 'none identified'}
-
-Give exactly 4 concise, actionable study recommendations in Vietnamese. Each 1–2 sentences.
-Return ONLY a JSON array of strings, no markdown:
-["recommendation 1", "recommendation 2", "recommendation 3", "recommendation 4"]`;
-
+  private async generateRecommendations(
+    overall: number,
+    level: string,
+    skills: { skill: string; band: number | null }[],
+    weak: string[],
+    language: ExamLanguage,
+  ): Promise<string[]> {
+    const fallback = fallbackRecommendations(
+      language,
+      roundHalf(overall),
+      weak,
+    );
+    const client = this.client;
+    if (!client) return fallback;
     try {
-      const res = await this.client.messages.create({
+      const res = await client.messages.create({
         model: AI_MODEL,
-        max_tokens: 600,
-        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 800,
+        messages: [
+          {
+            role: 'user',
+            content: recommendationsPrompt({
+              overall,
+              level,
+              skills,
+              weak,
+              language,
+            }),
+          },
+        ],
       });
       const json = messageText(res)
         .trim()
@@ -518,74 +659,13 @@ Return ONLY a JSON array of strings, no markdown:
         .trim();
       const match = json.match(/\[[\s\S]*\]/);
       const parsed: unknown = match ? JSON.parse(match[0]) : [];
-      return Array.isArray(parsed)
-        ? parsed.filter((r): r is string => typeof r === 'string')
+      const list = Array.isArray(parsed)
+        ? parsed.filter((r): r is string => typeof r === 'string' && !!r.trim())
         : [];
+      return list.length ? list.slice(0, 5) : fallback;
     } catch (e) {
       this.logger.error('AI recommendations failed', e);
-      return [];
+      return fallback;
     }
-  }
-
-  // ── IELTS prompt ─────────────────────────────────────────────────────────────
-
-  private buildIeltsPrompt(theme: string): string {
-    return `You are an official IELTS exam designer. Generate exactly 20 IELTS Academic mini-test questions.
-
-EXAM THEME: ${theme}
-All content must authentically relate to this theme.
-
-SECTION DISTRIBUTION:
-- Listening Part 1: ids 1–4   (social context dialogue)
-- Listening Part 2: ids 5–7   (public monologue / announcement)
-- Reading:          ids 8–18  (academic passage — 11 questions)
-- Writing:          ids 19–20 (2 free-response tasks)
-
-═══ LISTENING PART 1 (Q1–4) ═══════════════════
-Write ONE dialogue transcript (100–120 words) between two people in a social/everyday context within the theme. British English. Set "passage" on Q1 ONLY. Q2–Q4: passage = null.
-Question types (mix): Note Completion, Multiple Choice, True/False/Not Given.
-Questions test specific details: names, numbers, times, locations.
-
-═══ LISTENING PART 2 (Q5–7) ═══════════════════
-Write ONE monologue (80–100 words): a public announcement or broadcast within the theme. DIFFERENT topic from Part 1. Set "passage" on Q5. Q6–Q7: passage = null.
-Question types: MCQ (4 options) testing main idea, specific detail, or purpose.
-
-═══ READING (Q8–18) ════════════════════════════
-Write ONE academic passage (280–320 words) on a scientific or social topic within the theme. Set "passage" on Q8. Q9–Q18: passage = null.
-Q8–Q12: Note/Summary Completion — 4 plausible options, ONE is an exact word from the passage.
-Q13–Q18: True / False / Not Given — exactly 3 options: ["A. True", "B. False", "C. Not Given"]
-
-═══ WRITING (Q19–20) ══════════════════════════
-Q19: Writing Task 1 — passage MUST be a chart data OBJECT (not a string, not text):
-{"type":"bar-grouped","title":"<descriptive title showing comparison>","yLabel":"<measurement unit>","yMax":<ceiling rounded to nearest 25>,"categories":["<A>","<B>","<C>","<D>","<E>"],"series":[{"name":"<legend 1>","color":"#6366f1","values":[<n>,<n>,<n>,<n>,<n>]},{"name":"<legend 2>","color":"#8b5cf6","values":[<n>,<n>,<n>,<n>,<n>]}],"note":"Source: <plausible source>, <year>"}
-Use 5 categories, 2 series, realistic numbers related to the theme. yMax just above the highest value.
-question = "Writing Task 1 (minimum 150 words): The bar chart shows <brief topic>. Summarise the information by selecting and reporting the main features, and make comparisons where relevant."
-options = []. correct_answer = -1. explanation = "".
-
-Q20: Writing Task 2 — passage = null. question = "Writing Task 2 (minimum 250 words): <Opinion or discussion essay prompt related to the theme>." options = []. correct_answer = -1. explanation = "".
-
-═══ OUTPUT FORMAT ══════════════════════════════
-Return ONLY a valid JSON array, no markdown:
-[
-  {
-    "id": 1,
-    "section": "Listening Part 1",
-    "type": "note-completion",
-    "passage": "transcript text OR chart object OR null",
-    "question": "question text",
-    "options": ["A. option","B. option","C. option","D. option"],
-    "correct_answer": 0,
-    "explanation": "brief explanation"
-  }
-]
-
-RULES:
-- Section names MUST be exactly: "Listening Part 1", "Listening Part 2", "Reading", "Writing"
-- Q19 type = "writing-task1", Q20 type = "writing-task2"
-- T/F/NG questions: options = ["A. True","B. False","C. Not Given"] (exactly 3)
-- Writing tasks: options = [], correct_answer = -1, explanation = ""
-- All other questions: exactly 4 options
-- Q19 passage = chart JSON OBJECT (nested, not a string)
-- IELTS difficulty B1–C1`;
   }
 }

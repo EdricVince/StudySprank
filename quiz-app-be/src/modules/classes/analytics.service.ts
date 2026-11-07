@@ -378,6 +378,7 @@ export class AnalyticsService {
       }
     >();
     for (const exam of exams) {
+      const countedSkills = new Set<string>();
       for (const part of exam.breakdown ?? []) {
         const skill = skills.get(skillOf(part.section)) ?? {
           correct: 0,
@@ -387,7 +388,11 @@ export class AnalyticsService {
         };
         skill.correct += part.correct;
         skill.total += part.total;
-        skill.attempts += 1;
+        // an exam has several parts per skill (Listening Part 1–4): it is one attempt of the skill
+        if (!countedSkills.has(skillOf(part.section))) {
+          skill.attempts += 1;
+          countedSkills.add(skillOf(part.section));
+        }
         for (const classId of classesOfStudent.get(exam.user_id) ?? []) {
           const cell = skill.perClass.get(classId) ?? { correct: 0, total: 0 };
           cell.correct += part.correct;

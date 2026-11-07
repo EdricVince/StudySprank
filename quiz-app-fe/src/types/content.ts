@@ -170,10 +170,85 @@ export interface ExamHistoryItem {
   theme: string
   score_percent: number | null
   estimated_band: string | null
+  /** Overall IELTS band of the sitting (null for sittings from before numeric bands: use estimated_band). */
+  overall_band: number | null
   level: string | null
   correct: number | null
   total: number | null
   submitted_at: string | null
+}
+
+/** A question as the student sees it during the test (no answer key). */
+export interface ExamQuestionView {
+  id: number
+  section: string
+  type: string
+  /** Audio script / reading passage (first question of a part) or the Task 1 chart (JSON). */
+  passage?: string | null
+  /** The rubric shared by a run of questions. */
+  instruction?: string
+  question: string
+  /** Empty for typed answers and Writing. */
+  options: string[]
+}
+
+/** The shape of the mock test, from GET /entrance-exam/format. */
+export interface ExamFormat {
+  listening: { parts: number; questions: number; minutes: number }
+  reading: { passages: number; questions: number; minutes: number }
+  writing: { tasks: number; minutes: number }
+  total_questions: number
+  total_minutes: number
+}
+
+export interface GeneratedExamView {
+  questions: ExamQuestionView[]
+  time_limit: number
+  skill_minutes?: { Listening: number; Reading: number; Writing: number }
+  exam_type: string
+  variant: number
+  session_id: string
+  paper_id: number
+  theme: string
+}
+
+export interface ExamReviewRow {
+  question_id: number
+  section: string
+  type?: string
+  question: string
+  options: string[]
+  selected: number | null
+  written?: string | null
+  is_correct?: boolean
+  correct_answer: number
+  accepted_answers?: string[]
+  explanation: string
+}
+
+export interface ExamWritingFeedbackView {
+  task: string
+  band: number
+  words: number
+  criteria: { key: string; band: number; comment: string }[]
+  strengths: string[]
+  improvements: string[]
+}
+
+export interface ExamResultView {
+  total: number
+  correct: number
+  score_percent: number
+  estimated_band: string
+  level: string
+  overall_band?: number | null
+  skills?: { skill: 'Listening' | 'Reading' | 'Writing'; correct: number | null; total: number | null; band: number | null }[]
+  breakdown: { section: string; correct: number; total: number }[]
+  recommendations: string[]
+  weak_areas: string[]
+  review?: ExamReviewRow[]
+  writing_responses?: { task: string; question: string; text: string }[]
+  writing_feedback?: ExamWritingFeedbackView[]
 }
 
 /** One entry of the activity trail (who did what, and when). */

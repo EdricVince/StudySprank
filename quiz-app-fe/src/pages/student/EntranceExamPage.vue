@@ -65,8 +65,8 @@
             </div>
           </div>
 
-          <!-- Target Band Panel -->
-          <div class="hidden w-64 shrink-0 lg:block">
+          <!-- Target Band Panel: the band of the latest mock test (it is not set by hand) -->
+          <div class="hidden w-64 shrink-0 lg:block" data-test="target-panel">
             <div class="target-panel rounded-2xl p-5 shadow-xl shadow-indigo-500/10 backdrop-blur">
               <div class="mb-4 flex items-center justify-between">
                 <span class="target-lbl text-xs font-semibold uppercase tracking-widest">{{ $t('exam.targetBand') }}</span>
@@ -74,29 +74,23 @@
               </div>
 
               <div class="mb-4 text-center">
-                <div class="target-score-num text-6xl font-black tabular-nums leading-none">{{ targetBand.toFixed(1) }}</div>
+                <div class="target-score-num text-6xl font-black tabular-nums leading-none" data-test="target-band">{{ targetBand.toFixed(1) }}</div>
                 <div class="target-sub-txt mt-1.5 text-xs">{{ $t('exam.outOf') }}</div>
               </div>
 
-              <div class="target-track mb-4 h-2 w-full overflow-hidden rounded-full">
+              <div class="target-track mb-3 h-2 w-full overflow-hidden rounded-full">
                 <div
                   class="h-full rounded-full bg-linear-to-r from-indigo-500 to-fuchsia-500 transition-all duration-300"
-                  :style="{ width: ((targetBand - 1) / 8 * 100) + '%' }"
+                  :style="{ width: (targetBand / 9 * 100) + '%' }"
                 ></div>
               </div>
 
-              <input
-                type="range" min="1" max="9" step="0.5"
-                :value="targetBand"
-                class="target-slider w-full"
-                :aria-label="$t('exam.targetBand')"
-                @input="onSliderInput"
-                @change="saveTargetBand"
-              />
-
-              <div class="target-marks mt-2 flex justify-between font-mono text-[10px]">
-                <span>1</span><span>3</span><span>5</span><span>7</span><span>9</span>
+              <div class="target-marks mb-3 flex justify-between font-mono text-[10px]">
+                <span>0</span><span>3</span><span>5</span><span>7</span><span>9</span>
               </div>
+              <p class="target-sub-txt text-center text-[11px] leading-snug" data-test="target-source">
+                {{ latestBand === null ? $t('exam.target.none') : $t('exam.target.fromTest') }}
+              </p>
 
               <div class="target-cefr-box mt-4 rounded-xl px-3 py-2 text-center">
                 <div class="target-cefr-lbl mb-0.5 text-[10px] uppercase tracking-wide">{{ $t('exam.cefrLevel') }}</div>
@@ -148,7 +142,7 @@
           <div class="mt-7">
             <div class="mb-2 flex items-center justify-between">
               <h3 class="text-muted-foreground text-xs font-bold uppercase tracking-wider">{{ $t('exam.format') }}</h3>
-              <span class="text-muted-foreground text-xs">{{ $t('exam.minutesN', { n: 30 }) }} · {{ $t('exam.ranges.ielts') }}</span>
+              <span class="text-muted-foreground text-xs">{{ $t('exam.minutesN', { n: format?.total_minutes ?? '—' }) }} · {{ $t('exam.ranges.ielts') }}</span>
             </div>
             <div class="flex h-2.5 w-full gap-1 overflow-hidden rounded-full">
               <div
@@ -227,7 +221,7 @@
               class="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl text-center"
               :class="tone(h.score_percent).badge"
             >
-              <span class="text-base font-black leading-none">{{ shortBand(h.estimated_band) }}</span>
+              <span class="text-base font-black leading-none">{{ bandText(overallBandOf(h)) }}</span>
               <span class="mt-0.5 text-[9px] font-semibold uppercase tracking-wide opacity-70">band</span>
             </div>
 
@@ -300,7 +294,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { CheckCircle, Clock, FileText, BarChart3, Shuffle, History } from '@/components/icons'
 import { api, apiRequest } from '@/utils/api'
-import type { ExamHistoryItem } from '@/types/content'
+import { bandLabelKey, bandText, cefrKey, overallBandOf } from '@/utils/ielts'
+import type { ExamFormat, ExamHistoryItem } from '@/types/content'
 
 const router = useRouter()
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -309,9 +304,11 @@ const aiReady = ref<boolean | null>(null)
 const history = ref<ExamHistoryItem[]>([])
 const historyLoading = ref(true)
 const historyError = ref(false)
+// The shape of the paper comes from the server (parts, questions, minutes), not from this page.
+const format = ref<ExamFormat | null>(null)
 
 onMounted(async () => {
-  void loadTargetBand()
+  api.getExamFormat().then((f) => { format.value = f }).catch(() => {})
   try {
     const status = await apiRequest<{ ai_enabled: boolean }>('/entrance-exam/ai-status', { requiresAuth: false })
     aiReady.value = status.ai_enabled
@@ -328,72 +325,57 @@ onMounted(async () => {
   }
 })
 
-// The target band belongs to the account (saved on the server), not to this browser.
-const LEGACY_TARGET_KEY = 'studyspark_target_band'
-const DEFAULT_TARGET_BAND = 7.0
-const targetBand = ref(DEFAULT_TARGET_BAND)
-
-function onSliderInput(e: Event) {
-  targetBand.value = parseFloat((e.target as HTMLInputElement).value)
-}
-
-// Saved when the learner lets go of the slider (not on every step of the drag).
-async function saveTargetBand() {
-  try {
-    await api.updateAccountProfile({ target_band: targetBand.value })
-  } catch {
-    // The slider keeps its value; it is saved again the next time it is moved.
+// The target band is the overall band of the latest mock test (0.0 until the first one).
+// It is not set by hand: history is newest first.
+const latestBand = computed<number | null>(() => {
+  for (const h of history.value) {
+    const band = overallBandOf(h)
+    if (band !== null) return band
   }
-}
+  return null
+})
+const targetBand = computed(() => latestBand.value ?? 0)
 
-async function loadTargetBand() {
-  try {
-    const { target_band } = await api.getAccountProfile()
-    if (target_band !== null) {
-      targetBand.value = target_band
-    } else {
-      // A band chosen before it was stored on the account moves over once.
-      const legacy = parseFloat(localStorage.getItem(LEGACY_TARGET_KEY) ?? '')
-      if (Number.isFinite(legacy)) {
-        targetBand.value = legacy
-        await saveTargetBand()
-      }
-    }
-    localStorage.removeItem(LEGACY_TARGET_KEY)
-  } catch {
-    // Offline or signed out: the default stays.
-  }
-}
-
-// [minimum band, label key] — first match wins.
-const BAND_LABELS: [number, string][] = [[8.5, 'expert'], [7.5, 'veryGood'], [6.5, 'good'], [5.5, 'competent'], [4.5, 'modest'], [3.5, 'limited'], [0, 'beginner']]
-const BAND_CEFR: [number, string][] = [[8, 'C2'], [7, 'C1'], [6, 'B2'], [5, 'B1'], [4, 'A2'], [0, 'A1']]
-const pick = (table: [number, string][], b: number) => table.find(([min]) => b >= min)![1]
-
-const bandLabel = computed(() => t(`exam.bands.${pick(BAND_LABELS, targetBand.value)}`))
-const cefrForBand = computed(() => t(`exam.cefr.${pick(BAND_CEFR, targetBand.value)}`))
+const bandLabel = computed(() => (latestBand.value === null ? '—' : t(`exam.bands.${bandLabelKey(latestBand.value)}`)))
+const cefrForBand = computed(() => (latestBand.value === null ? '—' : t(`exam.cefr.${cefrKey(latestBand.value)}`)))
 
 const heroStats = computed(() => [
-  { label: t('exam.stats.questions'),  value: '20',                            icon: FileText,    bg: 'bg-indigo-500/10', color: 'text-indigo-400' },
+  { label: t('exam.stats.questions'),  value: String(format.value?.total_questions ?? '—'), icon: FileText,    bg: 'bg-indigo-500/10', color: 'text-indigo-400' },
   { label: t('exam.stats.aiGrading'),  value: t('exam.stats.instant'),         icon: CheckCircle, bg: 'bg-green-500/10',  color: 'text-green-400' },
   { label: t('exam.stats.examSets'),   value: t('exam.stats.unique', { n: 18 }), icon: Shuffle,   bg: 'bg-violet-500/10', color: 'text-violet-400' },
   { label: t('exam.stats.standards'),  value: 'Cambridge',                     icon: BarChart3,   bg: 'bg-amber-500/10',  color: 'text-amber-400' },
-  { label: t('exam.stats.timeLimit'),  value: t('exam.minutesN', { n: 30 }),   icon: Clock,       bg: 'bg-blue-500/10',   color: 'text-blue-400' },
+  { label: t('exam.stats.timeLimit'),  value: t('exam.minutesN', { n: format.value?.total_minutes ?? '—' }), icon: Clock,       bg: 'bg-blue-500/10',   color: 'text-blue-400' },
 ])
 
 const cardStats = computed(() => [
-  { value: '20', label: t('exam.stats.questions') },
-  { value: '30', label: t('exam.stats.minutes') },
+  { value: String(format.value?.total_questions ?? '—'), label: t('exam.stats.questions') },
+  { value: String(format.value?.total_minutes ?? '—'), label: t('exam.stats.minutes') },
   { value: '9.0', label: t('exam.stats.maxBand') },
 ])
 
-// The four parts of the paper (2 Listening parts, Reading, Writing).
-const parts = computed(() => [
-  { key: 'listening1', title: 'Listening Part 1', icon: '🎧', count: t('exam.questionsN', 4), desc: t('exam.sections.listening1'), cls: 'sec-blue', bar: 'bg-blue-500', share: 20 },
-  { key: 'listening2', title: 'Listening Part 2', icon: '🎧', count: t('exam.questionsN', 3), desc: t('exam.sections.listening2'), cls: 'sec-cyan', bar: 'bg-cyan-500', share: 15 },
-  { key: 'reading', title: 'Reading', icon: '📖', count: t('exam.questionsN', 11), desc: t('exam.sections.reading'), cls: 'sec-green', bar: 'bg-emerald-500', share: 55 },
-  { key: 'writing', title: 'Writing', icon: '✍️', count: t('exam.writingTasks'), desc: t('exam.sections.writing'), cls: 'sec-violet', bar: 'bg-violet-500', share: 10 },
-])
+// The three skills of the paper, with the counts the server reports.
+const parts = computed(() => {
+  const f = format.value
+  const total = f ? f.total_minutes : 0
+  const share = (minutes: number | undefined) => (f && total ? Math.round(((minutes ?? 0) / total) * 100) : 33)
+  return [
+    {
+      key: 'listening', title: t('exam.skillNames.Listening'), icon: '🎧', cls: 'sec-blue', bar: 'bg-blue-500', share: share(f?.listening.minutes),
+      count: f ? t('exam.card.listening', { parts: f.listening.parts, questions: f.listening.questions, minutes: f.listening.minutes }) : '',
+      desc: t('exam.sections.listening'),
+    },
+    {
+      key: 'reading', title: t('exam.skillNames.Reading'), icon: '📖', cls: 'sec-green', bar: 'bg-emerald-500', share: share(f?.reading.minutes),
+      count: f ? t('exam.card.reading', { passages: f.reading.passages, questions: f.reading.questions, minutes: f.reading.minutes }) : '',
+      desc: t('exam.sections.reading'),
+    },
+    {
+      key: 'writing', title: t('exam.skillNames.Writing'), icon: '✍️', cls: 'sec-violet', bar: 'bg-violet-500', share: share(f?.writing.minutes),
+      count: f ? t('exam.card.writing', { tasks: f.writing.tasks, minutes: f.writing.minutes }) : '',
+      desc: t('exam.sections.writing'),
+    },
+  ]
+})
 
 const steps = computed(() => [
   { num: '1', title: t('exam.steps.chooseTitle'),   desc: t('exam.steps.chooseDesc'),   bgClass: 'cstep-indigo' },
@@ -417,14 +399,11 @@ function tone(pct: number | null) {
   return { badge: 'bg-red-500/15 text-red-400', bar: 'bg-red-500', text: 'text-red-400' }
 }
 
-/** "6.0–6.5" → "6.0+" so the band fits inside the small badge. */
-const shortBand = (band: string | null) => (band ? band.split('–')[0] + (band.includes('–') ? '+' : '') : '—')
-
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(locale.value, { year: 'numeric', month: 'short', day: 'numeric' }) : ''
 
 function startExam() {
-  router.push({ name: 'ExamSession', query: { target: targetBand.value.toString() } })
+  router.push({ name: 'ExamSession' })
 }
 
 function viewResult(attemptId: number) {
@@ -432,6 +411,6 @@ function viewResult(attemptId: number) {
 }
 
 function retakePaper(paperId: number) {
-  router.push({ name: 'ExamSession', query: { paper: String(paperId), target: targetBand.value.toString() } })
+  router.push({ name: 'ExamSession', query: { paper: String(paperId) } })
 }
 </script>

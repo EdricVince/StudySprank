@@ -61,6 +61,10 @@ export class ExamAttempt {
   @Column({ type: 'varchar', length: 20, nullable: true })
   estimated_band: string | null;
 
+  /** Overall IELTS band (0–9 in halves) of the submitted sitting: the student's target-band card. */
+  @Column({ type: 'real', nullable: true })
+  overall_band: number | null;
+
   @CreateDateColumn({ name: 'started_at' })
   started_at: Date;
 

@@ -40,6 +40,10 @@ export class ExamQuestionRow {
   @Column({ type: 'text', nullable: true })
   passage: string | null;
 
+  /** The rubric shared by a run of questions ("Write NO MORE THAN TWO WORDS…"). */
+  @Column({ type: 'text', nullable: true })
+  instruction: string | null;
+
   @Column({ type: 'text' })
   question: string;
 
@@ -49,6 +53,10 @@ export class ExamQuestionRow {
   /** Index of the correct option; -1 for free-response (Writing) questions. */
   @Column({ type: 'int', default: -1 })
   correct_answer: number;
+
+  /** Typed-answer questions: every spelling that counts as right. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  accepted_answers: string[];
 
   @Column({ type: 'text', default: '' })
   explanation: string;

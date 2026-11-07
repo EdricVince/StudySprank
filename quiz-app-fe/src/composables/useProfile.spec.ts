@@ -33,7 +33,7 @@ const updateName = api.updateProfile as unknown as ReturnType<typeof vi.fn>
 const updateCard = api.updateAccountProfile as unknown as ReturnType<typeof vi.fn>
 
 const card = (over: Record<string, unknown> = {}) => ({
-  username: '', phone: '', title: '', location: '', bio: '', social_links: [], target_band: null, preferences: {}, ...over,
+  username: '', phone: '', title: '', location: '', bio: '', social_links: [], preferences: {}, ...over,
 })
 
 function mountProfile() {

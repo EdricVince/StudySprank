@@ -21,6 +21,7 @@ export class StartExamDto {
   @IsOptional()
   exam_type?: ExamType;
 
+  /** Ignored: the length of the exam is fixed by the IELTS format (kept so older clients still validate). */
   @IsInt()
   @Min(10)
   @Max(40)
@@ -68,6 +69,11 @@ export class SubmitExamDto {
   @IsString()
   @Matches(/^\d+$/)
   session_id: string;
+
+  /** Language of the feedback and recommendations (defaults to English). */
+  @IsIn(['en', 'vi', 'zh'])
+  @IsOptional()
+  language?: 'en' | 'vi' | 'zh';
 }
 
 /** A question as stored / graded on the server (includes the answer key). */
@@ -76,9 +82,14 @@ export interface ExamQuestion {
   section: string;
   type: string;
   passage?: string | null;
+  /** The rubric shared by a run of questions ("Write NO MORE THAN TWO WORDS…"). */
+  instruction?: string;
   question: string;
   options: string[];
+  /** Index of the right option; -1 for typed-answer and Writing questions. */
   correct_answer: number;
+  /** Typed-answer questions: every spelling that counts as right (server-side only). */
+  accepted_answers?: string[];
   explanation: string;
 }
 
@@ -86,11 +97,27 @@ export interface ExamQuestion {
 export interface ExamReviewItem {
   question_id: number;
   section: string;
+  type: string;
   question: string;
   options: string[];
   selected: number | null;
+  /** What was typed, for typed-answer questions. */
+  written: string | null;
+  is_correct: boolean;
   correct_answer: number;
+  accepted_answers: string[];
   explanation: string;
+}
+
+/** The examiner-style feedback on one Writing task. */
+export interface ExamWritingFeedback {
+  task: string;
+  /** Band for the task (mean of the four criteria, to the nearest half band). */
+  band: number;
+  words: number;
+  criteria: { key: string; band: number; comment: string }[];
+  strengths: string[];
+  improvements: string[];
 }
 
 export interface ExamWritingResponse {
@@ -99,18 +126,31 @@ export interface ExamWritingResponse {
   text: string;
 }
 
+/** Listening / Reading / Writing as scored on the IELTS 0–9 scale. */
+export interface ExamSkillScore {
+  skill: 'Listening' | 'Reading' | 'Writing';
+  correct: number | null;
+  total: number | null;
+  band: number | null;
+}
+
 export interface ExamResult {
   total: number;
   correct: number;
   score_percent: number;
+  /** Overall band as text ("6.5"); older attempts hold a range ("6.0–6.5"). */
   estimated_band: string;
   estimated_score: string;
   level: string;
+  /** Overall IELTS band (null when nothing could be scored). Missing on attempts from before bands. */
+  overall_band?: number | null;
+  skills?: ExamSkillScore[];
   breakdown: { section: string; correct: number; total: number }[];
   recommendations: string[];
   weak_areas: string[];
   review?: ExamReviewItem[];
   writing_responses?: ExamWritingResponse[];
+  writing_feedback?: ExamWritingFeedback[];
 }
 
 /** One row of the student's exam history. */
@@ -120,6 +160,7 @@ export interface ExamHistoryItem {
   theme: string;
   score_percent: number | null;
   estimated_band: string | null;
+  overall_band: number | null;
   level: string | null;
   correct: number | null;
   total: number | null;

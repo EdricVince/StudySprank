@@ -65,7 +65,6 @@ describe('AccountService profile', () => {
       location: '',
       bio: '',
       social_links: [],
-      target_band: null,
       preferences: {},
     });
   });
@@ -81,7 +80,6 @@ describe('AccountService profile', () => {
     const saved = await service.updateProfile(1, {
       title: '  Student  ',
       bio: '',
-      target_band: 7.5,
       preferences: { study: { studyMinutes: 45 } },
     });
     expect(profiles.save).toHaveBeenCalled();
@@ -89,7 +87,6 @@ describe('AccountService profile', () => {
       phone: '0900', // untouched
       title: 'Student', // trimmed
       bio: '', // cleared
-      target_band: 7.5,
       preferences: { study: { cardsPerDay: 30, studyMinutes: 45 } },
     });
   });

@@ -207,8 +207,9 @@ describe('AnalyticsService', () => {
       ],
     });
     const r = await service.getTeacherAnalytics(1);
+    // one exam is one attempt of a skill, however many parts of it there are
     expect(r.skillsData.map((s) => [s.name, s.avgScore, s.attempts])).toEqual([
-      ['Listening', 50, 2],
+      ['Listening', 50, 1],
       ['Reading', 50, 1],
     ]);
   });

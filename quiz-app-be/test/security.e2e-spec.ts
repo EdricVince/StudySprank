@@ -895,19 +895,19 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
       expect(res.body.data).toMatchObject({
         bio: '',
         social_links: [],
-        target_band: null,
         preferences: {},
       });
+      // the target band is no longer a setting: it is the result of the IELTS mock test
+      expect(res.body.data).not.toHaveProperty('target_band');
     });
 
-    it('saves the profile card, target band and settings, merging the settings section by section', async () => {
+    it('saves the profile card and settings, merging the settings section by section', async () => {
       await put('/api/v1/account/profile', {
         username: 'vinh',
         phone: '0900 000 000',
         title: 'Student',
         location: 'Hanoi',
         bio: 'Learning English',
-        target_band: 7.5,
         social_links: [{ platform: 'GitHub', url: 'https://github.com/vinh' }],
         preferences: { notifications: { email: false, reminderTime: '07:30' } },
       }).expect(200);
@@ -925,7 +925,6 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
       expect(res.body.data).toMatchObject({
         username: 'vinh',
         bio: 'Learning English',
-        target_band: 7.5,
         social_links: [{ platform: 'GitHub', url: 'https://github.com/vinh' }],
         preferences: {
           notifications: { email: false, reminderTime: '07:30' },
@@ -936,15 +935,12 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
     });
 
     it('is stored in the database (user_profiles), one row for the account', async () => {
-      const rows = await dataSource.query<
-        { bio: string; target_band: number; preferences: any }[]
-      >(
-        `SELECT bio, target_band, preferences FROM user_profiles WHERE user_id = $1`,
+      const rows = await dataSource.query<{ bio: string; preferences: any }[]>(
+        `SELECT bio, preferences FROM user_profiles WHERE user_id = $1`,
         [userId],
       );
       expect(rows).toHaveLength(1);
       expect(rows[0].bio).toBe('Learning English');
-      expect(rows[0].target_band).toBe(7.5);
       expect(rows[0].preferences.study.cardsPerDay).toBe(40);
     });
 
@@ -960,7 +956,7 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
           url: 'https://a.io',
         })),
       });
-      await bad({ target_band: 7.3 });
+      await bad({ target_band: 7.5 }); // no longer a setting
       await bad({ bio: 'x'.repeat(501) });
       await bad({ preferences: { notifications: { reminderTime: '25:00' } } });
       await bad({ preferences: { study: { cardsPerDay: 0 } } });
@@ -1116,6 +1112,130 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
       }
       // the other account is untouched
       await signIn(otherEmail, PW).expect(200);
+    });
+  });
+
+  describe('IELTS mock test: format, bands and history', () => {
+    const email = `e2e_ielts_${ts}@test.com`;
+    const otherEmail = `e2e_ielts2_${ts}@test.com`;
+    let token = '';
+    let otherToken = '';
+    let userId = 0;
+
+    const signIn = (mail: string) =>
+      request(http)
+        .post('/api/v1/auth/login')
+        .send({ email: mail, password: PW });
+
+    beforeAll(async () => {
+      await register(email, ROLE_STUDENT);
+      await register(otherEmail, ROLE_STUDENT);
+      const a = await signIn(email);
+      token = a.body.data.access_token;
+      userId = a.body.data.user.id;
+      otherToken = (await signIn(otherEmail)).body.data.access_token;
+    });
+
+    it('publishes the shape of the exam without signing in', async () => {
+      const res = await request(http)
+        .get('/api/v1/entrance-exam/format')
+        .expect(200);
+      expect(res.body.data).toEqual({
+        listening: { parts: 4, questions: 30, minutes: 30 },
+        reading: { passages: 3, questions: 30, minutes: 60 },
+        writing: { tasks: 2, minutes: 60 },
+        total_questions: 60,
+        total_minutes: 150,
+      });
+    });
+
+    it('needs a signed-in student to start, submit or list sittings', async () => {
+      await request(http).post('/api/v1/entrance-exam/generate').expect(401);
+      await request(http).post('/api/v1/entrance-exam/submit').expect(401);
+      await request(http).get('/api/v1/entrance-exam/history').expect(401);
+    });
+
+    it('does not start an exam without the AI key (503) and still accepts old clients’ question_count', async () => {
+      const ai = await request(http)
+        .get('/api/v1/entrance-exam/ai-status')
+        .expect(200);
+      if (ai.body.data.ai_enabled) return; // a real key is configured: generating would call the AI
+      await request(http)
+        .post('/api/v1/entrance-exam/generate')
+        .set(auth(token))
+        .send({ exam_type: 'ielts', question_count: 20 })
+        .expect(503);
+    });
+
+    it('lists a submitted sitting with its overall band, only for its owner', async () => {
+      const [paper] = await dataSource.query<{ id: number }[]>(
+        `INSERT INTO exam_papers (exam_type, theme, variant, time_limit, format, created_by)
+         VALUES ('ielts', 'Environment & Ecology', 1, 150, '[]', $1) RETURNING id`,
+        [userId],
+      );
+      const result = {
+        total: 60,
+        correct: 42,
+        score_percent: 70,
+        estimated_band: '6.5',
+        estimated_score: '70%',
+        level: 'B2 — Upper-Intermediate',
+        overall_band: 6.5,
+        breakdown: [],
+        recommendations: [],
+        weak_areas: [],
+      };
+      const [attempt] = await dataSource.query<{ id: number }[]>(
+        `INSERT INTO exam_attempts (paper_id, user_id, status, answers, result, score_percent, estimated_band, overall_band, submitted_at)
+         VALUES ($1, $2, 'submitted', '[]', $3, 70, '6.5', 6.5, now()) RETURNING id`,
+        [paper.id, userId, JSON.stringify(result)],
+      );
+
+      const mine = await request(http)
+        .get('/api/v1/entrance-exam/history')
+        .set(auth(token))
+        .expect(200);
+      expect(mine.body.data).toHaveLength(1);
+      expect(mine.body.data[0]).toMatchObject({
+        attempt_id: attempt.id,
+        overall_band: 6.5,
+        estimated_band: '6.5',
+        correct: 42,
+        total: 60,
+      });
+      const full = await request(http)
+        .get(`/api/v1/entrance-exam/attempts/${attempt.id}`)
+        .set(auth(token))
+        .expect(200);
+      expect(full.body.data.overall_band).toBe(6.5);
+
+      const other = await request(http)
+        .get('/api/v1/entrance-exam/history')
+        .set(auth(otherToken))
+        .expect(200);
+      expect(other.body.data).toEqual([]);
+      await request(http)
+        .get(`/api/v1/entrance-exam/attempts/${attempt.id}`)
+        .set(auth(otherToken))
+        .expect(404);
+    });
+
+    it('has the typed-answer and band columns the exam needs (built by the migrations)', async () => {
+      const cols = await dataSource.query<
+        { table_name: string; column_name: string }[]
+      >(
+        `SELECT table_name, column_name FROM information_schema.columns
+          WHERE (table_name = 'exam_questions' AND column_name IN ('instruction', 'accepted_answers'))
+             OR (table_name = 'exam_attempts' AND column_name = 'overall_band')
+             OR (table_name = 'user_profiles' AND column_name = 'target_band')`,
+      );
+      expect(
+        cols.map((c) => `${c.table_name}.${c.column_name}`).sort(),
+      ).toEqual([
+        'exam_attempts.overall_band',
+        'exam_questions.accepted_answers',
+        'exam_questions.instruction',
+      ]); // user_profiles.target_band is gone
     });
   });
 });
