@@ -58,7 +58,10 @@ const GROUP_SPEC: Record<GradedType, string> = {
 export function partPrompt(part: PartBlueprint, topic: string): string {
   const listening = part.skill === 'Listening';
   const groups = part.groups
-    .map((g, i) => `  ${i + 1}. ${g.count} × ${g.type}: ${GROUP_SPEC[g.type]}`)
+    .map(
+      (g, i) =>
+        `  ${i + 1}. ${g.count} questions with "type": "${g.type}" (write the type exactly like this, lower case with hyphens) — ${GROUP_SPEC[g.type]}`,
+    )
     .join('\n');
   const total = part.groups.reduce((n, g) => n + g.count, 0);
   const textKey = listening ? '"transcript"' : '"passage"';
@@ -78,7 +81,7 @@ ${
 QUESTIONS: exactly ${total}, in this order and of these types:
 ${groups}
 
-Every question object: {"type": "<one of the types above>", "instruction": "<the official rubric for the group, e.g. 'Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'>", "question": "...", "options": [...], "correct_answer": <index or -1>, "accepted_answers": [...], "explanation": "<one sentence quoting or pointing to where the answer is>"}
+Every question object: {"type": "<exactly one of the type identifiers above, e.g. form-completion>", "instruction": "<the official rubric for the group, e.g. 'Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer.'>", "question": "...", "options": [...], "correct_answer": <index or -1>, "accepted_answers": [...], "explanation": "<one sentence quoting or pointing to where the answer is>"}
 For typed-answer questions use "options": [] and "correct_answer": -1. For option questions use "accepted_answers": [].
 ${listening ? 'Multiple-choice questions have 3 options.' : 'Multiple-choice questions have 4 options.'}
 

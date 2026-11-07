@@ -20,6 +20,16 @@ const isDict = (v: unknown): v is Dict =>
 const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 
+/**
+ * The question type as an identifier: the model may write "FORM COMPLETION", "Form completion"
+ * or "true/false/not given" for "form-completion" / "true-false-not-given".
+ */
+export const typeKey = (v: unknown): string =>
+  text(v)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 /** The JSON object in a model reply (fences and chatter around it are ignored). */
 export function extractJsonObject(raw: string): Dict {
   const cleaned = raw
@@ -174,7 +184,7 @@ export function normalizePart(
   const out: ExamQuestion[] = [];
   for (const group of part.groups) {
     const ofType = items.filter(
-      (q) => isDict(q) && text(q.type) === group.type,
+      (q) => isDict(q) && typeKey(q.type) === group.type,
     );
     const clean = ofType
       .map((q) => cleanQuestion(q, group.type))

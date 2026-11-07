@@ -830,7 +830,7 @@ export default {
       completeTitle: '完成测试', completeDesc: '依次完成听力、阅读、写作 — 每项技能有独立计时，与真实考试一致。',
       resultTitle: '获取结果', resultDesc: '即时估算分数、答案回顾及 AI 学习建议 — 保存在你的历史记录中。',
     },
-    generatingHint: 'AI 正在为你生成专属试卷 — 大约需要 15–30 秒',
+    generatingHint: 'AI 正在为你生成专属试卷 — 完整试卷大约需要 1 分钟',
     genFailedTitle: '试卷生成失败', genFailed: 'AI 生成试卷失败，请重试。', tryAgain: '重试',
     questionsN: '{n} 题', submitting: '提交中...',
     submitFailed: '答案提交失败。你的答案已保留 — 请重试。',

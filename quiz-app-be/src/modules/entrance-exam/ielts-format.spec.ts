@@ -22,6 +22,7 @@ import {
   normalizeMarking,
   normalizePart,
   normalizeWritingTasks,
+  typeKey,
   writingQuestions,
 } from './ielts-parse';
 
@@ -182,6 +183,17 @@ describe('normalizePart', () => {
         part,
       ),
     ).toThrow(/too short/);
+  });
+
+  it('accepts the type however the model wrote it ("MULTIPLE CHOICE", "Matching")', () => {
+    const loose = [
+      ...[0, 1, 2, 3].map((i) => ({ ...mc(i), type: 'MULTIPLE CHOICE' })),
+      ...[0, 1, 2].map((i) => ({ ...match(i), type: 'Matching' })),
+    ];
+    expect(normalizePart(reply(loose), part)).toHaveLength(7);
+    expect(typeKey('TRUE / FALSE / NOT GIVEN')).toBe('true-false-not-given');
+    expect(typeKey(' Yes-No-Not Given ')).toBe('yes-no-not-given');
+    expect(typeKey(undefined)).toBe('');
   });
 
   it('assigns the types in order when the model forgot them', () => {

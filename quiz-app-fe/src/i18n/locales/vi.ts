@@ -830,7 +830,7 @@ export default {
       completeTitle: 'Làm bài', completeDesc: 'Làm lần lượt Listening, Reading rồi Writing — mỗi kỹ năng có đồng hồ riêng, giống thi thật.',
       resultTitle: 'Nhận kết quả', resultDesc: 'Ước tính band điểm ngay, xem lại đáp án và gợi ý học từ AI — lưu trong lịch sử của bạn.',
     },
-    generatingHint: 'AI đang tạo đề thi riêng cho bạn — có thể mất 15–30 giây',
+    generatingHint: 'AI đang tạo đề thi riêng cho bạn — một đề đầy đủ mất khoảng 1 phút',
     genFailedTitle: 'Không tạo được đề thi', genFailed: 'AI tạo đề thất bại. Vui lòng thử lại.', tryAgain: 'Thử lại',
     questionsN: '{n} câu', submitting: 'Đang nộp...',
     submitFailed: 'Không nộp được bài. Đáp án của bạn vẫn được giữ — hãy thử lại.',

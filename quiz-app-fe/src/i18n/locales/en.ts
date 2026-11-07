@@ -848,7 +848,7 @@ export default {
       completeTitle: 'Complete the test', completeDesc: 'Listening, then Reading, then Writing — each skill has its own timer, like the real test.',
       resultTitle: 'Get your results', resultDesc: 'Instant band score estimation, answer review & AI study tips — kept in your history.',
     },
-    generatingHint: 'AI is generating your unique exam — this may take 15–30 seconds',
+    generatingHint: 'AI is generating your unique exam — a full test takes about a minute',
     genFailedTitle: 'Failed to Generate Exam', genFailed: 'AI exam generation failed. Please try again.', tryAgain: 'Try Again',
     questionsN: '{n} question | {n} questions', submitting: 'Submitting...',
     submitFailed: 'Could not submit your answers. Your answers are kept — please try again.',
