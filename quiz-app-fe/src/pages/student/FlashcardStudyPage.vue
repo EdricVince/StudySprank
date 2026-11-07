@@ -127,7 +127,7 @@
             <!-- Card Header -->
             <div class="flex items-center justify-between p-5">
               <span class="text-primary text-sm font-medium">
-                <template v-if="isVocabMode">{{ $t('flashcards.studyPage.meaning', { lang: meaningLang.toUpperCase() }) }}</template>
+                <template v-if="isVocabMode">{{ $t('flashcards.studyPage.meaning', { lang: cardMeaningLang.toUpperCase() }) }}</template>
                 <template v-else>{{ $t('flashcards.studyPage.definition') }}</template>
               </span>
               <div class="flex items-center gap-2">
@@ -281,6 +281,7 @@ import { useProgressStore } from '@/stores/progress.store'
 import { useToast } from '@/composables/useToast'
 import { useLearningLanguage } from '@/composables/useLearningLanguage'
 import { useMeaningLanguage } from '@/composables/useMeaningLanguage'
+import { useLocale } from '@/composables/useLocale'
 import { useVocabulary } from '@/composables/useVocabulary'
 import { api } from '@/utils/api'
 import { QUALITY_KNOWN, QUALITY_UNKNOWN, describeDueReason } from '@/utils/srs'
@@ -304,8 +305,13 @@ const router = useRouter()
 const progressStore = useProgressStore()
 const toast = useToast()
 const { currentOption: currentLearningOption } = useLearningLanguage()
-// Meanings are shown in the app language, but never in the language being learned.
+// Flashcards show the meaning only after the card is flipped, so (unlike a quiz question) it may be
+// written in the language being learned: the AI explains each word in the app language, English included.
+// The built-in word list has no English definitions, so it falls back to a language that differs from the
+// one being learned (meaningLang). cardMeaningLang is the language the cards on screen really use.
+const { locale: uiLang } = useLocale()
 const { meaningLang } = useMeaningLanguage()
+const cardMeaningLang = ref<string>(uiLang.value as string)
 const { getRandomWords, getWordInLang } = useVocabulary()
 
 const isVocabMode = computed(() => route.name === 'FlashcardVocabPractice' || route.query.mode === 'vocab')
@@ -335,7 +341,7 @@ const currentDeck = computed(() => {
     return {
       id: 'vocab',
       title: t('flashcards.studyPage.vocabTitle', { flag: currentLearningOption.value.flag }),
-      description: t('flashcards.studyPage.vocabDesc', { lang: currentLearningOption.value.name, ui: meaningLang.value.toUpperCase() }),
+      description: t('flashcards.studyPage.vocabDesc', { lang: currentLearningOption.value.name, ui: cardMeaningLang.value.toUpperCase() }),
     }
   }
   return { id: deckId.value, title: deckMeta.value?.title ?? t('flashcards.studyPage.deck'), description: deckMeta.value?.description ?? '' }
@@ -367,6 +373,7 @@ let sessionStartedAt = Date.now()
 
 // Local fallback batch (offline / AI not configured) — the static word list.
 function buildVocabCards(): Flashcard[] {
+  cardMeaningLang.value = meaningLang.value
   const words = getRandomWords(15)
   return words.map((w, i) => ({
     id: i + 1,
@@ -383,12 +390,13 @@ async function loadVocabCards(exclude: string[] = []): Promise<Flashcard[]> {
   try {
     const items = await api.generateVocabulary({
       learningLang: currentLearningOption.value.value,
-      uiLang: meaningLang.value,
+      uiLang: uiLang.value as string,
       count: 15,
       exclude,
     })
     if (items && items.length) {
       vocabFromAi = true
+      cardMeaningLang.value = uiLang.value as string
       return items.map((it, i) => ({
         id: i + 1,
         term: it.term,
@@ -494,7 +502,7 @@ function sessionContext() {
     return { modeId: 'flashcards-review', modeName: 'Flashcards review', source: r.source, title: r.title, deckId: r.deckId ?? undefined, vocabSetId: r.vocabSetId ?? undefined, learningLang: r.learningLang, meaningLang: r.meaningLang }
   }
   if (isVocabMode.value) {
-    return { modeId: 'flashcards-vocab', modeName: 'Vocabulary practice', source: (vocabFromAi ? 'ai' : 'builtin') as SessionSource, title: 'Vocabulary practice', learningLang, meaningLang: meaning }
+    return { modeId: 'flashcards-vocab', modeName: 'Vocabulary practice', source: (vocabFromAi ? 'ai' : 'builtin') as SessionSource, title: 'Vocabulary practice', learningLang, meaningLang: cardMeaningLang.value }
   }
   if (isVocabSetMode.value) {
     return { modeId: 'flashcards-vocab-set', modeName: 'Vocabulary set', source: 'vocab_set' as SessionSource, title: currentDeck.value.title, vocabSetId: deckId.value, learningLang, meaningLang: meaning }

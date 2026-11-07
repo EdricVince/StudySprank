@@ -76,3 +76,33 @@ describe('FlashcardStudyPage — vocabulary practice', () => {
     expect(w.text()).not.toContain('Generating fresh vocabulary')
   })
 })
+
+describe('FlashcardStudyPage — meaning language of the practice cards', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('asks the AI to explain the words in the app language (English meanings in an English interface)', async () => {
+    mockGen.mockResolvedValue([
+      { term: 'drizzle', meaning: 'light rain', explanation: 'Very fine rain that falls lightly.', example: 'It is just a light drizzle.' },
+    ])
+    const w = mountPage()
+    await flushPromises()
+
+    expect(mockGen).toHaveBeenCalledWith(expect.objectContaining({ learningLang: 'en', uiLang: 'en' }))
+    expect(w.text()).toContain('light rain')
+    expect(w.text()).toContain('Very fine rain that falls lightly.')
+    expect(w.text()).toContain('EN Meaning') // the back label names the language really used
+  })
+
+  it('uses a different language for the built-in words, which have no English definitions', async () => {
+    mockGen.mockRejectedValue(new Error('AI unavailable'))
+    const w = mountPage()
+    await flushPromises()
+
+    expect(w.text()).toContain('VI Meaning')
+    const back = w.find('.card-back').text()
+    expect(back).not.toMatch(/^\s*$/)
+  })
+})

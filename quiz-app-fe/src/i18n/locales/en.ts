@@ -208,7 +208,7 @@ export default {
       dontKnow: "Don't know", flip: 'Flip card', knowIt: 'Know it',
       completeTitle: 'Session Complete!', completeDesc: "You've reviewed all {n} cards", knownLabel: 'Known', stillLearning: 'Still Learning',
       studyAgain: 'Study Again', reviewLearning: 'Review {n} Learning Cards', exitSession: 'Exit Session',
-      vocabTitle: '{flag} Vocabulary Practice', vocabDesc: 'Learn {lang} words with {ui} translations', deck: 'Deck',
+      vocabTitle: '{flag} Vocabulary Practice', vocabDesc: 'Learn {lang} words with {ui} meanings', deck: 'Deck',
     },
     srs: {
       new: 'New card — you have not reviewed it yet.', overdue: '{n} day overdue | {n} days overdue', dueToday: 'due today',
