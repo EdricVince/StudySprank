@@ -1,6 +1,7 @@
 import { vocabulary, getWordInLang, type VocabWord } from '@/data/vocabulary'
 import { useMeaningLanguage } from './useMeaningLanguage'
 import { useLocale, type SupportedLocale } from './useLocale'
+import { useQuizDirection, directionOfQuestion } from './useQuizDirection'
 import { useQuizStore } from '@/stores/quiz.store'
 import { api } from '@/utils/api'
 import i18n from '@/i18n'
@@ -86,6 +87,7 @@ export function useVocabulary() {
   const { meaningLang, learningLang } = useMeaningLanguage()
   const { locale: uiLang } = useLocale()
   const quizStore = useQuizStore()
+  const { direction } = useQuizDirection()
   const say = (key: string, params: Record<string, unknown> = {}) =>
     i18n.global.t(key, params, { locale: uiLang.value as SupportedLocale })
 
@@ -113,27 +115,31 @@ export function useVocabulary() {
     const words = pool ?? getRandomWords(Math.max(count, 4))
     return words.slice(0, count).map((word, i) => {
       const term = getWordInLang(word, learningLang.value)
-      const correct = getWordInLang(word, meaningLang.value)
+      const meaning = getWordInLang(word, meaningLang.value)
+      // 'meaning': show the word, pick its meaning. 'term': show the meaning, pick the word.
+      const toTerm = directionOfQuestion(direction.value) === 'term'
+      const lang = toTerm ? learningLang.value : meaningLang.value
+      const correct = toTerm ? term : meaning
       const others = words.filter(w => w.id !== word.id)
-      const wrongs = [...new Set(shuffleArray(others).map(w => getWordInLang(w, meaningLang.value)))]
+      const wrongs = [...new Set(shuffleArray(others).map(w => getWordInLang(w, lang)))]
         .filter(m => m && m !== correct)
         .slice(0, 3)
-      // Two words of the AI round can share a meaning: complete the options from the built-in list.
+      // Two words of a round can share a meaning: complete the options from the built-in list.
       for (const w of shuffleArray(vocabulary)) {
         if (wrongs.length >= 3) break
-        const m = getWordInLang(w, meaningLang.value)
+        const m = getWordInLang(w, lang)
         if (m !== correct && !wrongs.includes(m)) wrongs.push(m)
       }
       const options = shuffleArray([correct, ...wrongs])
       return {
         id: i + 1,
-        question: say('quizPlay.q.whatMeans', { term }),
+        question: toTerm ? say('quizPlay.q.whichWord', { meaning }) : say('quizPlay.q.whatMeans', { term }),
         options,
         correctAnswer: correct,
-        explanation: say('quizPlay.q.means', { term, meaning: correct }),
+        explanation: say('quizPlay.q.means', { term, meaning }),
         vocabWord: word,
         termDisplay: term,
-        meaningDisplay: correct,
+        meaningDisplay: meaning,
       }
     })
   }

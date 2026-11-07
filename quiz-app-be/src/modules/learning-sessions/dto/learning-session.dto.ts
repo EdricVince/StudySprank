@@ -58,6 +58,17 @@ export class CreateLearningSessionDto {
   words: SessionWordDto[];
 }
 
+export const VOCABULARY_STATUSES = ['learned', 'weak'] as const;
+export type VocabularyStatus = (typeof VOCABULARY_STATUSES)[number];
+
+export class VocabularyQuery {
+  /** learned = known at least once and not missed more often than known; weak = missed more than known. */
+  @IsOptional() @IsIn(VOCABULARY_STATUSES) status?: VocabularyStatus;
+  @IsOptional() @IsString() @MaxLength(100) search?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) offset?: number;
+}
+
 export class ListLearningSessionsQuery {
   @IsOptional() @IsIn(SESSION_KINDS) kind?: SessionKind;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;

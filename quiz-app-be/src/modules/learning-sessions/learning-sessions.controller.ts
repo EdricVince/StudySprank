@@ -18,6 +18,7 @@ import { LearningSessionsService } from './learning-sessions.service';
 import {
   CreateLearningSessionDto,
   ListLearningSessionsQuery,
+  VocabularyQuery,
 } from './dto/learning-session.dto';
 
 /** The signed-in user's flashcard and quiz history. Every route is scoped to the caller. */
@@ -41,6 +42,16 @@ export class LearningSessionsController {
     @Query() query: ListLearningSessionsQuery,
   ) {
     const data = await this.service.list(user.id, query);
+    return { code: 200, message: 'OK', data };
+  }
+
+  /** Every word the caller has practised, with how it went (declared before ':id'). */
+  @Get('vocabulary')
+  async vocabulary(
+    @CurrentUser() user: CurrentUserData,
+    @Query() query: VocabularyQuery,
+  ) {
+    const data = await this.service.vocabulary(user.id, query);
     return { code: 200, message: 'OK', data };
   }
 

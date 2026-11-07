@@ -757,6 +757,7 @@ export default {
     socialModal: { addTitle: 'Thêm liên kết MXH', editTitle: 'Sửa liên kết MXH', platform: 'Nền tảng', url: 'Đường dẫn', urlPlaceholder: 'https://', cancel: 'Hủy', save: 'Lưu' },
   },
   quizzesPage: {
+    direction: { label: 'Hướng câu hỏi', meaning: 'Từ → nghĩa', term: 'Nghĩa → từ', mixed: 'Trộn lẫn', hint: 'Áp dụng cho Trắc nghiệm và Tốc độ.' },
     title: 'Trò chơi Quiz', subtitle: 'Thử thách bản thân và học từ vựng qua các trò chơi vui',
     dayStreak: 'Chuỗi {n} ngày',
     stats: { gamesPlayed: 'Lượt chơi', accuracy: 'Độ chính xác', wordsStudied: 'Từ đã học', bestStreak: 'Chuỗi tốt nhất' },
@@ -996,7 +997,7 @@ export default {
     vocab: { title: 'Kết quả từ vựng', word: 'Từ', meaning: 'Nghĩa', result: 'Kết quả' },
     preparing: 'Đang chuẩn bị câu hỏi cho bạn…',
     q: {
-      whatMeans: 'Từ "{term}" nghĩa là gì?', means: '"{term}" nghĩa là "{meaning}"',
+      whatMeans: 'Từ "{term}" nghĩa là gì?', whichWord: 'Từ nào có nghĩa là "{meaning}"?', means: '"{term}" nghĩa là "{meaning}"',
       hint: 'Một từ thuộc chủ đề "{topic}", mang nghĩa là "{meaning}".',
     },
     categories: {
@@ -1031,6 +1032,15 @@ export default {
   },
   history: {
     open: 'Lịch sử', viewAll: 'Xem toàn bộ lịch sử',
+    tabs: { sessions: 'Các lượt', vocabulary: 'Từ vựng của tôi' },
+    words: {
+      title: 'Từ vựng của tôi', desc: 'Mọi từ bạn đã luyện trong flashcard và game, kèm kết quả từng lần (không gồm câu hỏi Battle).',
+      search: 'Tìm một từ hoặc nghĩa…', all: 'Tất cả', learned: 'Đã thuộc', weak: 'Cần luyện',
+      empty: 'Chưa có từ nào', emptyDesc: 'Học xong một lượt flashcard hoặc chơi một game, các từ bạn đã luyện sẽ được gom về đây.',
+      noMatch: 'Không có từ nào khớp với bộ lọc.', studyThese: 'Học các từ này',
+      seen: 'gặp {n} lần', correct: 'đúng {n}', missed: 'sai {n}',
+      status: { learned: 'Đã thuộc', weak: 'Cần luyện', unrated: 'Chưa chấm' },
+    },
     backFlashcards: 'Quay lại Flashcards', backQuizzes: 'Quay lại Quizzes',
     flashcardTitle: 'Lịch sử học flashcard', flashcardSubtitle: 'Mọi bộ thẻ bạn đã học cùng các từ trong đó — mở một lượt để học lại',
     quizTitle: 'Lịch sử chơi game', quizSubtitle: 'Mọi ván game bạn đã chơi và các từ đã luyện',
@@ -1050,7 +1060,7 @@ export default {
     deleted: 'Đã xoá lượt', deleteFailed: 'Không xoá được lượt này.',
     saveFailed: 'Không lưu được kết quả vào lịch sử của bạn.',
     replayDesc: 'Học lại các từ trong lịch sử của bạn',
-    sources: { deck: 'Bộ flashcard', vocab_set: 'Bộ từ vựng', ai: 'Do AI tạo', builtin: 'Từ có sẵn' },
+    sources: { deck: 'Bộ flashcard', vocab_set: 'Bộ từ vựng', ai: 'Do AI tạo', builtin: 'Từ có sẵn', review: 'Danh sách từ vựng của bạn' },
     modes: {
       'multiple-choice': 'Trắc nghiệm', 'word-scramble': 'Sắp xếp chữ', 'matching-pairs': 'Ghép cặp',
       'speed-round': 'Tốc độ', 'true-false': 'Đúng hay Sai', 'typing-challenge': 'Thử thách gõ phím',

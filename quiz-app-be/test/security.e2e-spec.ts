@@ -729,4 +729,135 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
       await request(http).get('/api/v1/progress/statistics').expect(401);
     });
   });
+
+  describe('Vocabulary list: every word the student practised', () => {
+    const post = (token: string, words: object[], over: object = {}) =>
+      request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(token))
+        .send({
+          kind: 'quiz',
+          mode_id: 'multiple-choice',
+          mode_name: 'Multiple Choice',
+          source: 'builtin',
+          title: 'Multiple Choice',
+          words,
+          ...over,
+        })
+        .expect(201);
+    const list = (token: string, query = '') =>
+      request(http)
+        .get(`/api/v1/learning-sessions/vocabulary${query}`)
+        .set(auth(token));
+
+    beforeAll(async () => {
+      await post(studentInToken, [
+        { term: 'Quokka', meaning: 'chuột túi nhỏ', is_correct: false },
+        { term: 'yak', meaning: 'bò Tây Tạng', is_correct: true },
+        { term: 'ibex', meaning: 'dê rừng' }, // never rated
+      ]);
+      await post(studentInToken, [
+        {
+          term: 'quokka',
+          meaning: 'chuột túi nhỏ',
+          example: 'A quokka smiles.',
+          is_correct: false,
+        },
+      ]);
+      // Battle questions are not vocabulary
+      await post(
+        studentInToken,
+        [
+          {
+            term: 'battleq: capital of France?',
+            meaning: 'Paris',
+            is_correct: true,
+          },
+        ],
+        { mode_id: 'battle', mode_name: 'Battle Mode', source: 'ai' },
+      );
+    });
+
+    it('merges a word that came up several times into one row with how it went', async () => {
+      const res = await list(studentInToken, '?search=quokka').expect(200);
+      expect(res.body.data.items).toHaveLength(1);
+      expect(res.body.data.items[0]).toMatchObject({
+        meaning: 'chuột túi nhỏ',
+        example: 'A quokka smiles.',
+        seen: 2,
+        correct: 0,
+        missed: 2,
+        status: 'weak',
+      });
+      expect(res.body.data.items[0].term.toLowerCase()).toBe('quokka');
+    });
+
+    it('filters by status and reports the size of the whole list', async () => {
+      const weak = await list(
+        studentInToken,
+        '?status=weak&search=quokka',
+      ).expect(200);
+      expect(weak.body.data.total).toBe(1);
+      const none = await list(
+        studentInToken,
+        '?status=learned&search=quokka',
+      ).expect(200);
+      expect(none.body.data.total).toBe(0);
+
+      const learned = await list(
+        studentInToken,
+        '?status=learned&search=yak',
+      ).expect(200);
+      expect(learned.body.data.items[0].status).toBe('learned');
+
+      const all = await list(studentInToken).expect(200);
+      const terms = all.body.data.items.map((w: any) => w.term.toLowerCase());
+      expect(terms).toEqual(expect.arrayContaining(['quokka', 'yak', 'ibex']));
+      expect(
+        all.body.data.items.find((w: any) => w.term === 'ibex').status,
+      ).toBe('unrated');
+      expect(all.body.data.summary.total).toBeGreaterThanOrEqual(3);
+      expect(all.body.data.summary.weak).toBeGreaterThanOrEqual(1);
+    });
+
+    it('also finds a word by its meaning, and treats % and _ literally', async () => {
+      const byMeaning = await list(
+        studentInToken,
+        '?search=' + encodeURIComponent('bò Tây'),
+      ).expect(200);
+      expect(byMeaning.body.data.items.map((w: any) => w.term)).toContain(
+        'yak',
+      );
+      const percent = await list(studentInToken, '?search=%25').expect(200);
+      expect(percent.body.data.total).toBe(0); // no word contains a literal %
+    });
+
+    it('leaves Battle questions out', async () => {
+      const res = await list(studentInToken, '?search=battleq').expect(200);
+      expect(res.body.data.total).toBe(0);
+    });
+
+    it('is private to the caller and validates its query', async () => {
+      const other = await list(studentOutToken, '?search=quokka').expect(200);
+      expect(other.body.data.total).toBe(0);
+      await list(studentInToken, '?status=bogus').expect(400);
+      await request(http)
+        .get('/api/v1/learning-sessions/vocabulary')
+        .expect(401);
+    });
+
+    it('accepts a session made of words picked from the list (source review)', async () => {
+      const res = await post(
+        studentInToken,
+        [{ term: 'yak', meaning: 'bò Tây Tạng', is_correct: true }],
+        {
+          kind: 'flashcard',
+          mode_id: 'flashcards-review',
+          source: 'review',
+          title: 'My vocabulary',
+        },
+      );
+      expect(res.body.data.source).toBe('review');
+    });
+  });
 });

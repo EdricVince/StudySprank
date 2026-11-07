@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import {
   LearningSessionsService,
   accuracyOf,
+  likePattern,
 } from './learning-sessions.service';
 import type { CreateLearningSessionDto } from './dto/learning-session.dto';
 
@@ -155,5 +156,69 @@ describe('LearningSessionsService', () => {
     await expect(service.remove(7, 4)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe('likePattern', () => {
+  it('wraps the text for a contains-search and escapes LIKE wildcards', () => {
+    expect(likePattern('cat')).toBe('%cat%');
+    expect(likePattern('50%')).toBe('%50\\%%');
+    expect(likePattern('a_b')).toBe('%a\\_b%');
+  });
+});
+
+describe('LearningSessionsService.vocabulary', () => {
+  const build = (rows: unknown[], counts: Record<string, number>) => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce(rows)
+      .mockResolvedValueOnce([counts]);
+    const service = new LearningSessionsService(
+      { query } as never,
+      {} as never,
+    );
+    return { service, query };
+  };
+
+  it('passes the caller, search and status to SQL and drops the internal grouping key', async () => {
+    const { service, query } = build(
+      [
+        {
+          key: 'door',
+          term: 'door',
+          meaning: 'cửa',
+          example: null,
+          seen: 2,
+          correct: 1,
+          missed: 1,
+          last_seen_at: new Date(),
+          status: 'learned',
+        },
+      ],
+      { matches: 1, total: 4, learned: 3, weak: 1 },
+    );
+    const page = await service.vocabulary(7, {
+      status: 'learned',
+      search: ' do_or ',
+      limit: 10,
+      offset: 20,
+    });
+
+    expect(query.mock.calls[0][1]).toEqual([7, '%do\\_or%', 'learned', 10, 20]);
+    expect(page.items[0]).not.toHaveProperty('key');
+    expect(page.items[0].term).toBe('door');
+    expect(page.total).toBe(1);
+    expect(page.summary).toEqual({ total: 4, learned: 3, weak: 1 });
+  });
+
+  it('searches nothing when the search text is blank and defaults the page', async () => {
+    const { service, query } = build([], {
+      matches: 0,
+      total: 0,
+      learned: 0,
+      weak: 0,
+    });
+    await service.vocabulary(7, { search: '   ' });
+    expect(query.mock.calls[0][1]).toEqual([7, null, null, 20, 0]);
   });
 });

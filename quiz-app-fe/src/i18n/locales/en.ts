@@ -775,6 +775,7 @@ export default {
     socialModal: { addTitle: 'Add Social Link', editTitle: 'Edit Social Link', platform: 'Platform', url: 'URL', urlPlaceholder: 'https://', cancel: 'Cancel', save: 'Save' },
   },
   quizzesPage: {
+    direction: { label: 'Question direction', meaning: 'Word → meaning', term: 'Meaning → word', mixed: 'Mixed', hint: 'Applies to Multiple Choice and Speed Round.' },
     title: 'Quiz Games', subtitle: 'Challenge yourself and learn vocabulary through fun games',
     dayStreak: '{n} day streak',
     stats: { gamesPlayed: 'Games Played', accuracy: 'Accuracy', wordsStudied: 'Words Studied', bestStreak: 'Best Streak' },
@@ -1014,7 +1015,7 @@ export default {
     vocab: { title: 'Vocabulary Results', word: 'Word', meaning: 'Meaning', result: 'Result' },
     preparing: 'Preparing your questions…',
     q: {
-      whatMeans: 'What does "{term}" mean?', means: '"{term}" means "{meaning}"',
+      whatMeans: 'What does "{term}" mean?', whichWord: 'Which word means "{meaning}"?', means: '"{term}" means "{meaning}"',
       hint: 'A word in the "{topic}" topic that means "{meaning}".',
     },
     categories: {
@@ -1049,6 +1050,15 @@ export default {
   },
   history: {
     open: 'History', viewAll: 'View all history',
+    tabs: { sessions: 'Sessions', vocabulary: 'My vocabulary' },
+    words: {
+      title: 'My vocabulary', desc: 'Every word you practised in flashcards and games, with how it went (Battle questions are not included).',
+      search: 'Search a word or meaning…', all: 'All', learned: 'Learned', weak: 'To practise',
+      empty: 'No words yet', emptyDesc: 'Finish a flashcard session or a game and the words you practised are collected here.',
+      noMatch: 'No word matches your filter.', studyThese: 'Study these words',
+      seen: 'seen {n} time | seen {n} times', correct: 'right {n}', missed: 'missed {n}',
+      status: { learned: 'Learned', weak: 'To practise', unrated: 'Not rated' },
+    },
     backFlashcards: 'Back to Flashcards', backQuizzes: 'Back to Quizzes',
     flashcardTitle: 'Flashcard history', flashcardSubtitle: 'Every deck you studied and the words in it — open one to study it again',
     quizTitle: 'Game history', quizSubtitle: 'Every game you played and the words you practised',
@@ -1068,7 +1078,7 @@ export default {
     deleted: 'Session deleted', deleteFailed: 'Could not delete the session.',
     saveFailed: 'Your result could not be saved to your history.',
     replayDesc: 'Studying the words from your history',
-    sources: { deck: 'Flashcard deck', vocab_set: 'Vocabulary set', ai: 'AI-generated', builtin: 'Built-in words' },
+    sources: { deck: 'Flashcard deck', vocab_set: 'Vocabulary set', ai: 'AI-generated', builtin: 'Built-in words', review: 'Your vocabulary list' },
     modes: {
       'multiple-choice': 'Multiple Choice', 'word-scramble': 'Word Scramble', 'matching-pairs': 'Matching Pairs',
       'speed-round': 'Speed Round', 'true-false': 'True or False', 'typing-challenge': 'Typing Challenge',

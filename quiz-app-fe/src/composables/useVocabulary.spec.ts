@@ -14,6 +14,7 @@ vi.mock('@/utils/api', () => ({ api: { generateVocabulary: vi.fn() } }))
 import { useVocabulary, sourceOfWords } from './useVocabulary'
 import { api } from '@/utils/api'
 import { useLearningLanguage } from './useLearningLanguage'
+import { useQuizDirection } from './useQuizDirection'
 
 const englishWords = new Set(vocabulary.map((w) => w.en))
 const vietnameseMeanings = new Set(vocabulary.map((w) => w.vi))
@@ -24,6 +25,7 @@ describe('useVocabulary', () => {
     setActivePinia(createPinia())
     ui.locale = 'vi'
     useLearningLanguage().setLanguage('en') // study English terms
+    useQuizDirection().setDirection('meaning')
   })
 
   it('generateMCQuestions builds N questions whose options include the correct answer', () => {
@@ -73,6 +75,7 @@ describe('useVocabulary — the answers are never in the language of the questio
     localStorage.clear()
     setActivePinia(createPinia())
     useLearningLanguage().setLanguage('en')
+    useQuizDirection().setDirection('meaning')
   })
 
   it('an English interface learning English still gets Vietnamese meanings as the options', () => {
@@ -135,6 +138,7 @@ describe('useVocabulary — rounds prepared by the AI', () => {
     setActivePinia(createPinia())
     ui.locale = 'en'
     useLearningLanguage().setLanguage('en')
+    useQuizDirection().setDirection('meaning')
     generateVocabulary.mockReset()
   })
 
@@ -213,5 +217,58 @@ describe('useVocabulary — rounds prepared by the AI', () => {
     const qs = await generateSpeedQuestionsAi(8)
     expect(qs).toHaveLength(8)
     expect(sourceOfWords(qs.map((q) => q.vocabWord))).toBe('ai')
+  })
+})
+
+describe('useVocabulary — question direction', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+    ui.locale = 'en'
+    useLearningLanguage().setLanguage('en')
+  })
+
+  it('meaning → word: the quoted text is the meaning (Vietnamese) and the learner picks the English word', () => {
+    useQuizDirection().setDirection('term')
+    const { generateMCQuestions } = useVocabulary()
+    for (const q of generateMCQuestions(8)) {
+      expect(q.question).toBe(`Which word means "${q.meaningDisplay}"?`)
+      expect(vietnameseMeanings.has(q.meaningDisplay)).toBe(true)
+      expect(q.correctAnswer).toBe(q.vocabWord.en)
+      expect(q.options).toHaveLength(4)
+      expect(new Set(q.options).size).toBe(4)
+      for (const option of q.options) expect(englishWords.has(option)).toBe(true)
+    }
+  })
+
+  it('the question text follows the interface language', () => {
+    useQuizDirection().setDirection('term')
+    ui.locale = 'vi'
+    const q = useVocabulary().generateMCQuestions(1)[0]!
+    expect(q.question).toBe(`Từ nào có nghĩa là "${q.meaningDisplay}"?`)
+    expect(q.correctAnswer).toBe(q.vocabWord.en)
+  })
+
+  it('word → meaning keeps the original direction', () => {
+    useQuizDirection().setDirection('meaning')
+    const q = useVocabulary().generateMCQuestions(1)[0]!
+    expect(q.question).toBe(`What does "${q.termDisplay}" mean?`)
+    expect(q.correctAnswer).toBe(q.vocabWord.vi)
+  })
+
+  it('mixed asks some questions each way, and every question is answerable', () => {
+    useQuizDirection().setDirection('mixed')
+    const qs = useVocabulary().generateMCQuestions(40)
+    const toWord = qs.filter((q) => q.question.startsWith('Which word means'))
+    const toMeaning = qs.filter((q) => q.question.startsWith('What does'))
+    expect(toWord.length).toBeGreaterThan(0)
+    expect(toMeaning.length).toBeGreaterThan(0)
+    for (const q of qs) expect(q.options).toContain(q.correctAnswer)
+  })
+
+  it('the speed round follows the same direction', () => {
+    useQuizDirection().setDirection('term')
+    const q = useVocabulary().generateSpeedQuestions(5)[0]!
+    expect(q.question.startsWith('Which word means')).toBe(true)
   })
 })

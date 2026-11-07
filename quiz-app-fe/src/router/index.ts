@@ -69,6 +69,7 @@ const routes = [
       // Flashcards
       { path: 'flashcards',                name: 'Flashcards',           component: () => import('@/pages/student/FlashcardsPage.vue') },
       { path: 'flashcards/history',        name: 'FlashcardHistory',     component: () => import('@/pages/student/LearningHistoryPage.vue'), props: { kind: 'flashcard' } },
+      { path: 'flashcards/history/words/study', name: 'FlashcardWordsReplay', component: () => import('@/pages/student/FlashcardStudyPage.vue') },
       { path: 'flashcards/history/:sessionId/study', name: 'FlashcardSessionReplay', component: () => import('@/pages/student/FlashcardStudyPage.vue') },
       { path: 'flashcards/:id',            name: 'FlashcardDeck',        component: () => import('@/pages/student/FlashcardDeckPage.vue') },
       { path: 'flashcards/vocab-practice', name: 'FlashcardVocabPractice', component: () => import('@/pages/student/FlashcardStudyPage.vue') },

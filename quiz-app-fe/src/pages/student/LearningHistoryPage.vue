@@ -18,6 +18,21 @@
       </p>
     </div>
 
+    <!-- Sessions (one row per flashcard run / game) or the words themselves -->
+    <div class="bg-secondary mb-6 inline-flex rounded-lg p-1" data-test="history-tabs">
+      <button
+        v-for="name in TABS"
+        :key="name"
+        class="rounded-md px-4 py-1.5 text-sm font-medium transition-all"
+        :class="tab === name ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+        :data-test="`tab-${name}`"
+        @click="tab = name"
+      >
+        {{ $t(name === 'sessions' ? 'history.tabs.sessions' : 'history.tabs.vocabulary') }}
+      </button>
+    </div>
+
+    <template v-if="tab === 'sessions'">
     <!-- Loading -->
     <div v-if="loading" class="space-y-3" data-test="history-loading">
       <div v-for="i in 4" :key="i" class="bg-card border-border h-20 animate-pulse rounded-2xl border"></div>
@@ -80,6 +95,83 @@
         <Button variant="outline" :disabled="loadingMore" @click="load(false)">
           {{ $t('history.loadMore') }}
         </Button>
+      </div>
+    </div>
+
+    </template>
+
+    <!-- Every word the student practised, merged -->
+    <div v-else data-test="vocab-tab">
+      <p class="text-muted-foreground mb-4 text-sm">{{ $t('history.words.desc') }}</p>
+
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <div class="bg-secondary flex rounded-lg p-1">
+          <button
+            v-for="f in VOCAB_FILTERS"
+            :key="f"
+            class="rounded-md px-3 py-1.5 text-sm font-medium transition-all"
+            :class="vocabStatus === f ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            :data-test="`vocab-filter-${f}`"
+            @click="vocabStatus = f"
+          >
+            {{ $t(`history.words.${f}`) }}
+            <span class="text-muted-foreground ml-1 text-xs tabular-nums">{{ vocabCount(f) }}</span>
+          </button>
+        </div>
+        <input
+          v-model="vocabQuery"
+          type="search"
+          class="bg-background border-border text-foreground min-w-48 flex-1 rounded-xl border px-3 py-2 text-sm sm:max-w-xs"
+          :placeholder="$t('history.words.search')"
+          data-test="vocab-search"
+        />
+        <Button class="sm:ml-auto" :disabled="!vocabTotal" data-test="vocab-study" @click="studyWords">
+          <RotateCcw class="mr-2 h-4 w-4" />{{ $t('history.words.studyThese') }}
+        </Button>
+      </div>
+
+      <div v-if="vocabLoading" class="space-y-2" data-test="vocab-loading">
+        <div v-for="i in 5" :key="i" class="bg-card border-border h-16 animate-pulse rounded-xl border"></div>
+      </div>
+      <div v-else-if="vocabError" class="bg-card border-border rounded-2xl border p-10 text-center" data-test="vocab-error">
+        <AlertCircle class="text-destructive mx-auto mb-3 h-8 w-8" />
+        <p class="text-foreground mb-4 font-medium">{{ $t('history.loadFailed') }}</p>
+        <Button variant="outline" @click="loadVocab(true)"><RefreshCw class="mr-2 h-4 w-4" />{{ $t('history.retry') }}</Button>
+      </div>
+      <div v-else-if="vocabSummary.total === 0" class="bg-card border-border rounded-2xl border p-12 text-center" data-test="vocab-empty">
+        <div class="bg-primary/10 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+          <BookOpen class="text-primary h-8 w-8" />
+        </div>
+        <h2 class="text-foreground mb-2 text-lg font-semibold">{{ $t('history.words.empty') }}</h2>
+        <p class="text-muted-foreground mx-auto max-w-md text-sm">{{ $t('history.words.emptyDesc') }}</p>
+      </div>
+      <p v-else-if="!vocab.length" class="text-muted-foreground bg-secondary/30 rounded-xl p-8 text-center text-sm" data-test="vocab-no-match">
+        {{ $t('history.words.noMatch') }}
+      </p>
+      <div v-else class="space-y-2" data-test="vocab-list">
+        <div
+          v-for="w in vocab"
+          :key="w.term.toLowerCase()"
+          data-test="vocab-row"
+          class="bg-card border-border flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border px-4 py-3"
+        >
+          <div class="min-w-0 flex-1 basis-56">
+            <p class="text-foreground font-semibold">{{ w.term }}</p>
+            <p class="text-muted-foreground text-sm">{{ w.meaning || '—' }}</p>
+            <p v-if="w.example" class="text-muted-foreground mt-0.5 text-xs italic">"{{ w.example }}"</p>
+          </div>
+          <div class="text-muted-foreground text-xs tabular-nums">
+            <span class="text-primary">✓ {{ w.correct }}</span> · <span class="text-destructive">✗ {{ w.missed }}</span>
+            <p>{{ $t('history.words.seen', { n: w.seen }, w.seen) }}</p>
+          </div>
+          <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="vocabStatusClass(w.status)">
+            {{ $t(`history.words.status.${w.status}`) }}
+          </span>
+        </div>
+
+        <div v-if="vocab.length < vocabTotal" class="pt-2 text-center">
+          <Button variant="outline" :disabled="vocabMoreLoading" @click="loadVocab(false)">{{ $t('history.loadMore') }}</Button>
+        </div>
       </div>
     </div>
 
@@ -189,9 +281,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
-import type { LearningSessionData, SessionKind } from '@/types/learning'
+import type { LearningSessionData, SessionKind, VocabularyEntryData, VocabularyStatus } from '@/types/learning'
 import {
-  AlertCircle, ArrowLeft, Check, ChevronRight, Gamepad2, History, Layers, RefreshCw, RotateCcw, Trash2, X,
+  AlertCircle, ArrowLeft, BookOpen, Check, ChevronRight, Gamepad2, History, Layers, RefreshCw, RotateCcw, Trash2, X,
 } from '@/components/icons'
 import Button from '@/components/ui/button/Button.vue'
 import DeleteConfirmModal from '@/components/common/DeleteConfirmModal.vue'
@@ -303,9 +395,80 @@ async function removeSession() {
 
 const goBack = () => router.push(isFlashcards.value ? '/flashcards' : '/quizzes')
 
+// ── My vocabulary: every word practised, merged over flashcards and games ──────────────
+type Tab = 'sessions' | 'words'
+const TABS: Tab[] = ['sessions', 'words']
+const VOCAB_FILTERS = ['all', 'learned', 'weak'] as const
+type VocabFilter = (typeof VOCAB_FILTERS)[number]
+const VOCAB_PAGE_SIZE = 30
+const SEARCH_DEBOUNCE_MS = 300
+
+const tab = ref<Tab>(route.query.tab === 'words' ? 'words' : 'sessions')
+const vocab = ref<VocabularyEntryData[]>([])
+const vocabTotal = ref(0)
+const vocabSummary = ref({ total: 0, learned: 0, weak: 0 })
+const vocabLoading = ref(false)
+const vocabMoreLoading = ref(false)
+const vocabError = ref(false)
+const vocabQuery = ref('')
+const vocabStatus = ref<VocabFilter>(
+  route.query.status === 'weak' || route.query.status === 'learned' ? route.query.status : 'all',
+)
+let vocabLoaded = false
+
+const vocabCount = (f: VocabFilter) => (f === 'all' ? vocabSummary.value.total : vocabSummary.value[f])
+const vocabStatusClass = (status: VocabularyEntryData['status']) =>
+  status === 'learned' ? 'bg-primary/10 text-primary' : status === 'weak' ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground'
+
+async function loadVocab(reset: boolean) {
+  if (reset) vocabLoading.value = true
+  else vocabMoreLoading.value = true
+  vocabError.value = false
+  try {
+    const status: VocabularyStatus | undefined = vocabStatus.value === 'all' ? undefined : vocabStatus.value
+    const page = await api.getLearningVocabulary({
+      status,
+      search: vocabQuery.value,
+      limit: VOCAB_PAGE_SIZE,
+      offset: reset ? 0 : vocab.value.length,
+    })
+    vocab.value = reset ? page.items : [...vocab.value, ...page.items]
+    vocabTotal.value = page.total
+    vocabSummary.value = page.summary
+    vocabLoaded = true
+  } catch {
+    vocabError.value = true
+  } finally {
+    vocabLoading.value = false
+    vocabMoreLoading.value = false
+  }
+}
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(vocabQuery, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadVocab(true), SEARCH_DEBOUNCE_MS)
+})
+watch(vocabStatus, () => loadVocab(true))
+watch(tab, (name) => {
+  if (name === 'words' && !vocabLoaded) void loadVocab(true)
+})
+
+// Study the words the current filter / search shows (the first batch of them).
+function studyWords() {
+  router.push({
+    path: '/flashcards/history/words/study',
+    query: {
+      ...(vocabStatus.value !== 'all' ? { status: vocabStatus.value } : {}),
+      ...(vocabQuery.value.trim() ? { search: vocabQuery.value.trim() } : {}),
+    },
+  })
+}
+
 watch(() => props.kind, () => load(true))
 
 onMounted(async () => {
+  if (tab.value === 'words') void loadVocab(true)
   await load(true)
   const open = Number(route.query.session)
   if (Number.isInteger(open) && open > 0) void openSession(open)

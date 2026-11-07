@@ -16,6 +16,7 @@ vi.mock('@/utils/api', () => ({
     getLearningSessions: vi.fn(),
     getLearningSession: vi.fn(),
     deleteLearningSession: vi.fn(),
+    getLearningVocabulary: vi.fn(),
   },
 }))
 
@@ -28,6 +29,7 @@ import { api } from '@/utils/api'
 const getSessions = api.getLearningSessions as unknown as ReturnType<typeof vi.fn>
 const getSession = api.getLearningSession as unknown as ReturnType<typeof vi.fn>
 const deleteSession = api.deleteLearningSession as unknown as ReturnType<typeof vi.fn>
+const getVocabulary = api.getLearningVocabulary as unknown as ReturnType<typeof vi.fn>
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })
 const mountPage = (kind: 'flashcard' | 'quiz') =>
@@ -145,5 +147,92 @@ describe('LearningHistoryPage', () => {
     expect(deleteSession).toHaveBeenCalledWith(1)
     expect(w.findAll('[data-test="history-row"]')).toHaveLength(0)
     expect(toast.success).toHaveBeenCalled()
+  })
+})
+
+describe('LearningHistoryPage — my vocabulary', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+    route.query = {}
+    getSessions.mockResolvedValue({ items: [], total: 0 })
+  })
+
+  const word = (over: Record<string, unknown> = {}) => ({
+    term: 'door', meaning: 'cửa', example: null, seen: 3, correct: 2, missed: 1,
+    last_seen_at: '2026-11-05T10:00:00.000Z', status: 'learned', ...over,
+  })
+  const vocabPage = (items: unknown[], summary = { total: 2, learned: 1, weak: 1 }) => ({ items, total: items.length, summary })
+
+  it('lists every practised word with how it went, in the Vocabulary tab', async () => {
+    getVocabulary.mockResolvedValue(vocabPage([word(), word({ term: 'cat', meaning: 'con mèo', correct: 0, missed: 2, seen: 2, status: 'weak' })]))
+    const w = mountPage('quiz')
+    await flushPromises()
+    await w.find('[data-test="tab-words"]').trigger('click')
+    await flushPromises()
+
+    const rows = w.findAll('[data-test="vocab-row"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.text()).toContain('door')
+    expect(rows[0]!.text()).toContain('cửa')
+    expect(rows[0]!.text()).toContain('seen 3 times')
+    expect(rows[1]!.text()).toContain('To practise')
+    expect(w.find('[data-test="vocab-filter-weak"]').text()).toContain('1')
+  })
+
+  it('opens straight on the words that need practice when linked from the statistics (?tab=words&status=weak)', async () => {
+    route.query = { tab: 'words', status: 'weak' }
+    getVocabulary.mockResolvedValue(vocabPage([word({ status: 'weak' })]))
+    mountPage('flashcard')
+    await flushPromises()
+    expect(getVocabulary).toHaveBeenCalledWith(expect.objectContaining({ status: 'weak', offset: 0 }))
+  })
+
+  it('reloads for the chosen filter and for a search (after a short pause)', async () => {
+    getVocabulary.mockResolvedValue(vocabPage([word()]))
+    const w = mountPage('quiz')
+    await flushPromises()
+    await w.find('[data-test="tab-words"]').trigger('click')
+    await flushPromises()
+
+    await w.find('[data-test="vocab-filter-learned"]').trigger('click')
+    await flushPromises()
+    expect(getVocabulary).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'learned' }))
+
+    vi.useFakeTimers()
+    await w.find('[data-test="vocab-search"]').setValue('doo')
+    await w.find('[data-test="vocab-search"]').setValue('door')
+    vi.advanceTimersByTime(400)
+    vi.useRealTimers()
+    await flushPromises()
+    const searches = getVocabulary.mock.calls.filter((c) => c[0].search === 'door')
+    expect(searches).toHaveLength(1) // typing twice quickly asks once
+  })
+
+  it('starts a study round with the words the filter shows', async () => {
+    getVocabulary.mockResolvedValue(vocabPage([word({ status: 'weak' })]))
+    const w = mountPage('quiz')
+    await flushPromises()
+    await w.find('[data-test="tab-words"]').trigger('click')
+    await flushPromises()
+    await w.find('[data-test="vocab-filter-weak"]').trigger('click')
+    await flushPromises()
+
+    await w.find('[data-test="vocab-study"]').trigger('click')
+    expect(push).toHaveBeenCalledWith({ path: '/flashcards/history/words/study', query: { status: 'weak' } })
+  })
+
+  it('shows a friendly empty state before anything was practised, and an error with a retry', async () => {
+    getVocabulary.mockResolvedValue(vocabPage([], { total: 0, learned: 0, weak: 0 }))
+    const w = mountPage('quiz')
+    await flushPromises()
+    await w.find('[data-test="tab-words"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-test="vocab-empty"]').exists()).toBe(true)
+
+    getVocabulary.mockRejectedValueOnce(new Error('boom'))
+    await w.find('[data-test="vocab-filter-weak"]').trigger('click')
+    await flushPromises()
+    expect(w.find('[data-test="vocab-error"]').exists()).toBe(true)
   })
 })

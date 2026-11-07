@@ -1,6 +1,6 @@
 export type SessionKind = 'flashcard' | 'quiz'
 /** Where the practised words came from. */
-export type SessionSource = 'deck' | 'vocab_set' | 'ai' | 'builtin'
+export type SessionSource = 'deck' | 'vocab_set' | 'ai' | 'builtin' | 'review'
 
 /** One word practised in a session. `isCorrect` is null when it was not rated. */
 export interface SessionWord {
@@ -59,4 +59,26 @@ export interface LearningSessionData {
 export interface LearningSessionPageData {
   items: LearningSessionData[]
   total: number
+}
+
+export type VocabularyStatus = 'learned' | 'weak'
+
+/** One word the student has practised, merged over every time it came up. */
+export interface VocabularyEntryData {
+  term: string
+  meaning: string
+  example: string | null
+  seen: number
+  correct: number
+  missed: number
+  last_seen_at: string
+  status: 'weak' | 'learned' | 'unrated'
+}
+
+export interface VocabularyPageData {
+  items: VocabularyEntryData[]
+  /** Matches of the current filter and search. */
+  total: number
+  /** Size of the whole list, whatever the filter. */
+  summary: { total: number; learned: number; weak: number }
 }

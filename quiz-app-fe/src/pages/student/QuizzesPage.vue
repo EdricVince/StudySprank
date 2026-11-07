@@ -209,9 +209,25 @@
         <Gamepad2 class="text-primary h-6 w-6" />
         {{ $t('quizzesPage.practiceGames') }}
       </h2>
-      <p class="text-muted-foreground mb-5 text-sm">
+      <p class="text-muted-foreground mb-4 text-sm">
         {{ $t('quizzesPage.practiceGamesDesc') }}
       </p>
+      <div class="mb-5 flex flex-wrap items-center gap-3" data-test="direction-picker">
+        <span class="text-foreground text-sm font-medium">{{ $t('quizzesPage.direction.label') }}</span>
+        <div class="bg-secondary flex rounded-lg p-1">
+          <button
+            v-for="d in directions"
+            :key="d"
+            class="rounded-md px-3 py-1.5 text-sm font-medium transition-all"
+            :class="direction === d ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            :data-test="`direction-${d}`"
+            @click="setDirection(d)"
+          >
+            {{ $t(`quizzesPage.direction.${d}`) }}
+          </button>
+        </div>
+        <span class="text-muted-foreground text-xs">{{ $t('quizzesPage.direction.hint') }}</span>
+      </div>
       <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <QuizModeCard
           v-for="(mode, index) in quizModes"
@@ -441,12 +457,14 @@ import QuizModeCard from '@/components/quiz/QuizModeCard.vue'
 import JoinClassModal from '@/components/quiz/JoinClassModal.vue'
 import type { QuizMode } from '@/types/quiz'
 import { useProgressStore } from '@/stores/progress.store'
+import { useQuizDirection } from '@/composables/useQuizDirection'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/utils/api'
 import type { TestData, AssignmentData } from '@/types/content'
 import type { LearningSessionData } from '@/types/learning'
 
 const router = useRouter()
+const { direction, setDirection, directions } = useQuizDirection()
 const progressStore = useProgressStore()
 const authStore = useAuthStore()
 

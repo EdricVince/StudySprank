@@ -18,7 +18,13 @@ export const SESSION_KINDS = ['flashcard', 'quiz'] as const;
 export type SessionKind = (typeof SESSION_KINDS)[number];
 
 /** Where the practised words came from. */
-export const SESSION_SOURCES = ['deck', 'vocab_set', 'ai', 'builtin'] as const;
+export const SESSION_SOURCES = [
+  'deck',
+  'vocab_set',
+  'ai',
+  'builtin',
+  'review', // words picked from the student's own vocabulary list
+] as const;
 export type SessionSource = (typeof SESSION_SOURCES)[number];
 
 /**

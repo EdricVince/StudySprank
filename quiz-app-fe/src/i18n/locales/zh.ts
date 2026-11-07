@@ -757,6 +757,7 @@ export default {
     socialModal: { addTitle: '添加社交链接', editTitle: '编辑社交链接', platform: '平台', url: '链接', urlPlaceholder: 'https://', cancel: '取消', save: '保存' },
   },
   quizzesPage: {
+    direction: { label: '题目方向', meaning: '单词 → 释义', term: '释义 → 单词', mixed: '混合', hint: '适用于选择题和速度挑战。' },
     title: '测验游戏', subtitle: '通过有趣的游戏挑战自己并学习词汇',
     dayStreak: '{n}天连续',
     stats: { gamesPlayed: '游戏次数', accuracy: '准确率', wordsStudied: '已学单词', bestStreak: '最佳连续' },
@@ -996,7 +997,7 @@ export default {
     vocab: { title: '词汇结果', word: '单词', meaning: '释义', result: '结果' },
     preparing: '正在为你准备题目……',
     q: {
-      whatMeans: '“{term}”是什么意思？', means: '“{term}”的意思是“{meaning}”',
+      whatMeans: '“{term}”是什么意思？', whichWord: '哪个词的意思是“{meaning}”？', means: '“{term}”的意思是“{meaning}”',
       hint: '一个与“{topic}”有关的词，意思是“{meaning}”。',
     },
     categories: {
@@ -1031,6 +1032,15 @@ export default {
   },
   history: {
     open: '历史记录', viewAll: '查看全部历史',
+    tabs: { sessions: '学习记录', vocabulary: '我的词汇' },
+    words: {
+      title: '我的词汇', desc: '你在闪卡和游戏中练习过的每个单词及每次的结果（不含对战题目）。',
+      search: '搜索单词或释义…', all: '全部', learned: '已掌握', weak: '需练习',
+      empty: '还没有单词', emptyDesc: '完成一次闪卡学习或一局游戏后，你练习过的单词会汇总在这里。',
+      noMatch: '没有符合筛选条件的单词。', studyThese: '学习这些单词',
+      seen: '出现 {n} 次', correct: '答对 {n}', missed: '答错 {n}',
+      status: { learned: '已掌握', weak: '需练习', unrated: '未评分' },
+    },
     backFlashcards: '返回闪卡', backQuizzes: '返回测验',
     flashcardTitle: '闪卡学习历史', flashcardSubtitle: '你学过的每个卡组及其中的单词——打开一条记录即可重新学习',
     quizTitle: '游戏历史', quizSubtitle: '你玩过的每局游戏和练习过的单词',
@@ -1050,7 +1060,7 @@ export default {
     deleted: '记录已删除', deleteFailed: '无法删除这条记录。',
     saveFailed: '无法将你的成绩保存到历史记录。',
     replayDesc: '正在学习历史记录中的单词',
-    sources: { deck: '闪卡卡组', vocab_set: '词汇集', ai: 'AI 生成', builtin: '内置单词' },
+    sources: { deck: '闪卡卡组', vocab_set: '词汇集', ai: 'AI 生成', builtin: '内置单词', review: '你的词汇表' },
     modes: {
       'multiple-choice': '选择题', 'word-scramble': '单词重组', 'matching-pairs': '配对',
       'speed-round': '速度挑战', 'true-false': '判断题', 'typing-challenge': '打字挑战',

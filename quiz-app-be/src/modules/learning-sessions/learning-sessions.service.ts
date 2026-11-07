@@ -8,7 +8,10 @@ import {
 import { LearningSessionWord } from './entities/learning-session-word.entity';
 import { FlashcardDeck } from '../flashcard-decks/entities/flashcard-deck.entity';
 import { VocabSet } from '../vocab-sets/entities/vocab-set.entity';
-import type { CreateLearningSessionDto } from './dto/learning-session.dto';
+import type {
+  CreateLearningSessionDto,
+  VocabularyStatus,
+} from './dto/learning-session.dto';
 
 export const DEFAULT_PAGE_SIZE = 20;
 
@@ -16,6 +19,31 @@ export interface LearningSessionPage {
   items: LearningSession[];
   total: number;
 }
+
+export interface VocabularyEntry {
+  term: string;
+  meaning: string;
+  example: string | null;
+  /** How many times the word came up, and how it went each time. */
+  seen: number;
+  correct: number;
+  missed: number;
+  last_seen_at: Date;
+  /** weak: missed more often than known; learned: known at least once; unrated: never rated. */
+  status: 'weak' | 'learned' | 'unrated';
+}
+
+export interface VocabularyPage {
+  items: VocabularyEntry[];
+  /** Matches of the current filter / search. */
+  total: number;
+  /** Size of the whole list, whatever the filter. */
+  summary: { total: number; learned: number; weak: number };
+}
+
+/** Escape LIKE wildcards so a search for "50%" or "a_b" matches literally. */
+export const likePattern = (text: string) =>
+  `%${text.replace(/[\\%_]/g, '\\$&')}%`;
 
 export interface LearningSessionDetail extends LearningSession {
   words: LearningSessionWord[];
@@ -120,6 +148,78 @@ export class LearningSessionsService {
       order: { position: 'ASC' },
     });
     return { ...session, words };
+  }
+
+  /**
+   * Every word the student has practised (flashcards and games, Battle questions excluded), one row
+   * per word however many times it came up, with how often they knew it. Newest first.
+   */
+  async vocabulary(
+    userId: number,
+    opts: {
+      status?: VocabularyStatus;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<VocabularyPage> {
+    const grouped = `
+      SELECT lower(w.term) AS key,
+             (array_agg(w.term ORDER BY s.created_at DESC, w.id DESC))[1] AS term,
+             (array_agg(w.meaning ORDER BY (w.meaning <> '') DESC, s.created_at DESC, w.id DESC))[1] AS meaning,
+             (array_agg(w.example ORDER BY (w.example IS NOT NULL AND w.example <> '') DESC, s.created_at DESC, w.id DESC))[1] AS example,
+             COUNT(*)::int AS seen,
+             COUNT(*) FILTER (WHERE w.is_correct = true)::int AS correct,
+             COUNT(*) FILTER (WHERE w.is_correct = false)::int AS missed,
+             MAX(s.created_at) AS last_seen_at
+        FROM learning_session_words w
+        JOIN learning_sessions s ON s.id = w.session_id
+       WHERE s.user_id = $1 AND s.mode_id <> 'battle'
+         AND ($2::text IS NULL OR w.term ILIKE $2 OR w.meaning ILIKE $2)
+       GROUP BY lower(w.term)`;
+    const withStatus = `
+      SELECT g.*, CASE WHEN g.missed > g.correct THEN 'weak'
+                       WHEN g.correct > 0 THEN 'learned'
+                       ELSE 'unrated' END AS status
+        FROM (${grouped}) g`;
+    const search = opts.search?.trim() ? likePattern(opts.search.trim()) : null;
+    const status = opts.status ?? null;
+
+    const rows = await this.sessions.query<
+      (VocabularyEntry & { key: string })[]
+    >(
+      `SELECT key, term, meaning, example, seen, correct, missed, last_seen_at, status
+         FROM (${withStatus}) v
+        WHERE ($3::text IS NULL OR v.status = $3)
+        ORDER BY v.last_seen_at DESC, v.term
+        LIMIT $4 OFFSET $5`,
+      [
+        userId,
+        search,
+        status,
+        opts.limit ?? DEFAULT_PAGE_SIZE,
+        opts.offset ?? 0,
+      ],
+    );
+    const [counts] = await this.sessions.query<
+      { matches: number; total: number; learned: number; weak: number }[]
+    >(
+      `SELECT COUNT(*) FILTER (WHERE $3::text IS NULL OR v.status = $3)::int AS matches,
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE v.status = 'learned')::int AS learned,
+              COUNT(*) FILTER (WHERE v.status = 'weak')::int AS weak
+         FROM (${withStatus}) v`,
+      [userId, search, status],
+    );
+    return {
+      items: rows.map(({ key: _key, ...rest }) => rest),
+      total: counts?.matches ?? 0,
+      summary: {
+        total: counts?.total ?? 0,
+        learned: counts?.learned ?? 0,
+        weak: counts?.weak ?? 0,
+      },
+    };
   }
 
   async remove(userId: number, id: number): Promise<void> {

@@ -37,6 +37,22 @@ const docs = [
   { id: 3, title: 'Handout: Irregular Verbs', description: 'Read before class', attachment: null },
 ]
 
+describe('QuizzesPage — question direction', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('lets the learner choose word → meaning, meaning → word or mixed', async () => {
+    getTests.mockResolvedValue([])
+    getAssignments.mockResolvedValue([])
+    const w = mountPage()
+    await flushPromises()
+
+    await w.find('[data-test="direction-term"]').trigger('click')
+    expect(localStorage.getItem('studyspark-quiz-direction')).toBe('term')
+    await w.find('[data-test="direction-meaning"]').trigger('click')
+    expect(localStorage.getItem('studyspark-quiz-direction')).toBe('meaning')
+  })
+})
+
 describe('QuizzesPage — assignments from teacher', () => {
   beforeEach(() => vi.clearAllMocks())
 

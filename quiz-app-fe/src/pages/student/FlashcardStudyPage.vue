@@ -311,7 +311,10 @@ const { getRandomWords, getWordInLang } = useVocabulary()
 const isVocabMode = computed(() => route.name === 'FlashcardVocabPractice' || route.query.mode === 'vocab')
 const isVocabSetMode = computed(() => route.name === 'FlashcardVocabSetStudy')
 // Studying again the words of a saved session (all of them, or only the ones that were missed).
-const isReplayMode = computed(() => route.name === 'FlashcardSessionReplay')
+const isSessionReplay = computed(() => route.name === 'FlashcardSessionReplay')
+// ...or the words picked from the vocabulary list (all of them, the ones still weak, or a search).
+const isWordsReplay = computed(() => route.name === 'FlashcardWordsReplay')
+const isReplayMode = computed(() => isSessionReplay.value || isWordsReplay.value)
 const deckId = computed(() => Number(route.params.id))
 const deckMeta = ref<{ title: string; description: string } | null>(null)
 // Spaced repetition applies to flashcard decks only (not AI practice / teacher vocab sets).
@@ -354,6 +357,8 @@ interface Flashcard {
 }
 
 const isLoadingCards = ref(false)
+/** How many words one "study these words" round takes from the vocabulary list. */
+const MAX_REVIEW_WORDS = 50
 // Whether the practice words came from the AI (kept in the history) or the built-in list.
 let vocabFromAi = false
 // Set when studying a saved session again: what the original session was about.
@@ -630,7 +635,30 @@ const setupHammer = () => {
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
   setupHammer()
-  if (isReplayMode.value) {
+  if (isWordsReplay.value) {
+    isLoadingCards.value = true
+    try {
+      const status = route.query.status === 'weak' || route.query.status === 'learned' ? route.query.status : undefined
+      const search = typeof route.query.search === 'string' ? route.query.search : undefined
+      const page = await api.getLearningVocabulary({ status, search, limit: MAX_REVIEW_WORDS })
+      replayOf.value = {
+        source: 'review', title: t('history.words.title'), deckId: null, vocabSetId: null,
+        learningLang: currentLearningOption.value.value as string, meaningLang: meaningLang.value as string,
+      }
+      deckMeta.value = { title: t('history.words.title'), description: t('history.replayDesc') }
+      cards.value = page.items.map((w, i) => ({
+        id: i + 1, term: w.term, definition: w.meaning, example: w.example ?? undefined, isFavorite: false, isKnown: null,
+      }))
+    } catch {
+      router.replace('/flashcards/history')
+      return
+    } finally {
+      isLoadingCards.value = false
+    }
+    if (cards.value.length === 0) router.replace('/flashcards/history')
+    return
+  }
+  if (isSessionReplay.value) {
     isLoadingCards.value = true
     try {
       const s = await api.getLearningSession(Number(route.params.sessionId))

@@ -247,7 +247,7 @@
               <Brain class="text-chart-5 h-5 w-5" />
               {{ $t('statistics.weak.title') }}
             </h3>
-            <button class="text-primary text-xs font-medium hover:underline" @click="router.push('/flashcards/history')">
+            <button class="text-primary text-xs font-medium hover:underline" @click="router.push({ path: '/flashcards/history', query: { tab: 'words', status: 'weak' } })">
               {{ $t('statistics.weak.history') }}
             </button>
           </div>

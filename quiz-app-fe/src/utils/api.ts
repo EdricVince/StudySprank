@@ -36,6 +36,8 @@ import type { MyStatistics, StatPeriod } from '@/types/statistics'
 import type {
   LearningSessionData,
   LearningSessionPageData,
+  VocabularyPageData,
+  VocabularyStatus,
   NewLearningSession,
   SessionKind,
 } from '@/types/learning'
@@ -503,6 +505,16 @@ export const api = {
     return apiRequest(`/learning-sessions${qs ? `?${qs}` : ''}`)
   },
   getLearningSession: (id: number): Promise<LearningSessionData> => apiRequest(`/learning-sessions/${id}`),
+  /** Every word the student has practised (flashcards and games), merged, with how it went. */
+  getLearningVocabulary: (query: { status?: VocabularyStatus; search?: string; limit?: number; offset?: number } = {}): Promise<VocabularyPageData> => {
+    const params = new URLSearchParams()
+    if (query.status) params.set('status', query.status)
+    if (query.search?.trim()) params.set('search', query.search.trim())
+    if (query.limit) params.set('limit', String(query.limit))
+    if (query.offset) params.set('offset', String(query.offset))
+    const qs = params.toString()
+    return apiRequest(`/learning-sessions/vocabulary${qs ? `?${qs}` : ''}`)
+  },
   deleteLearningSession: (id: number): Promise<void> =>
     apiRequest(`/learning-sessions/${id}`, { method: 'DELETE' }),
 }
