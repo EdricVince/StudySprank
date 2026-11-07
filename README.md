@@ -36,6 +36,9 @@ AI-assisted content generation.
 
 **Admin** — a normal account with the admin role, working in the same portal as teachers: approves or rejects teacher applications, manages users, sets the Anthropic API key and browses the activity log.
 
+**Account** — Settings → Privacy & Data downloads everything held about the account as JSON and deletes the account
+(after typing DELETE and the password); Settings → Account changes the password (other devices are signed out).
+
 **Teacher onboarding** — teachers apply from the sign-up page with their school and a photo of an ID/certificate; the account stays *pending* (it can sign in but cannot create classes or content) until an admin approves it. Every class, test, assignment, lesson and flashcard deck belongs to exactly one teacher; students join a class with its code. Create/update/delete actions are written to the `activity_logs` table (browse the `activity_feed` and `teacher_overview` views in Supabase).
 
 Every AI result is labelled "AI-generated" in the UI. Without an Anthropic key the AI endpoints answer `503`
@@ -92,8 +95,14 @@ Supabase *is* a hosted PostgreSQL database: the tables below are what you see in
 | AI reading / listening / writing / speaking practice material | `skill_materials` |
 | **Everything the AI produced or graded**, with the request behind it: lessons, vocabulary sets, tests, content scans, study schedules, writing and speaking evaluations, vocabulary, word of the day, Battle Mode questions | `ai_generations` (readable: `ai_generation_feed`) |
 | **Learning history**: every finished flashcard session (own, class or vocabulary-set deck, AI practice) and quiz game, with each word, its meaning and whether the student knew it | `learning_sessions`, `learning_session_words` (readable, with the class of a class deck: `learning_history_feed`) |
+| **Profile and settings**: handle, phone, title, location, bio, social links, the IELTS target band, and the study / notification / privacy settings | `user_profiles` |
+| The plans made with the AI study planner | `study_plans` |
 | Who created or changed what (classes, tests, decks…) | `activity_logs` (readable: `activity_feed`, `teacher_overview`) |
 | **Account control**: every account with its role, status, verification, last sign-in and (for teachers) the application: organization, when they applied, which admin decided, when, and why | `user_accounts`, `teacher_applications` (the full trail of one account: `activity_feed` with `entity_type = 'user'` and `entity_id` = the account id) |
+
+Kept in the browser on purpose (per device, not account data): the interface language, theme and text size,
+the language being learned, the question direction of the quiz games, and short caches (words already shown, word of the day,
+recent searches). Everything else a signed-in user creates is stored in the database.
 
 The admin portal ("Details" on a teacher application, "Full account record" on a user) reads exactly these
 views and the activity trail, so what an admin sees and what the database holds are the same.

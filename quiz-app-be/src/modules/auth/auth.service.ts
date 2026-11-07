@@ -405,6 +405,39 @@ export class AuthService {
     await this.mailService.sendPasswordReset(user.email, resetUrl);
   }
 
+  /** True when `plain` is the password that hashes to `hashed` (sensitive self-service actions ask for it). */
+  checkPassword(hashed: string, plain: string): Promise<boolean> {
+    return this.verifyPassword(plain, hashed);
+  }
+
+  /**
+   * Change the password of a signed-in user. Every refresh token is revoked (all other devices are
+   * signed out) and a fresh pair is returned so the device that made the change stays signed in.
+   * A wrong current password is a 400, not a 401: a 401 would make the app try to refresh and sign out.
+   */
+  async changePassword(
+    userId: number,
+    current: string,
+    next: string,
+  ): Promise<TokenPairDto> {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if (!(await this.verifyPassword(current, user.password))) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+    if (current === next) {
+      throw new BadRequestException(
+        'The new password must be different from the current one',
+      );
+    }
+    await this.usersService.resetPassword(
+      userId,
+      await this.hashPassword(next),
+    );
+    await this.revokeAllForUser(userId);
+    return this.issueTokenPair(user);
+  }
+
   /** Verify a reset token and set the new password (single-use). Signs the user out everywhere. */
   async resetPasswordWithToken(
     token: string,

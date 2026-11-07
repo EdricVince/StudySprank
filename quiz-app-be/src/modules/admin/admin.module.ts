@@ -12,5 +12,6 @@ import { UserProgress } from '../progress/entities/user-progress.entity';
   imports: [TypeOrmModule.forFeature([User, UserProgress, AppSetting])],
   controllers: [AdminController],
   providers: [AdminService, AdminBootstrapService, AiKeyService],
+  exports: [AdminService],
 })
 export class AdminModule {}

@@ -11,6 +11,7 @@ import {
   Brain,
   GraduationCap,
 } from '@/components/icons'
+import { useI18n } from 'vue-i18n'
 import { useToast } from './useToast'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProgressStore } from '@/stores/progress.store'
@@ -20,6 +21,7 @@ import type {
   ProfileStats,
   ProfileEditForm,
   SocialLinkForm,
+  SocialLink,
 } from '@/types/profile'
 import type { Component } from 'vue'
 
@@ -67,6 +69,7 @@ export interface ShowcaseAchievement {
 
 export function useProfile() {
   const toast = useToast()
+  const { t } = useI18n()
   const authStore = useAuthStore()
   const progressStore = useProgressStore()
 
@@ -78,6 +81,10 @@ export function useProfile() {
   }
 
   const getUserEmail = () => authStore.user?.email || ''
+
+  // The handle saved on the server wins over the one derived from the name.
+  let serverUsername = ''
+  const handleOf = (name: string) => serverUsername || name.toLowerCase().replace(/\s+/g, '')
 
   // Profile data - initialized from auth store
   const profile = reactive<ProfileData>({
@@ -98,7 +105,7 @@ export function useProfile() {
     (newUser) => {
       if (newUser) {
         profile.fullName = newUser.name || newUser.email?.split('@')[0] || 'Guest User'
-        profile.username = profile.fullName.toLowerCase().replace(/\s+/g, '')
+        profile.username = handleOf(profile.fullName)
         profile.email = newUser.email || ''
       }
     },
@@ -254,11 +261,26 @@ export function useProfile() {
 
   // Fetch profile from BE on mount to sync name/avatar
   onMounted(async () => {
+    // The rest of the card (handle, phone, title, location, bio, social links) is stored separately.
+    try {
+      const card = await api.getAccountProfile()
+      if (card.username) {
+        serverUsername = card.username
+        profile.username = card.username
+      }
+      profile.phone = card.phone
+      profile.location = card.location
+      if (card.title) profile.title = card.title
+      if (card.bio) profile.bio = card.bio
+      profile.socialLinks = card.social_links.map((l) => ({ ...l }))
+    } catch {
+      // Non-critical — the card keeps its defaults
+    }
     try {
       const data = await api.getProfile()
       if (data.name) {
         profile.fullName = data.name
-        profile.username = data.name.toLowerCase().replace(/\s+/g, '')
+        profile.username = handleOf(data.name)
       }
       if (data.avatar) profile.avatar = data.avatar
       authStore.setUser({
@@ -305,20 +327,30 @@ export function useProfile() {
   }
 
   const saveProfile = async () => {
-    profile.fullName = editForm.fullName
-    profile.username = editForm.username
-    profile.email = editForm.email
-    profile.phone = editForm.phone
-    profile.title = editForm.title
-    profile.location = editForm.location
-    profile.bio = editForm.bio
-    isEditing.value = false
     try {
-      await api.updateProfile({ name: editForm.fullName })
-      authStore.setUser({ ...authStore.user!, name: editForm.fullName })
-      toast.success('Profile updated successfully!')
+      await Promise.all([
+        api.updateProfile({ name: editForm.fullName }),
+        api.updateAccountProfile({
+          username: editForm.username,
+          phone: editForm.phone,
+          title: editForm.title,
+          location: editForm.location,
+          bio: editForm.bio,
+        }),
+      ])
+      // Shown only once the server has stored it.
+      profile.fullName = editForm.fullName
+      serverUsername = editForm.username.trim()
+      profile.username = editForm.username
+      profile.phone = editForm.phone
+      profile.title = editForm.title
+      profile.location = editForm.location
+      profile.bio = editForm.bio
+      isEditing.value = false
+      if (authStore.user) authStore.setUser({ ...authStore.user, name: editForm.fullName })
+      toast.success(t('profile.toast.saved'))
     } catch {
-      toast.error('Failed to save profile to server.')
+      toast.error(t('profile.toast.saveFailed'))
     }
   }
 
@@ -339,31 +371,43 @@ export function useProfile() {
     showSocialModal.value = true
   }
 
-  const removeSocialLink = (index: number) => {
-    profile.socialLinks.splice(index, 1)
-    toast.success('Social link removed!')
+  // The whole list is saved at once; the card shows what the server stored.
+  const persistSocialLinks = async (next: SocialLink[], successKey: string) => {
+    try {
+      const saved = await api.updateAccountProfile({ social_links: next })
+      profile.socialLinks = saved.social_links.map((l) => ({ ...l }))
+      toast.success(t(successKey))
+      return true
+    } catch {
+      toast.error(t('profile.toast.socialFailed'))
+      return false
+    }
   }
 
-  const saveSocialLink = () => {
-    if (!socialForm.platform || !socialForm.url) {
-      toast.error('Please fill in all fields!')
+  const removeSocialLink = async (index: number) => {
+    await persistSocialLinks(
+      profile.socialLinks.filter((_, i) => i !== index),
+      'profile.toast.socialRemoved',
+    )
+  }
+
+  const saveSocialLink = async () => {
+    const platform = socialForm.platform.trim()
+    const rawUrl = socialForm.url.trim()
+    if (!platform || !rawUrl) {
+      toast.error(t('profile.toast.socialFillAll'))
       return
     }
+    // Links are shown as clickable links, so only http(s) is accepted: add https:// when it is missing.
+    const link = { platform, url: /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}` }
 
-    if (editingSocialIndex.value !== null) {
-      profile.socialLinks[editingSocialIndex.value] = {
-        platform: socialForm.platform,
-        url: socialForm.url,
-      }
-      toast.success('Social link updated!')
-    } else {
-      profile.socialLinks.push({
-        platform: socialForm.platform,
-        url: socialForm.url,
-      })
-      toast.success('Social link added!')
-    }
-    closeSocialModal()
+    const editing = editingSocialIndex.value
+    const next =
+      editing !== null
+        ? profile.socialLinks.map((l, i) => (i === editing ? link : l))
+        : [...profile.socialLinks, link]
+    const ok = await persistSocialLinks(next, editing !== null ? 'profile.toast.socialUpdated' : 'profile.toast.socialAdded')
+    if (ok) closeSocialModal()
   }
 
   const closeSocialModal = () => {

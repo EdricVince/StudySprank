@@ -25,6 +25,9 @@ import { Assignment } from '../assignments/entities/assignment.entity';
 import { ExamAttempt } from '../entrance-exam/entities/exam-attempt.entity';
 import { UserGoalSettings } from '../goals/entities/user-goal-settings.entity';
 import { UserCustomGoal } from '../goals/entities/user-custom-goal.entity';
+import { LearningSession } from '../learning-sessions/entities/learning-session.entity';
+import { UserProfile } from '../account/entities/user-profile.entity';
+import { StudyPlan } from '../study-plans/entities/study-plan.entity';
 import {
   ROLE_ADMIN,
   ROLE_STUDENT,
@@ -403,6 +406,10 @@ export class AdminService {
     await m.delete(UserCustomGoal, { user_id: userId });
     await m.delete(RefreshToken, { user_id: userId });
     await m.delete(ExamAttempt, { user_id: userId });
+    // What the student practised (the words go with their sessions), their profile and study plans.
+    await m.delete(LearningSession, { user_id: userId });
+    await m.delete(UserProfile, { user_id: userId });
+    await m.delete(StudyPlan, { user_id: userId });
 
     // Finally the account itself.
     await m.delete(User, { id: userId });

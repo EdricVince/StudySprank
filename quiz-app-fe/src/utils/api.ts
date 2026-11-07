@@ -33,6 +33,7 @@ import type {
 import { API_BASE_URL } from '@/lib/apiBase'
 import type { ClassHub } from '@/types/class'
 import type { MyStatistics, StatPeriod } from '@/types/statistics'
+import type { AccountProfileData, AccountProfileUpdate, StudyPlanData } from '@/types/account'
 import type {
   LearningSessionData,
   LearningSessionPageData,
@@ -466,6 +467,26 @@ export const api = {
     apiRequest(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteAssignment: (id: number): Promise<void> =>
     apiRequest(`/assignments/${id}`, { method: 'DELETE' }),
+
+  // ── The signed-in user's own profile card, settings, password, data export, deletion ──
+  getAccountProfile: (): Promise<AccountProfileData> => apiRequest('/account/profile'),
+  updateAccountProfile: (body: AccountProfileUpdate): Promise<AccountProfileData> =>
+    apiRequest('/account/profile', { method: 'PUT', body: JSON.stringify(body) }),
+  /** Returns a new token pair: every other device is signed out, this one stays signed in. */
+  changePassword: (currentPassword: string, newPassword: string): Promise<{ access_token: string; refresh_token: string }> =>
+    apiRequest('/account/password', {
+      method: 'PUT',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
+  exportAccountData: (): Promise<Record<string, unknown>> => apiRequest('/account/export'),
+  deleteAccount: (password: string): Promise<null> =>
+    apiRequest('/account', { method: 'DELETE', body: JSON.stringify({ password }) }),
+
+  // ── AI study plans ──
+  getStudyPlans: (): Promise<StudyPlanData[]> => apiRequest('/study-plans'),
+  saveStudyPlan: (id: string, body: { name: string; form: Record<string, unknown>; plan: Record<string, unknown> }): Promise<StudyPlanData> =>
+    apiRequest(`/study-plans/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteStudyPlan: (id: string): Promise<void> => apiRequest(`/study-plans/${id}`, { method: 'DELETE' }),
 
   // ── The student's own learning statistics (week / month / year) ──
   getMyStatistics: (period: StatPeriod = 'week'): Promise<MyStatistics> =>

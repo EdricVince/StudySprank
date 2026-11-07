@@ -602,8 +602,11 @@ import { useI18n } from 'vue-i18n'
 import { api } from '@/utils/api'
 import { errorText } from '@/utils/skills'
 import { usePageBack } from '@/composables/usePageBack'
+import { useToast } from '@/composables/useToast'
+import type { StudyPlanData } from '@/types/account'
 
 const { t, te, locale } = useI18n()
+const toast = useToast()
 const { setBack, clearBack } = usePageBack()
 
 // ── View state ──────────────────────────────────────────────────────────────
@@ -681,7 +684,7 @@ async function confirmAddMonth() {
       activePlan.value.plan.months_needed,
       activePlan.value.plan.monthly_plan.length,
     )
-    savePlan(activePlan.value)
+    await savePlan(activePlan.value)
     activeMonthIdx.value = activePlan.value.plan.monthly_plan.length - 1
     closeAddMonthModal()
   } catch (e) {
@@ -691,8 +694,9 @@ async function confirmAddMonth() {
   }
 }
 
-// ── Saved plans (localStorage) ───────────────────────────────────────────────
-const STORAGE_KEY = 'studyspark_study_plans'
+// ── Saved plans (stored on the server, per student) ──────────────────────────
+// Plans saved in this browser before that existed are uploaded once (LEGACY_PLANS_KEY).
+const LEGACY_PLANS_KEY = 'studyspark_study_plans'
 
 interface SavedPlan {
   id: string
@@ -706,31 +710,65 @@ const savedPlans = ref<SavedPlan[]>([])
 const activePlan = ref<SavedPlan | null>(null)
 const editingId = ref<string | null>(null)
 
-function loadPlans(): SavedPlan[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') } catch { return [] }
+const fromServer = (p: StudyPlanData): SavedPlan => ({
+  id: p.id,
+  name: p.name,
+  createdAt: p.created_at,
+  form: p.form as SavedPlan['form'],
+  plan: p.plan,
+})
+
+function readLegacyPlans(): SavedPlan[] {
+  try {
+    const plans: unknown = JSON.parse(localStorage.getItem(LEGACY_PLANS_KEY) ?? '[]')
+    return Array.isArray(plans) ? (plans as SavedPlan[]) : []
+  } catch { return [] }
 }
 
-function persistPlans(plans: SavedPlan[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(plans))
-  savedPlans.value = plans
+async function loadPlans() {
+  try {
+    const legacy = readLegacyPlans()
+    if (legacy.length) {
+      let allUploaded = true
+      for (const p of legacy) {
+        try { await api.saveStudyPlan(p.id, { name: p.name, form: p.form, plan: p.plan }) } catch { allUploaded = false }
+      }
+      // Forget the browser copy only when every plan reached the server.
+      if (allUploaded) localStorage.removeItem(LEGACY_PLANS_KEY)
+    }
+    savedPlans.value = (await api.getStudyPlans()).map(fromServer)
+  } catch {
+    // The list stays as it is; plans are loaded again the next time the page opens.
+  }
 }
 
-function savePlan(sp: SavedPlan) {
-  const plans = loadPlans().filter(p => p.id !== sp.id)
-  plans.unshift(sp)
-  persistPlans(plans)
+// Create or replace the plan on the server (a plan is saved again when it is edited or extended).
+async function savePlan(sp: SavedPlan) {
+  try {
+    const saved = fromServer(await api.saveStudyPlan(sp.id, { name: sp.name, form: sp.form, plan: sp.plan }))
+    savedPlans.value = [saved, ...savedPlans.value.filter(p => p.id !== saved.id)]
+    return true
+  } catch {
+    toast.error(t('schedule.saveFailed'))
+    return false
+  }
 }
 
 function confirmDelete(id: string) { deletingId.value = id }
 
-function deletePlan(id: string | null) {
+async function deletePlan(id: string | null) {
   if (!id) return
-  persistPlans(loadPlans().filter(p => p.id !== id))
-  if (activePlan.value?.id === id) { activePlan.value = null; view.value = 'list' }
+  try {
+    await api.deleteStudyPlan(id)
+    savedPlans.value = savedPlans.value.filter(p => p.id !== id)
+    if (activePlan.value?.id === id) { activePlan.value = null; view.value = 'list' }
+  } catch {
+    toast.error(t('schedule.deleteFailed'))
+  }
   deletingId.value = null
 }
 
-onMounted(() => { savedPlans.value = loadPlans() })
+onMounted(loadPlans)
 
 // ── Form data ────────────────────────────────────────────────────────────────
 const formSteps = computed(() => [t('schedule.steps.levelExam'), t('schedule.steps.hoursSkills')])
@@ -846,7 +884,7 @@ async function generatePlan() {
       form: { ...form.value, focus_areas: [...form.value.focus_areas] },
       plan: data,
     }
-    savePlan(sp)
+    await savePlan(sp)
     activePlan.value = sp
     activeMonthIdx.value = 0
     view.value = 'detail'

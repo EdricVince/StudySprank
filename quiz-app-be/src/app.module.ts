@@ -23,6 +23,8 @@ import { BattleModule } from './modules/battle/battle.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AiLogModule } from './modules/ai-log/ai-log.module';
 import { LearningSessionsModule } from './modules/learning-sessions/learning-sessions.module';
+import { AccountModule } from './modules/account/account.module';
+import { StudyPlansModule } from './modules/study-plans/study-plans.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { LearningSessionsModule } from './modules/learning-sessions/learning-ses
     AuditModule,
     AiLogModule,
     LearningSessionsModule,
+    AccountModule,
+    StudyPlansModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RateLimitGuard }],

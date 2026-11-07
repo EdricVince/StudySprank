@@ -163,7 +163,12 @@ const examType = ref('ielts')
 // ?paper=<id> re-sits a stored paper; ?attempt=<id> opens the saved result of a past sitting.
 const paperParam = Number(route.query.paper) || undefined
 const attemptParam = Number(route.query.attempt) || undefined
-const targetBand = computed(() => (route.query.target as string) || localStorage.getItem('studyspark_target_band') || '')
+// The band shown in the header: the one passed in the link, else the one saved on the account.
+const accountTargetBand = ref<number | null>(null)
+const targetBand = computed(() =>
+  (route.query.target as string) || (accountTargetBand.value !== null ? String(accountTargetBand.value) : ''),
+)
+api.getAccountProfile().then((p) => { accountTargetBand.value = p.target_band }).catch(() => {})
 
 const loading = ref(true)
 const finished = ref(false)

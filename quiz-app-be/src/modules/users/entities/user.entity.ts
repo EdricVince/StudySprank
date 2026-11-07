@@ -4,6 +4,8 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 export type TeacherStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -66,6 +68,13 @@ export class User {
   // The admin who made the latest approve/reject decision (NULL while pending).
   @Column({ type: 'int', nullable: true, default: null })
   teacher_reviewed_by: number | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({
+    name: 'teacher_reviewed_by',
+    foreignKeyConstraintName: 'FK_users_teacher_reviewed_by',
+  })
+  teacherReviewer?: User | null;
 
   // Last successful sign-in (password or OAuth).
   @Column({ type: 'timestamp', nullable: true, default: null })

@@ -29,15 +29,31 @@ export class AiKeyService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     try {
       const row = await this.settings.findOne({ where: { key: SETTING } });
-      if (!row) return;
+      if (!row) {
+        this.logStatus('no key saved in the admin settings');
+        return;
+      }
       const key = open(row.value, this.secret);
-      if (isAnthropicKey(key)) setAnthropicKey(key!);
-      else
+      if (isAnthropicKey(key)) {
+        setAnthropicKey(key!);
+        this.logStatus('key saved in the admin settings');
+      } else
         this.logger.warn(
           'Stored AI key could not be decrypted (JWT_SECRET changed?) — set it again in admin settings.',
         );
     } catch (e) {
       this.logger.error(`Could not load the stored AI key: ${String(e)}`);
+    }
+  }
+
+  /** One line in the start-up log: are the AI features on, and where does the key come from? */
+  private logStatus(source: string) {
+    if (isAnthropicKey(process.env.ANTHROPIC_API_KEY)) {
+      this.logger.log(`AI features: ENABLED (${source})`);
+    } else {
+      this.logger.warn(
+        `AI features: DISABLED — ${source}; set ANTHROPIC_API_KEY or the key in the admin AI settings`,
+      );
     }
   }
 

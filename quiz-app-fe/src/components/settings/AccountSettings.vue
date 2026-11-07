@@ -44,9 +44,10 @@
           <input
             :value="account.email"
             type="email"
-            class="bg-secondary border-border text-foreground placeholder:text-muted-foreground w-full rounded-lg border px-4 py-2.5 transition-all focus:outline-none focus:ring-2 focus:ring-primary/50"
-            @input="$emit('update:account', { ...account, email: ($event.target as HTMLInputElement).value })"
+            readonly
+            class="bg-secondary border-border text-muted-foreground w-full cursor-not-allowed rounded-lg border px-4 py-2.5 opacity-80"
           />
+          <p class="text-muted-foreground mt-1.5 text-xs">{{ $t('settings.emailLocked') }}</p>
         </div>
       </div>
 

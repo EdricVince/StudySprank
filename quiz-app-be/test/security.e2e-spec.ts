@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { randomUUID } from 'node:crypto';
 import { AppModule } from './../src/app.module';
 
 jest.setTimeout(60000);
@@ -858,6 +859,263 @@ describe('Security (e2e): auth, RBAC & class isolation', () => {
         },
       );
       expect(res.body.data.source).toBe('review');
+    });
+  });
+
+  describe('Account: profile, settings, password, export, deletion and study plans', () => {
+    const email = `e2e_acct_${ts}@test.com`;
+    const otherEmail = `e2e_acct2_${ts}@test.com`;
+    const NEW_PW = 'Another-Password-456!';
+    let token = '';
+    let refresh = '';
+    let userId = 0;
+    let otherToken = '';
+
+    const signIn = (mail: string, password: string) =>
+      request(http).post('/api/v1/auth/login').send({ email: mail, password });
+    const put = (path: string, body: object, tk = token) =>
+      request(http).put(path).set(auth(tk)).send(body);
+
+    beforeAll(async () => {
+      await register(email, ROLE_STUDENT);
+      await register(otherEmail, ROLE_STUDENT);
+      const a = await signIn(email, PW);
+      token = a.body.data.access_token;
+      refresh = a.body.data.refresh_token;
+      userId = a.body.data.user.id;
+      otherToken = (await signIn(otherEmail, PW)).body.data.access_token;
+    });
+
+    it('needs a signed-in user, and a new account has an empty profile', async () => {
+      await request(http).get('/api/v1/account/profile').expect(401);
+      const res = await request(http)
+        .get('/api/v1/account/profile')
+        .set(auth(token))
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        bio: '',
+        social_links: [],
+        target_band: null,
+        preferences: {},
+      });
+    });
+
+    it('saves the profile card, target band and settings, merging the settings section by section', async () => {
+      await put('/api/v1/account/profile', {
+        username: 'vinh',
+        phone: '0900 000 000',
+        title: 'Student',
+        location: 'Hanoi',
+        bio: 'Learning English',
+        target_band: 7.5,
+        social_links: [{ platform: 'GitHub', url: 'https://github.com/vinh' }],
+        preferences: { notifications: { email: false, reminderTime: '07:30' } },
+      }).expect(200);
+      await put('/api/v1/account/profile', {
+        preferences: {
+          study: { cardsPerDay: 40, studyMinutes: 25 },
+          privacy: { showStreak: false },
+        },
+      }).expect(200);
+
+      const res = await request(http)
+        .get('/api/v1/account/profile')
+        .set(auth(token))
+        .expect(200);
+      expect(res.body.data).toMatchObject({
+        username: 'vinh',
+        bio: 'Learning English',
+        target_band: 7.5,
+        social_links: [{ platform: 'GitHub', url: 'https://github.com/vinh' }],
+        preferences: {
+          notifications: { email: false, reminderTime: '07:30' },
+          study: { cardsPerDay: 40, studyMinutes: 25 },
+          privacy: { showStreak: false },
+        },
+      });
+    });
+
+    it('is stored in the database (user_profiles), one row for the account', async () => {
+      const rows = await dataSource.query<
+        { bio: string; target_band: number; preferences: any }[]
+      >(
+        `SELECT bio, target_band, preferences FROM user_profiles WHERE user_id = $1`,
+        [userId],
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].bio).toBe('Learning English');
+      expect(rows[0].target_band).toBe(7.5);
+      expect(rows[0].preferences.study.cardsPerDay).toBe(40);
+    });
+
+    it('rejects unsafe or invalid values (400)', async () => {
+      const bad = (body: object) =>
+        put('/api/v1/account/profile', body).expect(400);
+      await bad({
+        social_links: [{ platform: 'x', url: 'javascript:alert(1)' }],
+      });
+      await bad({
+        social_links: Array.from({ length: 11 }, () => ({
+          platform: 'a',
+          url: 'https://a.io',
+        })),
+      });
+      await bad({ target_band: 7.3 });
+      await bad({ bio: 'x'.repeat(501) });
+      await bad({ preferences: { notifications: { reminderTime: '25:00' } } });
+      await bad({ preferences: { study: { cardsPerDay: 0 } } });
+      await bad({ user_id: 1 });
+    });
+
+    it('keeps each account’s profile separate', async () => {
+      const res = await request(http)
+        .get('/api/v1/account/profile')
+        .set(auth(otherToken))
+        .expect(200);
+      expect(res.body.data.bio).toBe('');
+    });
+
+    it('creates, lists, edits and deletes the student’s study plans; nobody else can touch them', async () => {
+      const id = randomUUID();
+      const body = {
+        name: 'IELTS 7.0 — B1',
+        form: { target_exam: 'IELTS' },
+        plan: { months_needed: 3, monthly_plan: [{ theme: 'x' }] },
+      };
+      await put(`/api/v1/study-plans/${id}`, body).expect(200);
+      await put(`/api/v1/study-plans/${id}`, {
+        ...body,
+        name: 'IELTS 7.0 — renamed',
+      }).expect(200);
+
+      const list = await request(http)
+        .get('/api/v1/study-plans')
+        .set(auth(token))
+        .expect(200);
+      expect(list.body.data).toHaveLength(1);
+      expect(list.body.data[0]).toMatchObject({
+        id,
+        name: 'IELTS 7.0 — renamed',
+      });
+      expect(list.body.data[0].plan.monthly_plan).toHaveLength(1);
+
+      const rows = await dataSource.query<{ name: string }[]>(
+        `SELECT name FROM study_plans WHERE id = $1`,
+        [id],
+      );
+      expect(rows).toEqual([{ name: 'IELTS 7.0 — renamed' }]);
+
+      await put(`/api/v1/study-plans/${id}`, body, otherToken).expect(409);
+      await request(http)
+        .delete(`/api/v1/study-plans/${id}`)
+        .set(auth(otherToken))
+        .expect(404);
+      const other = await request(http)
+        .get('/api/v1/study-plans')
+        .set(auth(otherToken))
+        .expect(200);
+      expect(other.body.data).toEqual([]);
+      await put('/api/v1/study-plans/not-a-uuid', body).expect(400);
+      await put(`/api/v1/study-plans/${randomUUID()}`, {
+        name: '',
+        form: {},
+        plan: {},
+      }).expect(400);
+
+      // one more stays, to prove it goes away with the account
+      await put(`/api/v1/study-plans/${randomUUID()}`, body).expect(200);
+      await request(http)
+        .delete(`/api/v1/study-plans/${id}`)
+        .set(auth(token))
+        .expect(204);
+      const after = await request(http)
+        .get('/api/v1/study-plans')
+        .set(auth(token))
+        .expect(200);
+      expect(after.body.data).toHaveLength(1);
+    });
+
+    it('exports everything held about the account, without the password hash', async () => {
+      await request(http)
+        .post('/api/v1/learning-sessions')
+        .set(auth(token))
+        .send({
+          kind: 'quiz',
+          mode_id: 'multiple-choice',
+          mode_name: 'Multiple Choice',
+          source: 'builtin',
+          title: 'Multiple Choice',
+          words: [{ term: 'door', meaning: 'cửa', is_correct: true }],
+        })
+        .expect(201);
+      const res = await request(http)
+        .get('/api/v1/account/export')
+        .set(auth(token))
+        .expect(200);
+      const d = res.body.data;
+      expect(d.account.email).toBe(email);
+      expect(d.profile.bio).toBe('Learning English');
+      expect(d.learningHistory[0].words[0].term).toBe('door');
+      expect(d.studyPlans).toHaveLength(1);
+      expect(JSON.stringify(d)).not.toMatch(/password|\$2[aby]\$/i);
+    });
+
+    it('changes the password: wrong or unchanged is a 400, then the old password and old sessions stop working', async () => {
+      const change = (current: string, next: string, tk = token) =>
+        put(
+          '/api/v1/account/password',
+          { current_password: current, new_password: next },
+          tk,
+        );
+      await change('not-the-password', NEW_PW).expect(400);
+      await change(PW, PW).expect(400);
+      await change(PW, 'short').expect(400);
+
+      const res = await change(PW, NEW_PW).expect(200);
+      expect(res.body.data.access_token).toBeTruthy();
+      expect(res.body.data.refresh_token).toBeTruthy();
+
+      await signIn(email, PW).expect(401);
+      await signIn(email, NEW_PW).expect(200);
+      await request(http)
+        .post('/api/v1/auth/refresh')
+        .send({ refresh_token: refresh })
+        .expect(401); // the old session
+      const next = await request(http)
+        .post('/api/v1/auth/refresh')
+        .send({ refresh_token: res.body.data.refresh_token })
+        .expect(200);
+      token = next.body.data.access_token;
+    });
+
+    it('deletes the account only with the right password; an administrator cannot delete theirs', async () => {
+      const del = (password: string, tk = token) =>
+        request(http)
+          .delete('/api/v1/account')
+          .set(auth(tk))
+          .send({ password });
+      await del('wrong').expect(400);
+      await signIn(email, NEW_PW).expect(200); // still there
+
+      await del(ADMIN_PASSWORD, adminToken).expect(403);
+
+      await del(NEW_PW).expect(200);
+      await signIn(email, NEW_PW).expect(401);
+      for (const table of [
+        'users',
+        'user_profiles',
+        'study_plans',
+        'learning_sessions',
+      ]) {
+        const col = table === 'users' ? 'id' : 'user_id';
+        const rows = await dataSource.query<{ n: number }[]>(
+          `SELECT COUNT(*)::int AS n FROM ${table} WHERE ${col} = $1`,
+          [userId],
+        );
+        expect(rows[0].n).toBe(0);
+      }
+      // the other account is untouched
+      await signIn(otherEmail, PW).expect(200);
     });
   });
 });

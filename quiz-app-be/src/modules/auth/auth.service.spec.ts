@@ -70,6 +70,7 @@ describe('AuthService — access/refresh tokens with rotation', () => {
       findById: jest.fn(async (id: number) => (id === user.id ? user : null)),
       create: jest.fn(),
       touchLogin: jest.fn(),
+      resetPassword: jest.fn(),
     };
     const env: Record<string, string> = {
       JWT_SECRET: SECRET,
@@ -170,6 +171,50 @@ describe('AuthService — access/refresh tokens with rotation', () => {
     await expect(
       service.register({ email: 'x@teacher.sprk', password: PW }),
     ).rejects.toThrow(BadRequestException);
+  });
+  it('changes the password: stores a new hash, signs every device out and keeps this one signed in', async () => {
+    const first = await login();
+    const other = await login(); // a second device
+    const tokens = await service.changePassword(
+      user.id,
+      PW,
+      'a-brand-new-password',
+    );
+
+    expect(users.resetPassword).toHaveBeenCalledTimes(1);
+    const [id, hash] = users.resetPassword.mock.calls[0];
+    expect(id).toBe(user.id);
+    expect(await bcrypt.compare('a-brand-new-password', hash)).toBe(true);
+    expect(hash).not.toContain('a-brand-new-password');
+
+    // the refresh tokens of both earlier sessions are revoked…
+    const hashOf = (t: string) =>
+      crypto.createHash('sha256').update(t).digest('hex');
+    for (const t of [first.refresh_token, other.refresh_token]) {
+      const row = refreshRepo.rows.find((r) => r.token_hash === hashOf(t));
+      expect(row.revoked_at).toBeTruthy();
+    }
+    // …and a fresh, working pair is returned
+    const fresh = refreshRepo.rows.find(
+      (r) => r.token_hash === hashOf(tokens.refresh_token),
+    );
+    expect(fresh.revoked_at).toBeNull();
+    expect(payloadOf(tokens.access_token).sub).toBe(user.id);
+  });
+
+  it('refuses a wrong current password (400, not 401) and an unchanged password', async () => {
+    await expect(
+      service.changePassword(user.id, 'nope-nope', 'another-password'),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(service.changePassword(user.id, PW, PW)).rejects.toMatchObject(
+      { status: 400 },
+    );
+    expect(users.resetPassword).not.toHaveBeenCalled();
+  });
+
+  it('checkPassword compares against the stored hash', async () => {
+    expect(await service.checkPassword(user.password, PW)).toBe(true);
+    expect(await service.checkPassword(user.password, 'wrong')).toBe(false);
   });
 });
 

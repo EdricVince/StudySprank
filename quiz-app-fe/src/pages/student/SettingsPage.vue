@@ -69,6 +69,8 @@
     <!-- Delete Account Modal -->
     <DeleteAccountModal
       :show="showDeleteConfirm"
+      :busy="deleting"
+      :error="deleteError"
       @close="showDeleteConfirm = false"
       @confirm="deleteAccount"
     />
@@ -103,6 +105,8 @@ const {
   studySettings,
   privacySettings,
   showDeleteConfirm,
+  deleting,
+  deleteError,
   saveAccountSettings,
   changePassword,
   updateTheme,

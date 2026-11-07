@@ -683,7 +683,18 @@ export default {
       deleteAccount: 'Delete Account', deleteAccountDesc: 'Permanently delete your account and all data',
       deleteBtn: 'Delete',
     },
+    toast: {
+      saved: 'Settings saved', saveFailed: 'Could not save your settings.',
+      accountSaved: 'Account settings saved!', accountFailed: 'Could not save your account settings.',
+      passwordMismatch: 'Passwords do not match!', passwordShort: 'Password must be at least 8 characters!',
+      passwordChanged: 'Password updated successfully!', passwordFailed: 'Could not change the password.',
+      exported: 'Data exported successfully!', exportFailed: 'Could not export your data.',
+      deleted: 'Your account was deleted.', deleteFailed: 'Could not delete the account.',
+      themeUpdated: 'Theme updated!',
+    },
+    emailLocked: 'The email address is your sign-in name and cannot be changed here.',
     deleteModal: {
+      password: 'Your password', passwordPlaceholder: 'Enter your password to confirm', wrongPassword: 'The password is incorrect.',
       title: 'Delete Account?',
       message: 'This action cannot be undone. All your data will be permanently deleted.',
       typeToConfirm: 'Type "DELETE" to confirm',
@@ -753,6 +764,11 @@ export default {
       email: 'Email Address', phone: 'Phone Number', role: 'Title / Role',
       location: 'Location', notSet: 'Not set', edit: 'Edit',
       saveChanges: 'Save Changes', cancel: 'Cancel',
+    },
+    toast: {
+      saved: 'Profile updated successfully!', saveFailed: 'Failed to save profile to server.',
+      socialAdded: 'Social link added!', socialUpdated: 'Social link updated!', socialRemoved: 'Social link removed!',
+      socialFillAll: 'Please fill in all fields!', socialFailed: 'Could not save the social links.',
     },
     socialLinks: {
       title: 'Social Links', add: 'Add', noLinks: 'No social links added yet',
@@ -885,6 +901,7 @@ export default {
     },
     preview: 'Plan Preview', level: 'Level', target: 'Target', study: 'Study', duration: 'Duration',
     generate: 'Generate with AI', generating: 'AI is scheduling...',
+    saveFailed: 'Could not save your study plan.', deleteFailed: 'Could not delete the study plan.',
     aiNotConfigured: 'AI is not configured. Please ask your admin to add an Anthropic API key.', generateFailed: 'Failed to generate plan. Please try again.',
     editPlan: '✏️ Edit Plan', monthly: 'Monthly Schedule', monthTab: 'Month {n}', addMonth: 'Add Month', hoursThisMonth: '{n}h this month',
     week: 'Week {n}: {focus}', rest: 'Rest', aiTips: 'AI Recommendations', resources: 'Study Resources',

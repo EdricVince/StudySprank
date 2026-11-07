@@ -91,6 +91,7 @@
                 class="target-slider w-full"
                 :aria-label="$t('exam.targetBand')"
                 @input="onSliderInput"
+                @change="saveTargetBand"
               />
 
               <div class="target-marks mt-2 flex justify-between font-mono text-[10px]">
@@ -310,6 +311,7 @@ const historyLoading = ref(true)
 const historyError = ref(false)
 
 onMounted(async () => {
+  void loadTargetBand()
   try {
     const status = await apiRequest<{ ai_enabled: boolean }>('/entrance-exam/ai-status', { requiresAuth: false })
     aiReady.value = status.ai_enabled
@@ -326,13 +328,41 @@ onMounted(async () => {
   }
 })
 
-const TARGET_KEY = 'studyspark_target_band'
-const targetBand = ref(parseFloat(localStorage.getItem(TARGET_KEY) ?? '7.0'))
+// The target band belongs to the account (saved on the server), not to this browser.
+const LEGACY_TARGET_KEY = 'studyspark_target_band'
+const DEFAULT_TARGET_BAND = 7.0
+const targetBand = ref(DEFAULT_TARGET_BAND)
 
 function onSliderInput(e: Event) {
-  const v = parseFloat((e.target as HTMLInputElement).value)
-  targetBand.value = v
-  localStorage.setItem(TARGET_KEY, v.toString())
+  targetBand.value = parseFloat((e.target as HTMLInputElement).value)
+}
+
+// Saved when the learner lets go of the slider (not on every step of the drag).
+async function saveTargetBand() {
+  try {
+    await api.updateAccountProfile({ target_band: targetBand.value })
+  } catch {
+    // The slider keeps its value; it is saved again the next time it is moved.
+  }
+}
+
+async function loadTargetBand() {
+  try {
+    const { target_band } = await api.getAccountProfile()
+    if (target_band !== null) {
+      targetBand.value = target_band
+    } else {
+      // A band chosen before it was stored on the account moves over once.
+      const legacy = parseFloat(localStorage.getItem(LEGACY_TARGET_KEY) ?? '')
+      if (Number.isFinite(legacy)) {
+        targetBand.value = legacy
+        await saveTargetBand()
+      }
+    }
+    localStorage.removeItem(LEGACY_TARGET_KEY)
+  } catch {
+    // Offline or signed out: the default stays.
+  }
 }
 
 // [minimum band, label key] — first match wins.
